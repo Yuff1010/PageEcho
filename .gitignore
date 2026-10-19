@@ -1,0 +1,55 @@
+# JavaScript dependencies and build outputs
+node_modules/
+dist/
+dist-electron/
+out/
+release/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+*.p12
+*.pfx
+
+# User data, downloaded media, model weights and caches
+/data/
+/user-data/
+/cache/
+/models/
+/media/
+/downloads/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+
+# Generated packages
+*.exe
+*.msi
+*.dmg
+*.AppImage
+
+# OS and editor-local files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
