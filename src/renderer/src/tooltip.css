@@ -1,0 +1,20 @@
+.action-tooltip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 7px 11px;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  background: var(--ui-panel);
+  color: var(--ui-text);
+  box-shadow: 0 4px 18px #0003;
+  font:
+    12px/1.55 'Segoe UI',
+    'Microsoft YaHei UI',
+    sans-serif;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}

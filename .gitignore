@@ -6,6 +6,8 @@ out/
 release/
 coverage/
 .vite/
+test-results/
+playwright-report/
 *.tsbuildinfo
 
 # Python environments and caches

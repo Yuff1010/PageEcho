@@ -1,0 +1,184 @@
+:root {
+  --motion-fast: 140ms;
+  --motion-normal: 220ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  a,
+  select,
+  summary {
+    transition:
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      opacity var(--motion-fast) ease,
+      transform var(--motion-normal) var(--motion-ease),
+      scale var(--motion-fast) var(--motion-ease),
+      box-shadow var(--motion-normal) ease;
+  }
+
+  :where(
+      .primary-button,
+      .secondary-button,
+      .icon-button,
+      .reader-button,
+      .reader-icon-button,
+      .reader-page-turn,
+      .card-play,
+      .transport > button,
+      .view-nav > button
+    ):active:not(:disabled) {
+    scale: 0.96;
+  }
+
+  /* Opacity keeps fixed menus and the reader's measured layout in place. */
+  .main-content > :is(.library-section, .chapters, .online-source),
+  .reading-view:not([hidden]),
+  .normal-reading-view:not([hidden]),
+  .ebook-reader-page:not(.reader-opening) {
+    animation: surface-enter var(--motion-normal) ease-out;
+  }
+
+  .bookshelf > .book-card {
+    animation: surface-enter 180ms ease-out backwards;
+  }
+  .bookshelf > .book-card:nth-child(2) {
+    animation-delay: 20ms;
+  }
+  .bookshelf > .book-card:nth-child(3) {
+    animation-delay: 40ms;
+  }
+  .bookshelf > .book-card:nth-child(4) {
+    animation-delay: 60ms;
+  }
+  .bookshelf > .book-card:nth-child(n + 5):nth-child(-n + 8) {
+    animation-delay: 80ms;
+  }
+
+  .book-cover-button > .book-cover {
+    transition:
+      transform var(--motion-normal) var(--motion-ease),
+      box-shadow var(--motion-normal) ease;
+  }
+  .book-cover-button:focus-visible > .book-cover {
+    transform: translateY(-3px);
+  }
+
+  .card-play,
+  .book-actions,
+  .cover-open {
+    transition:
+      opacity var(--motion-fast) ease,
+      transform var(--motion-normal) var(--motion-ease),
+      background-color var(--motion-fast) ease;
+  }
+  .episode-list > li,
+  .bookshelf-list > .book-card,
+  .reader-toc-list button {
+    transition: background-color var(--motion-fast) ease;
+  }
+
+  .view-nav button.active::before {
+    animation: nav-indicator-enter 180ms var(--motion-ease);
+  }
+  .library-tabs button.active::after {
+    animation: tab-indicator-enter 180ms var(--motion-ease);
+  }
+
+  .popover-panel {
+    --panel-offset: -4px;
+    transform-origin: top right;
+    animation: panel-enter 160ms var(--motion-ease);
+  }
+  .popover-top {
+    --panel-offset: 4px;
+    transform-origin: bottom right;
+  }
+  .reader-panel-drawer {
+    --panel-offset: -5px;
+    animation: panel-enter 180ms var(--motion-ease);
+  }
+  .listening-dialog[open],
+  .import-preview {
+    --panel-offset: 6px;
+    animation: panel-enter var(--motion-normal) var(--motion-ease);
+  }
+  .listening-dialog[open]::backdrop {
+    animation: surface-enter 180ms ease-out;
+  }
+  .player-notice,
+  .reader-error,
+  .library-search {
+    animation: surface-enter 160ms ease-out;
+  }
+
+  .ebook-reader-page,
+  .book-viewport {
+    transition:
+      background-color var(--motion-normal) ease,
+      color var(--motion-normal) ease;
+  }
+  .reader-chrome {
+    transition:
+      opacity 180ms ease,
+      transform var(--motion-normal) var(--motion-ease),
+      background-color var(--motion-normal) ease,
+      color var(--motion-normal) ease,
+      border-color var(--motion-normal) ease;
+  }
+  .reader-panel-drawer {
+    transition:
+      background-color var(--motion-normal) ease,
+      color var(--motion-normal) ease,
+      border-color var(--motion-normal) ease;
+  }
+  .reader-page-turn {
+    transition:
+      opacity var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      scale var(--motion-fast) var(--motion-ease);
+  }
+
+  @media (hover: hover) {
+    .book-cover-button:hover > .book-cover {
+      transform: translateY(-3px);
+      box-shadow:
+        inset 5px 0 #00000016,
+        inset 7px 0 #ffffff0a,
+        0 8px 16px #0003;
+    }
+  }
+
+  @keyframes surface-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes panel-enter {
+    from {
+      opacity: 0;
+      translate: 0 var(--panel-offset, -4px);
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+  @keyframes nav-indicator-enter {
+    from {
+      opacity: 0;
+      transform: scaleY(0.5);
+    }
+  }
+  @keyframes tab-indicator-enter {
+    from {
+      opacity: 0;
+      transform: scaleX(0.6);
+    }
+  }
+}

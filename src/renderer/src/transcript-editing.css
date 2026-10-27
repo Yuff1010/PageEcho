@@ -1,0 +1,96 @@
+.reader-panel .transcript-segments .transcript-sentence {
+  padding-right: 148px;
+}
+.sentence-actions {
+  position: absolute;
+  top: 14px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+}
+.sentence-actions .sentence-mark,
+.sentence-actions .sentence-edit {
+  position: static;
+  flex-shrink: 0;
+}
+.transcript-editing-dialog.listening-dialog {
+  width: min(880px, calc(100vw - 40px));
+}
+.transcript-editing-dialog section,
+.transcript-editing-dialog fieldset {
+  min-width: 0;
+}
+.transcript-editing-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.transcript-editing-dialog textarea {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+}
+.transcript-editing-dialog p,
+.transcript-editing-dialog li,
+.transcript-editing-dialog dd {
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+.transcript-edit-selection,
+.transcript-replacement-changes {
+  max-height: 240px;
+  overflow: auto;
+  padding-left: 24px;
+}
+.transcript-edit-selection li,
+.transcript-replacement-changes li {
+  padding: 8px 0;
+}
+.transcript-edit-preview,
+.transcript-edit-stale {
+  border: 1px solid var(--ui-line);
+  padding: 12px;
+  border-radius: 6px;
+  margin: 12px 0;
+}
+.transcript-edit-tabs {
+  flex-wrap: wrap;
+}
+.transcript-timing-rows {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0;
+}
+.transcript-timing-rows > div {
+  border-bottom: 1px solid var(--ui-line);
+  padding-bottom: 12px;
+}
+.transcript-edit-book-choices {
+  list-style: none;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+}
+.transcript-edit-book-choices label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 9px 0;
+  overflow-wrap: anywhere;
+}
+.transcript-edit-book-choices input {
+  flex: none;
+  width: auto;
+}
+.transcript-edit-history {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+.transcript-edit-history p {
+  flex-basis: 100%;
+  margin: 0;
+}

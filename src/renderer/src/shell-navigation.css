@@ -1,0 +1,66 @@
+/* The app rail is shared by both shelves and other non-reading routes. */
+.app-shell {
+  --sidebar-width: var(--shell-rail-width);
+}
+.app-shell > .sidebar {
+  align-items: center;
+  gap: 0;
+  padding: 28px 0 18px;
+  border-color: color-mix(in srgb, var(--ui-line) 45%, transparent);
+}
+.sidebar > .brand {
+  justify-content: center;
+  width: var(--shell-nav-size);
+  height: var(--shell-nav-size);
+  padding: 0;
+  border-radius: var(--shell-control-radius);
+  background: var(--ui-accent-soft);
+}
+.sidebar > .brand .icon {
+  width: 24px;
+  height: 24px;
+}
+.sidebar > .view-nav {
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 34px;
+}
+.sidebar .view-nav > button {
+  justify-content: center;
+  width: var(--shell-nav-size);
+  height: var(--shell-nav-size);
+  padding: 0;
+  border-radius: var(--shell-control-radius);
+}
+.sidebar .view-nav > button.active {
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+}
+.sidebar .view-nav > button.active::before {
+  left: -10px;
+  top: 14px;
+  bottom: 14px;
+}
+.sidebar > .sidebar-bottom {
+  padding: 0;
+}
+.sidebar-bottom .popover > .icon-button {
+  width: var(--shell-nav-size);
+  height: var(--shell-nav-size);
+  border-radius: var(--shell-control-radius);
+}
+.sidebar :is(.brand, .view-nav > button, .icon-button),
+.shelf-header :is(.icon-button, .audio-import),
+.shelf-controls :is(.icon-button, .library-tabs button) {
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar :is(.brand, .view-nav > button, .icon-button),
+  .shelf-header :is(.icon-button, .audio-import),
+  .shelf-controls :is(.icon-button, .library-tabs button) {
+    transition: none;
+  }
+}

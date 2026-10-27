@@ -1,0 +1,101 @@
+/* Both readers use the same toolbar geometry, controls and interface palette. */
+.book-reader-footer,
+.companion-page :is(.companion-reading-footer, .original-reading-footer).book-reader-footer {
+  min-height: 64px;
+  border-top: 1px solid var(--ui-line);
+  color: var(--ui-muted);
+  background: var(--ui-panel);
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+}
+.reader-navigation-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.book-reader-toolbar.reader-toolbar,
+.companion-page .book-reader-toolbar.companion-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--reader-toolbar-gap);
+  height: var(--reader-toolbar-height);
+  min-height: var(--reader-toolbar-height);
+  padding: 0 var(--reader-toolbar-inset);
+  border-bottom: 1px solid var(--ui-line);
+  background: var(--ui-panel);
+  color: var(--ui-text);
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+}
+.book-reader-toolbar .reader-toolbar-title,
+.companion-page .book-reader-toolbar .companion-title {
+  min-width: 0;
+  color: var(--ui-text);
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.book-reader-toolbar .companion-title h2 {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 400;
+}
+.book-reader-toolbar .companion-title > span {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.book-reader-toolbar :is(.reader-library-navigation, .reader-toolbar-actions) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.book-reader-toolbar .reader-toolbar-actions {
+  justify-self: end;
+}
+.book-reader-toolbar :is(.reader-button, .reader-icon-button),
+.companion-page .book-reader-toolbar :is(.reader-button, .reader-icon-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--reader-control-size);
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--ui-text);
+  background: transparent;
+  font:
+    14px 'Segoe UI',
+    'Microsoft YaHei UI',
+    sans-serif;
+}
+.book-reader-toolbar .reader-icon-button,
+.companion-page .book-reader-toolbar .reader-icon-button {
+  width: var(--reader-control-size);
+  min-width: var(--reader-control-size);
+  padding: 7px;
+}
+.book-reader-toolbar :is(.reader-button, .reader-icon-button) > .icon,
+.companion-page .book-reader-toolbar :is(.reader-button, .reader-icon-button) > .icon {
+  width: var(--reader-icon-size);
+  height: var(--reader-icon-size);
+}
+.book-reader-toolbar :is(button:hover:not(:disabled), button[aria-expanded='true']) {
+  color: var(--ui-text);
+  background: var(--ui-hover);
+}
+.book-reader-toolbar button:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+@media (max-width: 880px) {
+  .book-reader-toolbar.reader-toolbar,
+  .companion-page .book-reader-toolbar.companion-toolbar {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .book-reader-toolbar .reader-library-navigation .reader-button > span {
+    display: none;
+  }
+}

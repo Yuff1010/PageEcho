@@ -1,0 +1,120 @@
+# 界面参数与组件所有权
+
+界面颜色使用 `appearance.css` 中的 `--ui-*`，尺寸与间距使用 `src/renderer/src/design-tokens.css`。同一类页面共用组件及参数，不按有声书／电子书路由各写一套字号和头部高度。布局关系如 `0`、`100%`、网格列归属属于结构；可调整的视觉尺寸集中到对应参数组。
+
+## 书架头部与卡片
+
+两类书架的根节点均为 `.app-shell[data-page-kind='shelf']`。`App` 只传入资源类型、状态与回调；`ShelfHeader` 统一“我的书架”、搜索和导入，`ShelfControls` 统一资源导航、排序和布局。它们实际定义在 `ShelfHeader.tsx`，几何规则由 `shelf-header.css` 负责。
+
+此前电子书路由同时带有 `.reading`，会命中旧 `.reading .topbar` 的 76px 高度及 21px 标题规则，而有声书使用另一套头部。现在 `.reading` 只用于伴读页面，书架使用明确的页面种类；两个书架不再继承阅读页的头部规则。
+
+| 参数                                                                        | 默认值                                          | 负责组件与行为                                       |
+| --------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- |
+| `--shelf-header-height`                                                     | 94px；窄窗口 90px                               | `ShelfHeader` 的实际高度                             |
+| `--shelf-title-size` / `--shelf-title-line-height` / `--shelf-title-weight` | 26px / 34px / 650                               | 两类书架相同的标题排版，窄窗口不再单独缩小电子书标题 |
+| `--shelf-header-padding-start` / `--shelf-header-padding-end`               | 26px / 15px；窄窗口均 18px                      | 标题与工具按钮的垂直位置                             |
+| `--shelf-page-inset`                                                        | 36px；≥1400 为 40px；≤950 为 26px；≤800 为 22px | 头部、资源导航与卡片的同一左边界                     |
+| `--shell-control-size` / `--shell-icon-size`                                | 40px / 18px                                     | 顶部工具按钮的目标尺寸与图标尺寸                     |
+| `--shelf-search-width`                                                      | 240px；≤950 为 175px；≤800 为 155px             | 展开的书架搜索框                                     |
+| `--shelf-controls-height` / `--shelf-controls-bottom-gap`                   | 48px / 29px；窄窗口间距 25px                    | 资源导航下方卡片开始位置                             |
+| `--shelf-sort-height` / `--shelf-sort-width` / `--shelf-layout-width`       | 36px / 36px / 36px                              | 图标排序选择框与布局按钮                             |
+| `--shelf-card-width`                                                        | 152px；≥1400 为 160px；≤800 为 138px            | 两种格式的网格卡片宽度                               |
+| `--shelf-grid-row-gap` / `--shelf-grid-column-gap`                          | 30px / 26px                                     | 两种格式相同的网格间距；断点值也只在参数文件定义     |
+| `--shelf-cover-ratio`                                                       | 0.87                                            | 两种格式相同的封面比例                               |
+| `--shelf-card-title-height` / `--shelf-card-title-size`                     | 36px / 15px                                     | 书名与更多菜单所在行                                 |
+| `--shelf-card-meta-size` / `--shelf-card-meta-height`                       | 13px / 21px                                     | 格式／集数与实际位置                                 |
+| `--shelf-card-info-gap` / `--shelf-card-cover-radius`                       | 12px / 8px                                      | 封面到书名的间距与封面圆角                           |
+| `--shelf-card-cover-title-offset` / `--shelf-card-action-inset`             | 30px / 8px                                      | 封面书名位置与网格关联入口留边                       |
+| `--shelf-card-source-size` / `--shelf-card-source-gap`                      | 16px / 7px                                      | 本地／在线来源图标及其与集数的间距                   |
+| `--shelf-card-focus-width` / `--shelf-card-focus-offset`                    | 2px / 3px                                       | 书卡操作、书名及截断位置的键盘焦点                   |
+| `--shelf-card-cross-size` / `--shelf-card-cross-icon-size`                  | 32px / 16px                                     | 已关联资源的阅读／收听小图标                         |
+| `--shelf-list-cover-width` / `--shelf-list-card-height`                     | 64px / 114px                                    | 两种格式的列表卡片                                   |
+| `--shelf-list-cross-size` / `--shelf-list-action-inset`                     | 24px / 4px                                      | 列表封面左下的跨模式入口，避免覆盖书名与播放按钮     |
+| `--shelf-list-info-gap`                                                     | 18px                                            | 列表封面与书目信息的间距                             |
+
+`ShelfBookCard` 定义在 `LibraryShelf.tsx`，是封面、书名、元信息、关联状态与更多菜单的唯一结构；`library-shelf.css` 使用上述参数。`NormalReading` 负责电子书加载、导入和移除数据，`App` 负责有声书动作与统一书架路由，两者不能另加覆盖头部的横幅或格式专属外边距。
+
+卡片自身保留一个主要动作：有声书播放／暂停，电子书阅读。已关联的另一种资源使用封面上的小图标：有声书卡片使用书本图标进入电子书，电子书卡片使用耳机图标收听对应有声书。网格放在封面左上，列表放在左下，与右下主动作保持分离；标题行只保留书名和更多菜单。按钮具有包含书名的 `aria-label`，`Tooltip` 同时解释已关联状态与动作，支持悬浮和键盘焦点；不再另占一行重复“已关联”或“阅读电子书／收听有声书”。未关联书籍的关联入口、电子书系统朗读、移除及其他操作保留在更多菜单，不把系统朗读误标为已有有声书。
+
+卡片文字按书名、集数／格式、实际位置三个层级排列。本地／在线音频用集数旁的来源图标与气泡保留信息，书名及截断的实际位置也可聚焦查看全文。共用封面不再重复展示装饰性英文和标语；封面尺寸、两类书架的共同几何、阅读进度和原有动作语义保持一致。
+
+## 参数修改边界
+
+应用导航共用 `--shell-rail-width`（80px，窄窗口 68px）、`--shell-nav-size`（44px）和 `--shell-control-radius`（10px），由 `shell-navigation.css` 应用。书架导入主按钮为 40px，附属菜单为 26px；资源分类、排序和布局使用图标，实际的选择值、菜单文字与键盘行为仍保留。常驻动作不重复显示图标旁文字。
+
+- `--shell-*`、`--shelf-*`：书架与应用框架维护者负责；修改先确认 `ShelfHeader`、`ShelfControls` 和 `ShelfBookCard` 的共同表现。
+- `--reader-*`：阅读界面维护者负责，应用到共用阅读工具栏、正文和阅读设置。阅读页不通过 `.reading` 给书架重新指定尺寸。
+- `--ui-*`：应用主题维护者负责；浅色／深色改变颜色，不改变书架控件几何尺寸。
+- 操作、会话与保存语义仍由播放器、原文映射及阅读数据模块负责，视觉参数不改变播放或阅读位置。
+
+## 软件结构与数据流
+
+| 层级           | 入口与职责                                                                                          | 不应承担的职责                             |
+| -------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 渲染入口       | `main.tsx` 加载参数／主题／组件样式与 `ReaderDockProvider`                                          | 不按书籍格式注入第二套页面尺寸             |
+| 路由与组织     | `App.tsx` / `app-navigation.ts` 选择书架、章节、录音伴读或独立电子书                                | 不复制头部、卡片、阅读设置结构             |
+| 共用视觉组件   | `ShelfHeader` / `ShelfControls` / `ShelfBookCard` / `ReaderToolbar` / `ReaderFooter` / `ReaderDock` | 不猜测进度、音文映射或识别百分比           |
+| 阅读偏好与测量 | `reader-settings.ts` / `reader-dom.ts` / `motion.ts` 与两种正文加载 hook                            | 不把窗口重排当作用户跳转音频或修改同步映射 |
+| 持久声音会话   | `player.ts` 与电子书朗读服务                                                                        | 不因工具面板切换或控件布局移动而重建音频   |
+| 字幕与原文任务 | preload 中明确的 IPC、主进程队列和数据库                                                            | 不把显示层的动画或本地计数作为真实任务状态 |
+
+调整共用高度、字号或间距时先改参数；改变结构时先改对应共用组件。真正需要保留的模式差异是内容与动作，例如录音句子定位声音、电子书分页阅读和系统朗读，而不是同一个标题在两种路由上使用不同字号。新增模式差异应写在此文档，并让回归测试检查实际渲染后的几何与行为。
+
+根目录 `AGENTS.md` 指向本规范，供后续修改持续遵循。参数表、组件实现和实际尺寸回归构成同一约定；只写文档而继续维护多份重复结构不能视为统一完成。
+
+## 回归证据
+
+`tests/desktop/shelf-ui.spec.ts` 保留导入、搜索、排序、菜单、移除取消焦点与关联能力检查，并新增读取真实 `getBoundingClientRect()` 和 `getComputedStyle()` 的对照。它在 1360px／720px、浅色／深色、网格／列表及搜索展开／收起下比较两类书架的头部、标题、导入、搜索、资源导航、排序、布局按钮、卡片起点与封面尺寸；同时检查跨模式入口只有图标且具备准确名称。该测试不是仅比较 class 名或设计参数的字符串。
+
+本轮完整验证结果见本文件末尾的交付记录；运行中的检查不会提前记为通过。
+
+## 阅读与单一控制栏
+
+`ReaderToolbar` 负责两种阅读页相同的顶部操作尺寸；正文排版仍由 `reader-settings.ts` 中的全局／本书偏好提供。`reader-dom.ts` 是可视句子／字符锚点、列步长和恢复位置的共同基础，`motion.ts` 是共同翻页动画基础。有声书的 `useCompanionPagination` 与电子书的 `useEbookDocument` 都使用这些函数，60 句只属于有界的数据窗口，不能把它显示为按屏幕排版后的“整书页数”。
+
+| 参数                                                     | 默认值                               | 负责组件                 |
+| -------------------------------------------------------- | ------------------------------------ | ------------------------ |
+| `--reader-toolbar-height`                                | 60px                                 | `ReaderToolbar`          |
+| `--reader-toolbar-inset` / `--reader-toolbar-gap`        | 22px / 20px；窄窗口 12px / 8px       | 两种阅读页的工具栏       |
+| `--reader-control-size` / `--reader-icon-size`           | 38px / 17px                          | 工具栏按钮与图标         |
+| `--reader-dock-height` / `--reader-dock-row-height`      | 124px / 34px；≤900px 为 144px / 54px | `ReaderDock` 与播放器    |
+| `--reader-dock-control-size` / `--reader-dock-text-size` | 26px / 12px                          | 内联来源、进度和翻页操作 |
+| `--reader-progress-height`                               | 5px                                  | 小型真实生成进度条       |
+| `--reader-settings-width`                                | 340px                                | 紧凑设置面板             |
+| `--reader-speech-dock-height`                            | 112px                                | 电子书朗读中的单一底栏   |
+
+有声书正文上下不再添加独立的来源栏、进度卡和翻页状态栏。唯一底部 `PlayerBar` 同时承载播放、来源、字幕生成、跟随和分页：来源使用 `source` 插槽，实时生成使用 `activity` 插槽，当前正文分页／跟随使用 `navigation` 插槽。`ReaderDockProvider` 与 `ReaderDockSlot` 只负责 React 控件的布局；持久音频元素继续由 `player.ts` 唯一持有，切换文字来源、打开面板或移动控件都不能重新创建音频、重置进度或自行恢复播放。
+
+`TranscriptionActivity` 的内联模式直接显示真实阶段、小进度条、分段数和取消按钮；未知总量使用不定进度。说明与完整任务细节在“字幕生成详情”弹层中按需打开，设置页仍可显示完整任务卡。取消／重试继续调用同一个会话与任务接口，布局压缩不改变取消和部分稿保留语义。
+
+电子书只有一个 `ReaderFooter`，朗读状态、暂停／声音／语速／停止操作也放进该底栏；不在正文上方另加独立朗读面板。活动朗读时底栏保持可用，正文按实际底栏高度保留空间。
+
+## 阅读设置与帮助提示
+
+`ReaderPreferences.tsx` 是电子书与同步伴读共用的设置结构。两种阅读模式均提供“排版／外观／翻页”三个真实分类；方向键、Home、End 在分类之间移动焦点并选中对应面板。伴读的翻页选项连接真实分页与滚动行为，不能仅因存在音频而隐藏。设置值、全局与本书的覆盖关系、保存及恢复默认仍由 `reader-settings.ts` 负责。
+
+`reader-page.css` 中的 preferences 样式负责设置密度：范围标签、短选项“全局／本书”和帮助按钮位于一行；滑杆以标签、控件、数值组成紧凑行；选择框、复选框沿统一行高排列。设置侧栏按内容缩短，并限制最大高度，内容在侧栏内滚动。窄窗口不应横向溢出，恢复默认和保存错误须保持可见。不要用字号缩小或删除功能来压缩面板。
+
+预设阅读配色、面板透明度与应用主题直接可见。自定义颜色和个人配色置于原生 `details` 中按需展开；摘要保留方向标识和键盘焦点。个人配色名称草稿属于组件状态，切换设置分类不能清空。低对比度提示位于高级折叠内容之外；偏好、主题或个人配色保存失败也直接显示，不能转移到帮助提示中。
+
+`HelpTip.tsx` 与 `help-tip.css` 承载可选解释，例如应用范围的覆盖规则、透明度含义、字体回退和翻页行为。触发器是带准确可访问名称的按钮：鼠标悬停、键盘聚焦或触屏点击均可阅读；按钮使用 `aria-describedby` 关联当前 `role="tooltip"` 内容。提示以原生 popover 的顶层显示，避免被滚动容器裁切，并限制在窗口内。Escape 优先关闭提示且保留触发器焦点，再次 Escape 才交给阅读面板；失焦、外部点击或触发器隐藏也会关闭提示。不能用仅鼠标可见的 `title` 替代这一交互。
+
+常驻动作的短名称由 `Tooltip.tsx`／`tooltip.css` 统一提供：悬浮约 360ms 或键盘聚焦显示，点击仍直接执行原动作；提示不添加包装 DOM，不覆盖 ref、可访问名称或原生控件事件。气泡观察自身及触发器尺寸、保持窗口边界，菜单和原生下拉展开时不抢占 Escape。不要同时保留原生 `title` 气泡造成双重说明。设置主动帮助继续使用 `HelpTip`；菜单文字、正文信息和实际错误不能统一藏进提示。
+
+`ReaderAction` 在 `ReaderToolbar.tsx` 中组合准确图标、原生按钮和共用提示，`reader-icon-actions.css` 分别使用工具栏与底栏已有尺寸参数。播放器的 `player-chrome.css` 只调整播放器本身的控件对齐；字幕摘要的详细语义继续属于 `UISubtitleStatus`，真实数值来源不变，长说明按需查看。视觉诊断及取舍见 [图标与视觉层级优化](UI_REFINEMENT.md)。
+
+`tests/desktop/reader-settings-compact.spec.ts` 覆盖 1200px／720px 宽度、浅色／深色、面板高度与滚动、三个设置分类、键盘／悬停／触屏帮助提示、Escape 焦点、范围短选项、配色草稿及常显错误。既有 `reader-preferences.spec.ts` 和 `reader-blending.spec.ts` 仍验证配色持久化、透明度和真实绘制对比度；高级控件改为先展开后操作。此处列出验收范围，最终桌面结果由主任务统一运行记录。
+
+## 0.25.0-dev.8 历史交付记录
+
+`0.25.0-dev.8` 的 529 项单元／模块检查、类型、lint、格式及最终 176 项桌面回归全部通过，无失败、跳过或不稳定重试。最终桌面结果为 `cache/compact-reader-validation/desktop-results.json`，截图位于 `cache/compact-reader-verified-tests/`；汇总为 `cache/compact-reader-validation/report.json`。最终构建的 192 个源码文件与当前实现一致，主 `out/` 的 8 个文件未变。
+
+底栏回归在 1144×761 和 720×600 下测量实际控件边界：来源、生成阶段、小进度条、取消及分页均在唯一底栏范围内，按钮没有互相遮挡，正文占扣除工具栏和底栏后空间的 90% 以上。任务未知总量、取消中、已有部分稿、处理暂停与重启后恢复均使用真实主进程队列及受控 worker 验证；未据此宣称模型识别准确率。
+
+最终自包含目录的 89 个文件与 90 个 ZIP 条目校验通过；复制到独立中文路径并在全新数据、仅系统 PATH 下完成 WAV 播放、TXT worker、系统声音实际播放及重启进度恢复。报告为 `cache/handoff-smoke/2026-10-27T01-36-09.530Z/report.json`，包路径及摘要见 [交付说明](DELIVERY.md)。本机隔离运行不等于干净设备或安装器验收。
+
+## 0.26.0-dev.3 图标界面交付
+
+529 项单元／模块检查、类型、lint 和格式检查通过。197 个源码文件与最终构建一致，主 `out/` 的 8 个文件未变。181 项桌面用例均验证：完整运行通过 180 项，唯一旧文案断言改为核对真实集名及时间后复验通过；书签、媒体坐标、重启和音频版本检查保持完整。原始完整报告与复验分别为 `cache/icon-ui-validation/desktop-results.json`、`recent-position-recheck.json`，汇总为同目录 `report.json`。
+
+新增用例检查图标操作的准确名称、悬浮与焦点气泡、原生下拉和菜单的 Escape、真实导入与布局、媒体会话及字幕数值。最终目录通过独立路径、新数据、系统 PATH 下的 WAV／TXT worker／Windows 声音播放与重启恢复验证，报告为 `cache/handoff-smoke/2026-10-27T04-38-56.477Z/report.json`。截图位于 `cache/icon-ui-verified-tests/`，包路径及校验见 [交付说明](DELIVERY.md)。

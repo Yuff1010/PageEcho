@@ -1,0 +1,102 @@
+.offline-preparation-dialog.listening-dialog {
+  width: min(900px, calc(100vw - 40px));
+}
+.offline-preparation-dialog section,
+.offline-preparation-dialog fieldset {
+  min-width: 0;
+}
+.offline-preparation-dialog p {
+  overflow-wrap: anywhere;
+}
+.offline-preparation-dialog select {
+  max-width: min(100%, 360px);
+}
+.offline-preparation-dialog .offline-plan-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.offline-preview-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 20px;
+  padding: 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+}
+.offline-preview-counts div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+.offline-preview-counts dd {
+  margin: 0;
+}
+.offline-preview-conflicts,
+.offline-release-confirm {
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+.offline-preview-items {
+  max-height: 260px;
+  overflow: auto;
+  padding-left: 28px;
+}
+.offline-preview-items li {
+  padding: 7px 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.offline-plan-list,
+.offline-item-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.offline-plan-list > li,
+.offline-item-list > li {
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.offline-plan-list p,
+.offline-item-list p {
+  margin: 6px 0;
+  line-height: 1.65;
+}
+.offline-item-list > li > span {
+  display: block;
+  margin-top: 7px;
+}
+.offline-budget-change {
+  margin: 14px 0;
+}
+.offline-episode-choices {
+  list-style: none;
+  padding: 0;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+}
+.offline-episode-choices li {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ui-line);
+}
+.offline-episode-choices label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.offline-episode-choices input {
+  flex: none;
+  width: auto;
+  margin-top: 4px;
+}

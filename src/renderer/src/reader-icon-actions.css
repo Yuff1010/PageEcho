@@ -1,0 +1,52 @@
+/* Action labels live in accessible names and shared hover/focus tooltips. */
+:is(.ebook-reader-page, .companion-page) .reader-action,
+.book-reader-toolbar .reader-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--reader-control-size);
+  min-width: var(--reader-control-size);
+  height: var(--reader-control-size);
+  min-height: var(--reader-control-size);
+  padding: 7px;
+}
+:is(.ebook-reader-page, .companion-page) .reader-action > .icon {
+  width: var(--reader-icon-size);
+  height: var(--reader-icon-size);
+  flex-shrink: 0;
+}
+.reader-action > .reader-turn-left {
+  transform: rotate(180deg);
+}
+.companion-page .reader-dock-row .reader-action,
+.companion-page .reader-dock-slot .companion-source-tabs .reader-action {
+  width: var(--reader-dock-control-size);
+  min-width: var(--reader-dock-control-size);
+  height: var(--reader-dock-control-size);
+  min-height: var(--reader-dock-control-size);
+  padding: 4px;
+}
+.companion-page .companion-source-tabs .reader-action[aria-pressed='true'] {
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+  box-shadow: inset 0 -2px var(--ui-accent);
+}
+.reader-bottom-bar .ebook-speech-actions .reader-action {
+  width: var(--reader-dock-control-size);
+  min-width: var(--reader-dock-control-size);
+  height: var(--reader-dock-control-size);
+  min-height: var(--reader-dock-control-size);
+  padding: 4px;
+}
+.ebook-speech-actions label > .icon {
+  width: var(--reader-icon-size);
+  height: var(--reader-icon-size);
+  flex: 0 0 auto;
+}
+.companion-page .reader-pagination label,
+.companion-page .original-pagination > span {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

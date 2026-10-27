@@ -1,0 +1,80 @@
+.component-installation {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 7px;
+  min-width: 0;
+}
+.component-installation > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.component-installation section,
+.component-installation fieldset {
+  min-width: 0;
+}
+.component-installation fieldset {
+  margin: 12px 0;
+  padding: 10px 0;
+  border: 0;
+}
+.component-installation legend,
+.component-installation h5 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.component-installation h5 {
+  margin: 8px 0;
+}
+.component-installation p {
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+.component-installation-activity {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--ui-accent);
+  background: var(--ui-panel);
+}
+.component-installation-activity progress {
+  display: block;
+  width: min(100%, 380px);
+}
+.component-package-name {
+  word-break: break-all;
+}
+.component-installation-space {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  font-size: 14px;
+}
+.component-installation-space div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.component-installation-space dd {
+  margin: 0;
+}
+.component-installation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.component-installation-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 1px solid var(--ui-line);
+  padding: 12px 0;
+}
+.component-installation-list li > div {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+.component-installation-list p {
+  margin: 4px 0;
+}

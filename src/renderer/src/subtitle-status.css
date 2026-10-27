@@ -1,0 +1,204 @@
+.subtitle-status-player {
+  margin-top: 4px;
+  color: var(--ui-muted, #a0a99f);
+  font-size: 13px;
+}
+.subtitle-status-player > summary {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  gap: 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  list-style: none;
+}
+.subtitle-status-player > summary::-webkit-details-marker {
+  display: none;
+}
+.subtitle-status-player > summary::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin: -3px 3px 0 1px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(45deg);
+  flex: 0 0 auto;
+}
+.subtitle-status-player[open] > summary::after {
+  transform: rotate(225deg);
+  margin-top: 2px;
+}
+.subtitle-status-player > summary:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+.subtitle-status-player > summary:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.subtitle-status-compact {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.subtitle-status-compact > .icon,
+.subtitle-status-loading > .icon,
+.subtitle-status-player > summary > .icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.subtitle-status-compact[data-state='complete'] > .icon {
+  color: var(--ui-accent);
+}
+.subtitle-status-compact:is([data-state='failed'], [data-state='stale']) {
+  color: var(--ui-danger);
+}
+.subtitle-status-value,
+.subtitle-status-stage {
+  flex: 0 0 auto;
+}
+.subtitle-status-lead {
+  color: var(--ui-muted);
+  font-size: 11px;
+}
+.subtitle-status-mini-progress {
+  appearance: none;
+  width: 30px;
+  height: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--ui-line);
+  accent-color: var(--ui-accent);
+}
+.subtitle-status-mini-progress::-webkit-progress-bar {
+  background: var(--ui-line);
+  border-radius: inherit;
+}
+.subtitle-status-mini-progress::-webkit-progress-value {
+  background: var(--ui-accent);
+  border-radius: inherit;
+}
+.subtitle-status-mini-progress:indeterminate {
+  background: repeating-linear-gradient(90deg, var(--ui-line) 0 5px, var(--ui-accent) 5px 10px);
+}
+.subtitle-status-mini-progress:indeterminate::-webkit-progress-bar {
+  background: transparent;
+}
+.subtitle-status-popup {
+  position: fixed;
+  left: 24px;
+  top: 12px;
+  width: min(480px, calc(100vw - 48px));
+  max-height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px 16px;
+  border: 1px solid var(--ui-line, #363d36);
+  border-radius: 6px;
+  background: var(--ui-panel, #202321);
+  color: var(--ui-text, #e1e5df);
+  box-shadow: 0 4px 16px #0005;
+  z-index: 2;
+}
+.subtitle-status-popup:not([data-positioned]) {
+  visibility: hidden;
+}
+.subtitle-status-popup-heading {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+}
+.subtitle-status-popup-heading button {
+  color: inherit;
+  font-size: inherit;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  flex-shrink: 0;
+}
+.subtitle-status-popup-body {
+  min-height: 0;
+  overflow: auto;
+}
+.subtitle-status-detail {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.subtitle-status-detail p,
+.now-playing .subtitle-status-detail p {
+  margin: 3px 0;
+  white-space: normal;
+  overflow: visible;
+  color: inherit;
+  font-size: inherit;
+}
+.subtitle-status-job {
+  color: inherit;
+}
+.subtitle-status-summary {
+  color: var(--reader-text, var(--ui-text));
+}
+.subtitle-status-diagnostics {
+  margin-top: 3px;
+  color: var(--reader-muted, var(--ui-muted));
+  font-size: 14px;
+}
+.subtitle-status-diagnostics > summary {
+  min-height: 32px;
+  padding-block: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.subtitle-status-diagnostics[open] > summary {
+  margin-bottom: 6px;
+}
+.subtitle-status-badge,
+.subtitle-status-loading {
+  color: var(--ui-muted, #a0a99f);
+  font-size: 13px;
+}
+.subtitle-status-loading {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+}
+.episode-list .subtitle-status-badge {
+  flex-shrink: 0;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subtitle-status-pages {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+@media (max-width: 800px) {
+  .episode-list .subtitle-status-badge {
+    max-width: 96px;
+  }
+}

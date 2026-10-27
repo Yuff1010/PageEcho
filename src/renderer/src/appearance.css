@@ -1,0 +1,242 @@
+/* Shared interface palette; reading paper keeps its user-selected colors. */
+:root {
+  --ui-bg: #141c19;
+  --ui-panel: #1c2822;
+  --ui-nav: #111b17;
+  --ui-field: #17221c;
+  --ui-text: #eef5ef;
+  --ui-muted: #abbdb2;
+  --ui-line: #3b5044;
+  --ui-control-line: #718b7b;
+  --ui-hover: #293e31;
+  --ui-accent: #79d9a2;
+  --ui-accent-soft: #263f30;
+  --ui-on-accent: #10261b;
+  --ui-danger: #ffb6a8;
+  --ui-danger-bg: #3c2723;
+  --ui-warning: #f3cf92;
+  --ui-warning-bg: #3a3021;
+  --ui-shadow: 0 12px 40px #0004;
+  --ink: var(--ui-text);
+  --muted: var(--ui-muted);
+  --line: var(--ui-line);
+  --accent: var(--ui-accent);
+  --green: var(--ui-accent);
+  --paper: var(--ui-bg);
+  color: var(--ui-text);
+  background: var(--ui-bg);
+}
+:root[data-ui-theme='light'] {
+  color-scheme: light;
+  --ui-bg: #f4f7f4;
+  --ui-panel: #ffffff;
+  --ui-nav: #eaf0ea;
+  --ui-field: #f5f8f5;
+  --ui-text: #213c31;
+  --ui-muted: #54695e;
+  --ui-line: #d0dcd3;
+  --ui-control-line: #7d9086;
+  --ui-hover: #e7eee8;
+  --ui-accent: #17633f;
+  --ui-accent-soft: #e1efe4;
+  --ui-on-accent: #ffffff;
+  --ui-danger: #a33124;
+  --ui-danger-bg: #fff0ec;
+  --ui-warning: #7d4f0a;
+  --ui-warning-bg: #fff4dc;
+  --ui-shadow: 0 12px 40px #193e281a;
+}
+.app-shell {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+.sidebar {
+  background: var(--ui-nav);
+  border-right: 1px solid var(--ui-line);
+}
+.player-panel {
+  background: var(--ui-panel);
+}
+/* A common surface and control language for dialogs, sources and settings. */
+:is(
+  .listening-dialog,
+  .popover-panel,
+  .import-preview,
+  .player-notice,
+  .source-detail,
+  .source-book-grid li,
+  .source-episode-list li
+) {
+  color: var(--ui-text);
+  background: var(--ui-panel);
+  border-color: var(--ui-line);
+}
+.listening-dialog {
+  padding: 28px;
+  border-radius: 14px;
+  box-shadow: var(--ui-shadow);
+  line-height: 1.7;
+}
+.listening-dialog::backdrop {
+  background: #07140d99;
+  backdrop-filter: blur(4px);
+}
+:is(.listening-dialog, .online-source, .import-preview) :is(h2, h3, h4) {
+  color: var(--ui-text);
+}
+:is(
+  .tools-hint,
+  .tools-notice,
+  .tools-book-title,
+  .source-credit,
+  .source-status,
+  .source-description,
+  .legacy-note,
+  .model-locations,
+  .maintenance-paths dt,
+  .maintenance-paths dd,
+  .source-search label,
+  .source-search .section-heading p
+),
+.listening-dialog .section-heading p {
+  color: var(--ui-muted);
+}
+:is(.tools-form, .source-preparation-form) {
+  gap: 16px;
+  font-size: 14px;
+}
+.source-preparation-form > label:not(:has(input[type='checkbox'])) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+:is(.listening-dialog, .online-source, .tools-form) :is(input, select, textarea),
+.library-options > select,
+.audio-settings select {
+  color: var(--ui-text);
+  background: var(--ui-field);
+  border: 1px solid var(--ui-control-line);
+  border-radius: 7px;
+  font-size: 14px;
+}
+:is(.listening-dialog, .online-source, .tools-form)
+  :is(input:not([type='range']):not([type='checkbox']), select, textarea) {
+  min-height: 40px;
+  max-width: 100%;
+  padding: 8px 11px;
+}
+:is(.listening-dialog, .online-source) input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--ui-accent);
+}
+.source-search {
+  background: var(--ui-panel);
+  border-color: var(--ui-line);
+  border-radius: 10px;
+}
+.listening-dialog :is(section, .bookmark-list li, .maintenance-tasks li),
+.source-episodes,
+.source-episodes li {
+  border-color: var(--ui-line);
+}
+.listening-dialog :is(.bookmark-jump, .bookmark-note-text) {
+  color: var(--ui-text);
+}
+.listening-dialog .app-log {
+  color: var(--ui-text);
+  background: var(--ui-field);
+  border-color: var(--ui-line);
+  font-size: 13px;
+}
+.listening-dialog .cache-confirm {
+  color: var(--ui-warning);
+  background: var(--ui-warning-bg);
+  border-color: var(--ui-warning);
+}
+.listening-dialog .maintenance-tabs button {
+  color: var(--ui-text);
+  background: var(--ui-field);
+  border-color: var(--ui-control-line);
+}
+.listening-dialog .maintenance-tabs button[aria-pressed='true'] {
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+  border-color: var(--ui-accent);
+}
+.error-message,
+.player-notice.error-message {
+  color: var(--ui-danger);
+  background: var(--ui-danger-bg);
+  border-color: var(--ui-danger);
+}
+.error-message button {
+  border-color: currentColor;
+}
+.app-info-dialog > .section-heading {
+  border-bottom: 1px solid var(--ui-line);
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+}
+.app-info-dialog .section-heading h2 {
+  margin: 0;
+}
+.app-info-dialog .section-heading p {
+  margin: 5px 0 0;
+}
+.app-theme-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-block: 16px;
+  padding: 20px;
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  background: var(--ui-field);
+  color: var(--ui-text);
+}
+.app-theme-setting > span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.app-theme-setting small {
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.app-theme-setting select {
+  min-width: 140px;
+}
+.app-info-storage {
+  margin-top: 24px;
+  overflow-wrap: anywhere;
+}
+.app-info-storage > summary {
+  padding-block: 10px;
+}
+.reader-empty {
+  color: var(--ui-muted);
+  background: var(--ui-panel);
+  border-color: var(--ui-line);
+}
+.reader-empty :is(h2, .eyebrow) {
+  color: var(--ui-text);
+}
+.reader-empty .empty-icon {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+}
+.normal-reading > .section-heading :is(h2, p) {
+  color: var(--ui-text);
+}
+.normal-reading > .section-heading p {
+  color: var(--ui-muted);
+}
+@media (max-width: 800px) {
+  .listening-dialog {
+    padding: 20px;
+  }
+}

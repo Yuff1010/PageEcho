@@ -1,0 +1,116 @@
+.ebook-speech-controls {
+  position: absolute;
+  z-index: 6;
+  bottom: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 32px));
+  padding: 10px 14px;
+  border: 1px solid var(--reader-panel-border, var(--ui-line));
+  border-radius: 10px;
+  background: var(--reader-panel-bg, var(--ui-panel));
+  color: var(--reader-panel-text, var(--ui-text));
+  box-shadow: 0 6px 24px #10261920;
+  font-size: 13px;
+}
+.ebook-speech-status {
+  margin-bottom: 6px;
+}
+.ebook-speech-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.ebook-speech-actions label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ebook-speech-actions select {
+  max-width: 240px;
+  min-height: 34px;
+}
+.ebook-speech-actions .reader-button {
+  min-height: 34px;
+}
+.ebook-reader-page [data-speech-current='true'] {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ui-accent) 18%, transparent);
+}
+.ebook-reader-page[data-speech-active='true'] .reader-stage {
+  bottom: calc(var(--reader-speech-dock-height) + 12px);
+}
+.ebook-reader-page[data-speech-active='true'] .reader-bottom-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 34px 1fr;
+  gap: 4px 12px;
+  height: var(--reader-speech-dock-height);
+  padding-block: 6px;
+}
+.reader-bottom-bar .ebook-speech-controls {
+  position: static;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  transform: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 12px;
+}
+.reader-bottom-bar .ebook-speech-status {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin: 0;
+  min-width: 0;
+}
+.reader-bottom-bar .ebook-speech-actions {
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.reader-bottom-bar .ebook-speech-actions .reader-button {
+  font-size: 12px;
+  min-height: 28px;
+  padding: 3px 5px;
+}
+.reader-bottom-bar .ebook-speech-actions select {
+  max-width: 170px;
+  min-height: 28px;
+  padding-block: 3px;
+  font-size: 12px;
+}
+@media (max-width: 800px) {
+  .ebook-speech-controls {
+    bottom: 70px;
+    padding: 8px 10px;
+  }
+  .ebook-speech-voice {
+    flex: 1 1 240px;
+  }
+  .ebook-speech-voice select {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .reader-bottom-bar .ebook-speech-actions .ebook-speech-voice {
+    flex: 0 1 120px;
+  }
+  .reader-bottom-bar .ebook-speech-voice select {
+    max-width: 120px;
+  }
+  .reader-bottom-bar .ebook-speech-voice {
+    font-size: 0;
+    gap: 0;
+  }
+}

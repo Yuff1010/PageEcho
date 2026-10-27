@@ -1,0 +1,166 @@
+/* ShelfHeader is the only owner of shelf chrome geometry; route-specific reading CSS is excluded. */
+.app-shell[data-page-kind='shelf'] .workspace > .shelf-header {
+  height: var(--shelf-header-height);
+  min-height: var(--shelf-header-height);
+  padding: var(--shelf-header-padding-start) var(--shelf-page-inset) var(--shelf-header-padding-end);
+  gap: var(--shelf-header-gap);
+  flex-wrap: nowrap;
+}
+.app-shell[data-page-kind='shelf'] .shelf-header h1 {
+  font-size: var(--shelf-title-size);
+  line-height: var(--shelf-title-line-height);
+  font-weight: var(--shelf-title-weight);
+  letter-spacing: var(--shelf-title-tracking);
+}
+.shelf-header .header-actions {
+  gap: var(--shelf-actions-gap);
+}
+.shelf-header .search-trigger {
+  width: var(--shell-control-size);
+  height: var(--shell-control-size);
+  min-height: var(--shell-control-size);
+}
+.shelf-header .library-search {
+  width: var(--shelf-search-width);
+  height: var(--shell-control-size);
+  min-height: var(--shell-control-size);
+}
+.shelf-header .library-search input {
+  font-size: var(--shelf-search-text-size);
+}
+.shelf-header .import-button-group {
+  height: calc(var(--shell-control-size) + 2px);
+}
+.shelf-header .audio-import {
+  min-width: var(--shelf-import-width);
+  height: var(--shell-control-size);
+  min-height: var(--shell-control-size);
+}
+.shelf-header .import-options > .icon-button {
+  width: var(--shelf-import-menu-width);
+  height: var(--shell-control-size);
+  min-height: var(--shell-control-size);
+}
+.app-shell[data-page-kind='shelf'] .workspace > .library-content {
+  padding: 0 var(--shelf-page-inset) var(--shelf-content-bottom-gap);
+}
+.app-shell[data-page-kind='shelf'] .shelf-controls {
+  min-height: var(--shelf-controls-height);
+  gap: var(--shelf-controls-gap);
+  margin: 0 0 var(--shelf-controls-bottom-gap);
+  flex-wrap: nowrap;
+}
+.shelf-controls .library-tabs {
+  gap: var(--shelf-tab-gap);
+}
+.shelf-controls .library-tabs button {
+  font-size: var(--shelf-tab-text-size);
+}
+.shelf-controls .shelf-sort {
+  position: relative;
+  flex: 0 0 var(--shelf-sort-width);
+  width: var(--shelf-sort-width);
+  height: var(--shelf-sort-height);
+}
+.shelf-sort > .icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
+  transform: translate(-50%, -50%);
+  color: var(--ui-muted);
+  pointer-events: none;
+}
+.shelf-controls .shelf-sort > select {
+  width: var(--shelf-sort-width);
+  max-width: none;
+  height: var(--shelf-sort-height);
+  min-height: var(--shelf-sort-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-control-radius);
+  background: transparent;
+  color: transparent;
+  appearance: base-select;
+  cursor: pointer;
+}
+.shelf-sort > select option {
+  color: var(--ui-text);
+  background: var(--ui-panel);
+}
+.shelf-sort > select::picker-icon {
+  display: none;
+}
+.shelf-sort > select::picker(select) {
+  min-inline-size: 160px;
+}
+.shelf-sort:has(select:is(:hover, :focus-visible)) {
+  background: var(--ui-hover);
+  border-radius: var(--shell-control-radius);
+}
+.shelf-sort:has(select:focus-visible) > .icon {
+  color: var(--ui-text);
+}
+.shelf-controls .library-options > .popover > .icon-button {
+  width: var(--shelf-layout-width);
+  min-width: var(--shelf-layout-width);
+  height: var(--shelf-sort-height);
+  min-height: var(--shelf-sort-height);
+}
+.shelf-controls .library-tabs {
+  padding: 4px;
+  border-radius: calc(var(--shell-control-radius) + 2px);
+  background: var(--ui-nav);
+}
+.shelf-controls .library-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-control-size);
+  height: var(--shelf-sort-height);
+  min-height: var(--shelf-sort-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-control-radius);
+  color: var(--ui-muted);
+}
+.shelf-controls .library-tabs button.active {
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+}
+.shelf-controls .library-tabs button::after {
+  display: none;
+}
+.shelf-controls .library-options {
+  gap: 6px;
+}
+.shelf-header .import-button-group {
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+}
+.shelf-header .import-options {
+  border: 0;
+}
+.shelf-header .audio-import {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--shell-control-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-control-radius);
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+}
+.shelf-header .audio-import:hover {
+  background: var(--ui-hover);
+}
+.shelf-header .import-options > .icon-button {
+  min-width: var(--shelf-import-menu-width);
+  border: 0;
+  border-radius: var(--shell-control-radius);
+}

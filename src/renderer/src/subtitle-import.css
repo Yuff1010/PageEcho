@@ -1,0 +1,40 @@
+.subtitle-import-dialog.listening-dialog {
+  width: min(840px, calc(100vw - 40px));
+}
+.subtitle-import-dialog p,
+.subtitle-import-dialog li {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.subtitle-import-dialog .tools-form {
+  flex-wrap: wrap;
+}
+.subtitle-import-dialog select,
+.subtitle-import-dialog input {
+  max-width: 100%;
+}
+.subtitle-import-preview,
+.subtitle-import-warning {
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+.subtitle-import-rows {
+  max-height: 270px;
+  overflow: auto;
+  padding-left: 28px;
+}
+.subtitle-import-rows li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ui-line);
+}
+.subtitle-import-text {
+  white-space: pre-wrap;
+}
+.transcript-sentence-text {
+  white-space: pre-wrap;
+}
+.subtitle-import-source {
+  margin: 12px 0;
+}

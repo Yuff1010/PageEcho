@@ -1,0 +1,106 @@
+/* Chromium's customizable picker keeps native form/keyboard behavior in the app's theme. */
+select,
+select::picker(select) {
+  appearance: base-select;
+}
+select {
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+select::picker-icon {
+  color: var(--ui-muted);
+  font-size: 13px;
+  margin-inline-start: auto;
+}
+select:open::picker-icon {
+  rotate: 180deg;
+}
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+select::picker(select) {
+  min-inline-size: anchor-size(width);
+  max-inline-size: min(440px, calc(100vw - 24px));
+  max-block-size: min(360px, calc(100dvh - 24px));
+  padding: 5px;
+  margin-block: 5px;
+  border: 1px solid var(--ui-line);
+  border-radius: 7px;
+  color: var(--ui-text);
+  background: color-mix(in srgb, var(--ui-panel) var(--reader-panel-opacity, 100%), transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px #0003;
+  font:
+    14px 'Segoe UI',
+    'Microsoft YaHei UI',
+    sans-serif;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-line) transparent;
+}
+select option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  min-block-size: 34px;
+  border-radius: 4px;
+  color: var(--ui-text);
+  background: transparent;
+  font: inherit;
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+select option:hover,
+select option:focus-visible {
+  outline: none;
+  background: var(--ui-hover);
+}
+select option:checked {
+  color: var(--ui-accent);
+  background: var(--ui-hover);
+}
+select option::checkmark {
+  order: 1;
+  margin-inline-start: auto;
+  color: var(--ui-accent);
+  content: '✓';
+}
+select option:disabled {
+  color: var(--ui-muted);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: no-preference) {
+  select::picker-icon {
+    transition: rotate 140ms ease;
+  }
+  select::picker(select) {
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity 140ms ease,
+      translate 140ms ease,
+      display 140ms allow-discrete,
+      overlay 140ms allow-discrete;
+  }
+  select:not(:open)::picker(select) {
+    opacity: 0;
+    translate: 0 -3px;
+  }
+  @starting-style {
+    select:open::picker(select) {
+      opacity: 0;
+      translate: 0 -3px;
+    }
+  }
+}
+.ebook-reader-page[data-reduce-motion='true'] select::picker(select),
+.ebook-reader-page[data-reduce-motion='true'] select::picker-icon {
+  transition: none;
+}

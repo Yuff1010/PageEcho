@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "audioHash": "0f6f8608536090e38f876b512f06bb02702bbefb3b6bc48a6db88e3e93047a25",
+  "kind": "manual",
+  "coverage": [
+    {
+      "startMs": 0,
+      "endMs": 4835
+    },
+    {
+      "startMs": 5135,
+      "endMs": 16360
+    }
+  ],
+  "segments": [
+    {
+      "id": "s1",
+      "startMs": 1000,
+      "endMs": 4635,
+      "text": "第十九章，故事从这里继续。"
+    },
+    {
+      "id": "s2",
+      "startMs": 5335,
+      "endMs": 10125,
+      "text": "窗外的风停了，屋里只剩下翻书的声音。"
+    },
+    {
+      "id": "s3",
+      "startMs": 10825,
+      "endMs": 14660,
+      "text": "他合上书，决定明天再出发。"
+    }
+  ]
+}

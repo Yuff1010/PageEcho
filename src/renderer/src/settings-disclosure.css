@@ -1,0 +1,287 @@
+/* Setting groups expand as full-width panels. Selects remain compact value fields. */
+.settings-disclosure {
+  --settings-surface: var(--ui-panel);
+  --settings-header: var(--ui-field);
+  --settings-text: var(--ui-text);
+  --settings-muted: var(--ui-muted);
+  --settings-line: var(--ui-control-line);
+  display: block;
+  min-width: 0;
+  margin-block: 16px;
+  padding: 0;
+  border: 1px solid var(--settings-line);
+  border-radius: 10px;
+  color: var(--settings-text);
+  background: var(--settings-surface);
+}
+.companion-drawer .settings-disclosure {
+  --settings-surface: var(--reader-surface);
+  --settings-header: var(--reader-field);
+  --settings-text: var(--reader-text);
+  --settings-muted: var(--reader-muted);
+  --settings-line: var(--reader-border);
+}
+.settings-disclosure > .settings-disclosure-summary,
+.companion-drawer .transcription-controls .settings-disclosure > .settings-disclosure-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 9px;
+  list-style: none;
+  color: var(--settings-text);
+  background: var(--settings-header);
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+}
+.settings-disclosure > summary::marker,
+.settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+  content: '';
+}
+.settings-disclosure > summary:hover {
+  box-shadow: inset 0 0 0 1px var(--settings-line);
+}
+.settings-disclosure > summary:focus-visible {
+  outline: 3px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-chevron {
+  display: flex;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--settings-text);
+}
+.settings-disclosure-chevron .icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.3px;
+}
+.settings-disclosure[open] > .settings-disclosure-summary .settings-disclosure-chevron {
+  transform: rotate(90deg);
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-heading {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-title {
+  color: var(--settings-text);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.6;
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-description {
+  color: var(--settings-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--settings-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-status {
+  padding: 2px 8px;
+  border: 1px solid var(--settings-line);
+  border-radius: 4px;
+  color: var(--settings-text);
+  background: var(--settings-surface);
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-action {
+  min-width: 2em;
+  color: var(--settings-text);
+  font-weight: 600;
+}
+.settings-disclosure > .settings-disclosure-summary .settings-disclosure-collapse {
+  display: none;
+}
+.settings-disclosure[open] > .settings-disclosure-summary .settings-disclosure-expand {
+  display: none;
+}
+.settings-disclosure[open] > .settings-disclosure-summary .settings-disclosure-collapse {
+  display: inline;
+}
+.settings-disclosure[open] > summary {
+  border-bottom: 1px solid var(--settings-line);
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.settings-disclosure > .settings-disclosure-body {
+  min-width: 0;
+  margin: 0 14px 14px 22px;
+  padding: 16px 0 0 16px;
+  border-left: 2px solid var(--settings-line);
+}
+.settings-disclosure-body > :first-child {
+  margin-top: 0;
+}
+.settings-disclosure-body > :last-child {
+  margin-bottom: 0;
+}
+.settings-disclosure .settings-disclosure {
+  border-radius: 7px;
+}
+.settings-disclosure .settings-disclosure > summary {
+  min-height: 54px;
+  padding: 10px 12px;
+}
+.settings-disclosure table {
+  width: 100%;
+  table-layout: fixed;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.settings-disclosure th,
+.settings-disclosure td {
+  padding: 7px 5px;
+}
+.settings-disclosure small {
+  display: block;
+}
+.settings-select-scope select,
+.settings-disclosure select {
+  min-width: 100px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--ui-control-line);
+  border-radius: 6px;
+  background: var(--ui-panel);
+  color: var(--ui-text);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ui-control-line) 20%, transparent);
+}
+.companion-page .companion-drawer .transcription-controls .settings-disclosure select {
+  color: var(--reader-text);
+  background: var(--reader-surface);
+}
+.settings-select-scope select::picker-icon,
+.settings-disclosure select::picker-icon {
+  content: '⌄';
+  flex: 0 0 24px;
+  margin-inline-start: 12px;
+  padding-inline-start: 10px;
+  border-inline-start: 1px solid var(--ui-control-line);
+  color: currentColor;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  rotate: none;
+}
+.settings-select-scope select:open::picker-icon,
+.settings-disclosure select:open::picker-icon {
+  rotate: none;
+}
+.settings-select-scope select:focus-visible,
+.settings-disclosure select:focus-visible {
+  outline: 3px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+.settings-section-status {
+  display: inline-block;
+  margin-inline-start: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--ui-control-line);
+  border-radius: 4px;
+  color: var(--ui-text);
+  background: var(--ui-field);
+  font-size: 12px;
+  font-weight: 400;
+  vertical-align: middle;
+}
+.settings-select-scope .component-installation {
+  padding: 0;
+  border: 1px solid var(--ui-control-line);
+  border-radius: 9px;
+  background: var(--ui-panel);
+}
+.settings-select-scope .component-installation > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  color: var(--ui-text);
+  background: var(--ui-field);
+  list-style: none;
+}
+.settings-select-scope .component-installation > summary::marker,
+.settings-select-scope .component-installation > summary::-webkit-details-marker {
+  display: none;
+  content: '';
+}
+.settings-select-scope .component-installation > summary::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  margin-inline: 4px 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.settings-select-scope .component-installation[open] > summary::before {
+  transform: rotate(45deg);
+}
+.settings-select-scope .component-installation > summary::after {
+  content: '展开';
+  margin-inline-start: auto;
+  font-size: 13px;
+}
+.settings-select-scope .component-installation[open] > summary::after {
+  content: '收起';
+}
+.settings-select-scope .component-installation[open] > summary {
+  border-bottom: 1px solid var(--ui-control-line);
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.settings-select-scope .component-installation > :not(summary) {
+  margin-inline: 16px;
+}
+@media (max-width: 760px) {
+  .settings-disclosure > .settings-disclosure-summary,
+  .companion-drawer .transcription-controls .settings-disclosure > .settings-disclosure-summary {
+    gap: 8px;
+    padding: 12px;
+  }
+  .settings-disclosure > .settings-disclosure-summary .settings-disclosure-meta {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    max-width: 110px;
+    text-align: right;
+  }
+  .settings-disclosure > .settings-disclosure-summary .settings-disclosure-status {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .settings-disclosure > .settings-disclosure-body {
+    margin-inline: 12px;
+    padding-inline-start: 12px;
+  }
+  .listening-tools-dialog.listening-dialog .listening-tools-content section {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .settings-disclosure-chevron {
+    transition: transform 140ms ease;
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "models": {
+    "paraformer": {
+      "repository": "funasr/paraformer-zh",
+      "revision": "d7811ee3ac581fbcfdeb37c98c6ba674028433dc"
+    },
+    "vad": {
+      "repository": "funasr/fsmn-vad",
+      "revision": "df20e6b30c653645fa4ff125cacfcabd1020a669"
+    },
+    "punctuation": {
+      "repository": "funasr/ct-punc",
+      "revision": "d0e55e2b8722a78b63705ff443d09c4f86e5d750"
+    },
+    "whisper": {
+      "repository": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+      "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf"
+    },
+    "alignment": {
+      "repository": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
+      "revision": "99ccb2737be22b8bb50dcfcc39ad4d567fb90cfd"
+    }
+  }
+}

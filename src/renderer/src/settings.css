@@ -1,0 +1,450 @@
+.maintenance-dialog.listening-dialog {
+  width: min(1040px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  color: var(--ui-text);
+  background: var(--ui-panel);
+  border-color: var(--ui-line);
+  overflow: hidden;
+  font-size: 15px;
+}
+
+.maintenance-dialog.listening-dialog .maintenance-heading {
+  margin: 0;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.maintenance-heading h2 {
+  margin: 0;
+  font-size: 23px;
+  line-height: 1.4;
+}
+
+.maintenance-heading p,
+.maintenance-page-heading p {
+  margin: 6px 0 0;
+  color: var(--ui-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.maintenance-workspace {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-height: min(420px, calc(100dvh - 160px));
+  height: min(650px, calc(100dvh - 160px));
+}
+
+.maintenance-dialog.listening-dialog .maintenance-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 22px 14px;
+  border-right: 1px solid var(--ui-line);
+  background: var(--ui-field);
+}
+
+.maintenance-dialog.listening-dialog .maintenance-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+}
+
+.maintenance-dialog.listening-dialog .maintenance-tabs button:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.maintenance-dialog.listening-dialog .maintenance-tabs button[aria-pressed='true'] {
+  color: var(--ui-accent);
+  border-color: var(--ui-line);
+  background: var(--ui-accent-soft, var(--ui-hover));
+  font-weight: 650;
+}
+
+.maintenance-tabs .icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+
+.maintenance-nav-hint {
+  margin: auto 10px 0;
+  padding-top: 24px;
+  color: var(--ui-muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.maintenance-content {
+  overflow-y: auto;
+  min-width: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 24px;
+}
+
+.maintenance-dialog.listening-dialog .maintenance-content > section,
+.maintenance-dialog.listening-dialog .settings-card > section {
+  border: 0;
+  padding: 0;
+}
+
+.maintenance-dialog.listening-dialog .maintenance-content > section[hidden] {
+  display: none;
+}
+
+.maintenance-page-heading {
+  margin-bottom: 22px;
+}
+
+.maintenance-page-heading h3 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.maintenance-dialog.listening-dialog .settings-card,
+.maintenance-dialog.listening-dialog .processing-resources {
+  margin: 0 0 18px;
+  padding: 20px;
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  background: var(--ui-panel);
+}
+
+.maintenance-dialog.listening-dialog .settings-card h3,
+.maintenance-dialog.listening-dialog .processing-resources h3 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--ui-text);
+}
+
+.maintenance-dialog.listening-dialog .maintenance-subheading {
+  margin-top: 0 !important;
+}
+
+.maintenance-dialog.listening-dialog p {
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.maintenance-dialog
+  :is(.tools-hint, .tools-notice, .task-error, .maintenance-paths, .model-locations) {
+  font-size: 14px;
+}
+
+.maintenance-dialog.listening-dialog .tools-hint,
+.maintenance-dialog.listening-dialog .maintenance-paths dt {
+  color: var(--ui-muted);
+}
+
+.maintenance-dialog.listening-dialog .tools-notice {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft, var(--ui-hover));
+}
+
+.maintenance-dialog.listening-dialog :is(.tools-form, .section-heading) {
+  flex-wrap: wrap;
+}
+
+.maintenance-dialog.listening-dialog :is(.text-button, .secondary-button, .primary-button) {
+  min-height: 40px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.maintenance-dialog.listening-dialog .settings-advanced {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-line);
+}
+
+.maintenance-dialog.listening-dialog .settings-advanced summary {
+  min-height: 40px;
+  padding: 8px 0;
+  color: var(--ui-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.maintenance-dialog.listening-dialog .settings-advanced summary:hover {
+  color: var(--ui-text);
+}
+
+.maintenance-dialog.listening-dialog .maintenance-paths {
+  grid-template-columns: 80px minmax(0, 1fr);
+  margin: 10px 0;
+}
+
+.maintenance-dialog.listening-dialog .model-locations {
+  list-style: none;
+  padding: 0;
+}
+
+.maintenance-dialog.listening-dialog .model-locations li {
+  padding: 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  background: var(--ui-field);
+}
+
+.maintenance-dialog.listening-dialog .maintenance-tasks li {
+  margin-bottom: 12px;
+  padding: 18px;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  background: var(--ui-field);
+}
+
+.maintenance-dialog.listening-dialog .app-log {
+  max-height: none;
+  margin-bottom: 0;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--ui-text);
+  background: var(--ui-field);
+  border-color: var(--ui-line);
+  line-height: 1.7;
+}
+
+.maintenance-dialog.listening-dialog .cache-confirm {
+  background: var(--ui-field);
+  border-color: var(--ui-accent);
+  color: var(--ui-text);
+}
+
+.maintenance-dialog.listening-dialog :is(button, summary, select, input):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+
+.listening-tools-dialog.listening-dialog {
+  width: min(820px, calc(100vw - 48px));
+  padding: 0;
+  overflow: hidden;
+  color: var(--ui-text);
+  background: var(--ui-panel);
+  border-color: var(--ui-line);
+  font-size: 15px;
+}
+
+.listening-tools-dialog.listening-dialog .listening-tools-heading {
+  margin: 0;
+  padding: 24px 28px 18px;
+}
+
+.listening-tools-heading h2 {
+  margin: 0;
+  font-size: 23px;
+}
+
+.listening-tools-heading > div {
+  min-width: 0;
+}
+
+.listening-tools-heading .tools-book-title {
+  margin: 6px 0 0;
+  color: var(--ui-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listening-tools-nav {
+  display: flex;
+  gap: 4px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.listening-tools-nav .listening-tools-tab {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  gap: 8px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 7px 7px 0 0;
+  color: var(--ui-muted);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.listening-tools-nav .listening-tools-tab:hover {
+  color: var(--ui-accent);
+  background: var(--ui-hover);
+}
+.listening-tools-nav .listening-tools-tab[aria-selected='true'] {
+  border-bottom-color: var(--ui-accent);
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+  font-weight: 650;
+}
+.listening-tools-nav .listening-tools-tab:focus-visible {
+  z-index: 1;
+  outline: 3px solid var(--ui-accent);
+  outline-offset: -3px;
+}
+
+.listening-tools-nav .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.listening-tools-content {
+  padding: 0;
+  overflow: hidden;
+}
+.listening-tools-panel {
+  height: min(600px, calc(100dvh - 240px));
+  min-height: 0;
+  padding: 24px 28px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.listening-tools-panel[hidden] {
+  display: none;
+}
+.listening-tools-panel:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -3px;
+}
+
+.listening-tools-dialog.listening-dialog .tools-group-title {
+  margin: 0 0 14px;
+  font-size: 19px;
+  color: var(--ui-text);
+}
+
+.listening-tools-dialog.listening-dialog .listening-tools-content section {
+  margin: 0 0 16px;
+  padding: 20px;
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  color: var(--ui-text);
+  background: var(--ui-panel);
+}
+
+.listening-tools-content section > h3,
+.listening-tools-content section .section-heading h3 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--ui-text);
+}
+
+.listening-tools-dialog.listening-dialog .tools-hint,
+.listening-tools-dialog.listening-dialog .tools-notice {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.listening-tools-dialog.listening-dialog .tools-hint {
+  color: var(--ui-muted);
+}
+
+.listening-tools-dialog.listening-dialog .tools-notice {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  color: var(--ui-accent);
+  background: var(--ui-panel);
+  box-shadow: 0 4px 12px #0001;
+}
+
+.listening-tools-dialog.listening-dialog :is(.secondary-button, .text-button, .primary-button) {
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.listening-tools-dialog.listening-dialog .tools-form {
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.listening-tools-dialog.listening-dialog .tools-form label {
+  gap: 8px;
+}
+
+.listening-tools-dialog.listening-dialog .bookmark-list > li {
+  border-color: var(--ui-line);
+}
+
+.listening-tools-dialog.listening-dialog .bookmark-jump {
+  color: var(--ui-text);
+}
+
+.listening-dialog .maintenance-tabs [role='tab'][aria-selected='true'] {
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+  border-color: var(--ui-accent);
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .listening-tools-nav {
+    padding-inline: 16px;
+  }
+  .listening-tools-nav .listening-tools-tab {
+    gap: 5px;
+    padding-inline: 7px;
+  }
+  .listening-tools-panel {
+    padding: 18px 16px;
+  }
+  .maintenance-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .maintenance-dialog.listening-dialog .maintenance-tabs {
+    flex-direction: row;
+    padding: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--ui-line);
+  }
+
+  .maintenance-dialog.listening-dialog .maintenance-tabs button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .maintenance-nav-hint {
+    display: none;
+  }
+
+  .maintenance-content {
+    padding: 18px;
+  }
+
+  .maintenance-dialog.listening-dialog .maintenance-heading {
+    padding: 18px 22px;
+  }
+}

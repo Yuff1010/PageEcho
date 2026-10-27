@@ -1,0 +1,151 @@
+.book-link-dialog {
+  width: min(560px, calc(100vw - 36px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+.book-link-dialog > label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-block: 16px;
+}
+.book-link-dialog select {
+  width: 100%;
+  min-height: 42px;
+}
+.book-link-dialog .import-actions,
+.book-link-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.book-link-suggestions p {
+  flex-basis: 100%;
+  margin-bottom: 0;
+}
+.book-listening-choices {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.book-listening-choices button {
+  width: 100%;
+  text-align: left;
+}
+.book-connection-message {
+  position: fixed;
+  z-index: 100;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(620px, calc(100% - 40px));
+  padding: 14px;
+  background: var(--ui-panel);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+}
+.reader-switch-notice {
+  position: absolute;
+  top: 65px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 40px);
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--ui-panel);
+  color: var(--ui-text);
+  font:
+    14px 'Segoe UI',
+    sans-serif;
+}
+.reader-switch-notice .reader-icon-button {
+  width: 28px;
+  min-height: 28px;
+  padding: 5px;
+  flex-shrink: 0;
+}
+.companion-page .companion-source-bar {
+  justify-content: space-between;
+  gap: 12px;
+}
+.companion-page .companion-open-ebook {
+  flex-shrink: 0;
+}
+.ebook-shelf .book-actions {
+  flex-wrap: wrap;
+}
+.book-availability {
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.book-availability .icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+.ebook-shelf .book-actions > .book-availability {
+  flex-basis: 100%;
+  margin: 0 0 4px;
+}
+.shelf-mode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.shelf-mode-actions .text-button {
+  padding: 3px 0;
+  font-size: 13px;
+}
+.player-panel .player-subtitle-notice {
+  position: static;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--ui-muted);
+  font-size: 11px;
+  line-height: 16px;
+  animation: none;
+}
+.player-panel .player-subtitle-notice > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-panel .player-subtitle-notice .text-button {
+  min-height: 20px;
+  padding: 0 3px;
+  font-size: 11px;
+  line-height: 16px;
+}
+@media (max-width: 800px) {
+  .companion-page .companion-source-bar {
+    gap: 4px;
+    padding-inline: 12px;
+  }
+  .companion-page .companion-source-tabs button {
+    padding-inline: 10px;
+  }
+  .companion-page .companion-open-ebook {
+    font-size: 13px;
+    padding-inline: 7px;
+  }
+}

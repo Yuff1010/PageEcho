@@ -1,0 +1,115 @@
+:root {
+  /* Reader chrome/dock owner: ReaderToolbar + ReaderDock. Content uses user preferences. */
+  --reader-toolbar-height: 60px;
+  --reader-toolbar-inset: 22px;
+  --reader-toolbar-gap: 20px;
+  --reader-control-size: 38px;
+  --reader-icon-size: 17px;
+  --reader-dock-height: 124px;
+  --reader-dock-row-height: 34px;
+  --reader-dock-control-size: 26px;
+  --reader-dock-text-size: 12px;
+  --reader-progress-height: 5px;
+  --reader-settings-width: 340px;
+  --reader-speech-dock-height: 112px;
+  /* Shell/shelf owner: ShelfHeader + LibraryShelf. Reader adds --reader-* separately. */
+  --shell-control-size: 40px;
+  --shell-icon-size: 18px;
+  --shell-rail-width: 80px;
+  --shell-nav-size: 44px;
+  --shell-control-radius: 10px;
+  --shelf-header-height: 94px;
+  --shelf-header-padding-start: 26px;
+  --shelf-header-padding-end: 15px;
+  --shelf-page-inset: 36px;
+  --shelf-title-size: 26px;
+  --shelf-title-line-height: 34px;
+  --shelf-title-weight: 650;
+  --shelf-title-tracking: -0.5px;
+  --shelf-content-bottom-gap: 30px;
+  --shelf-header-gap: 20px;
+  --shelf-actions-gap: 10px;
+  --shelf-search-width: 240px;
+  --shelf-search-text-size: 15px;
+  --shelf-import-width: 40px;
+  --shelf-import-menu-width: 26px;
+  --shelf-controls-height: 48px;
+  --shelf-controls-gap: 18px;
+  --shelf-controls-bottom-gap: 29px;
+  --shelf-tab-gap: 6px;
+  --shelf-tab-text-size: 15px;
+  --shelf-sort-height: 36px;
+  --shelf-sort-width: 36px;
+  --shelf-layout-width: 36px;
+  --shelf-card-width: 152px;
+  --shelf-grid-row-gap: 30px;
+  --shelf-grid-column-gap: 26px;
+  --shelf-grid-padding-top: 2px;
+  --shelf-grid-padding-bottom: 18px;
+  --shelf-cover-ratio: 0.87;
+  --shelf-card-title-height: 36px;
+  --shelf-card-title-size: 15px;
+  --shelf-card-meta-size: 13px;
+  --shelf-card-meta-height: 21px;
+  --shelf-card-meta-gap: 4px;
+  --shelf-card-info-gap: 12px;
+  --shelf-card-cover-radius: 8px;
+  --shelf-card-cover-title-offset: 30px;
+  --shelf-card-action-inset: 8px;
+  --shelf-card-source-size: 16px;
+  --shelf-card-source-gap: 7px;
+  --shelf-card-focus-width: 2px;
+  --shelf-card-focus-offset: 3px;
+  --shelf-card-menu-width: 32px;
+  --shelf-card-cross-size: 32px;
+  --shelf-card-cross-icon-size: 16px;
+  --shelf-card-primary-size: 40px;
+  --shelf-list-cover-width: 64px;
+  --shelf-list-primary-size: 30px;
+  --shelf-list-cross-size: 24px;
+  --shelf-list-action-inset: 4px;
+  --shelf-list-info-gap: 18px;
+  --shelf-list-card-height: 114px;
+  --shelf-list-max-width: 960px;
+}
+
+@media (min-width: 1400px) {
+  :root {
+    --shelf-page-inset: 40px;
+    --shelf-card-width: 160px;
+    --shelf-grid-row-gap: 34px;
+    --shelf-grid-column-gap: 30px;
+  }
+}
+@media (max-width: 950px) {
+  :root {
+    --shelf-page-inset: 26px;
+    --shelf-search-width: 175px;
+  }
+}
+@media (max-width: 900px) {
+  :root {
+    --reader-dock-height: 144px;
+    --reader-dock-row-height: 54px;
+  }
+}
+@media (max-width: 800px) {
+  :root {
+    --shell-rail-width: 68px;
+    --reader-toolbar-inset: 12px;
+    --reader-toolbar-gap: 8px;
+    --shelf-header-height: 90px;
+    --shelf-header-padding-start: 18px;
+    --shelf-header-padding-end: 18px;
+    --shelf-page-inset: 22px;
+    --shelf-header-gap: 12px;
+    --shelf-actions-gap: 10px;
+    --shelf-search-width: 155px;
+    --shelf-controls-gap: 12px;
+    --shelf-controls-bottom-gap: 25px;
+    --shelf-tab-gap: 6px;
+    --shelf-card-width: 138px;
+    --shelf-grid-row-gap: 27px;
+    --shelf-grid-column-gap: 23px;
+  }
+}

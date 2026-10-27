@@ -1,0 +1,272 @@
+.reader-dock-mount {
+  display: contents;
+}
+.app-shell.companion-mode {
+  --player-height: var(--reader-dock-height);
+}
+.player-panel[data-reader-dock='true'] {
+  display: grid;
+  grid-template-rows: var(--reader-dock-row-height) minmax(0, 1fr);
+  grid-template-columns: minmax(130px, 1fr) minmax(220px, 1.4fr) auto;
+  row-gap: 6px;
+  padding: 0 22px 8px;
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+  color: var(--ui-text);
+}
+.reader-dock-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  height: var(--reader-dock-row-height);
+  border-bottom: 1px solid var(--ui-line);
+}
+.reader-dock-slot {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.reader-dock-slot--source {
+  flex: 0 0 auto;
+}
+.reader-dock-slot--activity {
+  flex: 0 1 280px;
+}
+.reader-dock-slot--activity > :is(.subtitle-status-player, .subtitle-status-loading) {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+.reader-dock-slot--activity .subtitle-status-player > summary {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 26px;
+  font-size: var(--reader-dock-text-size);
+}
+.reader-dock-slot--navigation {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+.reader-dock-slot--activity:empty {
+  display: none;
+}
+.player-panel[data-reader-dock='true']
+  .reader-dock-row
+  :is(
+    .companion-source-tabs > button,
+    .transcription-activity-inline > button,
+    .transcription-inline-details > button,
+    .book-reader-footer button,
+    .processing-pause-notice > button
+  ) {
+  box-sizing: border-box;
+  height: var(--reader-dock-control-size);
+  min-height: var(--reader-dock-control-size);
+  padding: 3px 6px;
+  font-size: var(--reader-dock-text-size);
+  line-height: 18px;
+  white-space: nowrap;
+}
+.player-panel[data-reader-dock='true']
+  .reader-dock-row
+  .transcription-activity-inline
+  > .reader-icon-button {
+  width: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  padding: 4px;
+}
+.reader-dock-slot .book-reader-footer,
+.companion-page .reader-dock-slot .book-reader-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-height: 0;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--reader-dock-text-size);
+}
+.companion-page .reader-dock-slot .companion-source-tabs {
+  gap: 2px;
+}
+.companion-page .reader-dock-slot .companion-source-tabs button {
+  min-height: var(--reader-dock-control-size);
+  padding: 4px 8px;
+  font-size: var(--reader-dock-text-size);
+  border-radius: 5px;
+}
+.companion-page .reader-dock-slot :is(.reader-button, .text-button) {
+  min-height: var(--reader-dock-control-size);
+  padding: 3px 6px;
+  font-size: var(--reader-dock-text-size);
+}
+.companion-page .reader-dock-slot .companion-reading-status.reader-follow {
+  flex: 0 1 auto;
+  gap: 7px;
+  min-height: 0;
+}
+.reader-dock-slot :is(.timeline-status, .original-current-chapter) {
+  display: none;
+}
+.reader-dock-slot .follow-state {
+  font-size: var(--reader-dock-text-size);
+}
+.companion-page .reader-dock-slot .reader-pagination {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  padding: 0;
+  min-height: 0;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: var(--reader-dock-text-size);
+}
+.reader-dock-slot :is(.original-pagination, .original-follow-controls) {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.reader-dock-slot .reader-window-position {
+  font-size: 11px;
+}
+.companion-page .reader-dock-slot .reader-pagination input {
+  width: 44px;
+  height: 26px;
+  padding: 2px 5px;
+  font-size: var(--reader-dock-text-size);
+}
+.reader-dock-slot .processing-pause-notice {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--reader-dock-text-size);
+  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+.reader-dock-slot .processing-pause-notice button {
+  min-height: 26px;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+.reader-dock-slot--activity .transcription-activity-inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.reader-dock-slot--activity:has(.processing-pause-notice) .transcription-inline-details > button {
+  font-size: 0;
+  min-width: 22px;
+  width: 22px;
+  padding: 3px;
+}
+.reader-dock-slot--activity:has(.processing-pause-notice)
+  .transcription-inline-details
+  > button
+  .icon {
+  flex-shrink: 0;
+}
+.reader-dock-slot .processing-pause-notice p {
+  margin: 0;
+}
+.companion-page .player-panel .now-playing :is(h2, p) {
+  color: var(--ui-text);
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+}
+.companion-page .player-panel .audio-settings .text-button {
+  min-height: 32px;
+  padding: 5px 7px;
+  color: var(--ui-text);
+  font-size: 13px;
+}
+.player-panel[data-reader-dock='true'] .player-heading {
+  grid-row: 2;
+}
+.player-panel[data-reader-dock='true'] .player-center {
+  grid-row: 2;
+}
+.player-panel[data-reader-dock='true'] .player-right {
+  grid-row: 2;
+}
+.player-panel[data-reader-dock='true'] .transport .play-button {
+  width: 36px;
+  height: 36px;
+}
+.player-panel[data-reader-dock='true'] .seek-row {
+  margin-top: 0;
+}
+.player-panel[data-reader-dock='true'] .now-playing > p {
+  margin-bottom: 0;
+}
+.player-panel .player-dock-feedback {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  font-size: var(--reader-dock-text-size);
+}
+.player-dock-feedback > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.player-dock-feedback > button {
+  flex-shrink: 0;
+  padding: 2px 4px;
+  font-size: var(--reader-dock-text-size);
+  min-height: 24px;
+}
+.player-dock-feedback > .icon-button {
+  width: 24px;
+}
+@media (max-width: 900px) {
+  .app-shell.companion-mode {
+    --player-height: var(--reader-dock-height);
+  }
+  .player-panel[data-reader-dock='true'] {
+    grid-template-rows: var(--reader-dock-row-height) minmax(0, 1fr);
+    padding-inline: 12px;
+    column-gap: 10px;
+  }
+  .reader-dock-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 26px 26px;
+    height: var(--reader-dock-row-height);
+    row-gap: 0;
+    column-gap: 8px;
+  }
+  .reader-dock-slot--activity {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .reader-dock-slot--navigation {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .companion-page .reader-dock-slot .book-reader-footer {
+    width: 100%;
+    justify-content: space-between;
+    height: 26px;
+  }
+  .player-panel[data-reader-dock='true'] .now-playing h2 {
+    font-size: var(--reader-dock-text-size);
+  }
+  .player-panel[data-reader-dock='true'] .now-playing > p {
+    display: none;
+  }
+}

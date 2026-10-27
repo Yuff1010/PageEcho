@@ -1,0 +1,58 @@
+.processing-resources {
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px 0 20px;
+  color: var(--ui-text);
+}
+.processing-resources h3 {
+  margin: 0;
+}
+.processing-resources p {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.processing-resources fieldset {
+  border: 0;
+  padding: 8px 0;
+  margin: 0;
+  min-width: 0;
+}
+.processing-resources legend {
+  font-weight: 600;
+  padding: 0;
+}
+.processing-resources select {
+  margin-left: 8px;
+}
+.processing-resources .processing-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+  line-height: 1.6;
+}
+.processing-check input {
+  width: auto;
+  flex: none;
+  margin-top: 4px;
+}
+.processing-effective,
+.processing-conflict {
+  border-left: 3px solid var(--ui-accent);
+  padding-left: 12px;
+}
+.processing-pause-notice {
+  border: 1px solid var(--ui-line);
+  border-radius: 7px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  flex-shrink: 0;
+}
+.processing-pause-notice p {
+  margin: 0 0 8px;
+  line-height: 1.6;
+}
+.processing-pause-notice p:last-child {
+  margin-bottom: 0;
+}

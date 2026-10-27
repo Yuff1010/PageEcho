@@ -1,0 +1,15 @@
+node_modules/
+out/
+release/
+test-results/
+playwright-report/
+cache/
+models/
+media/
+data/
+user-data/
+downloads/
+.venv/
+venv/
+package-lock.json
+听书软件功能总结与新软件需求草案.md

@@ -1,0 +1,99 @@
+.player-panel[data-reader-dock='false'] {
+  grid-template-columns: minmax(150px, 1fr) minmax(250px, 1.5fr) auto;
+  column-gap: var(--reader-toolbar-gap);
+}
+.player-panel .player-title {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.player-panel .player-heading {
+  gap: 12px;
+}
+.player-panel .audio-settings {
+  gap: 4px;
+}
+.player-panel .audio-settings .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--reader-control-size);
+  height: var(--reader-control-size);
+  min-height: var(--reader-control-size);
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-muted);
+}
+.player-panel .audio-settings .icon-button:hover:not(:disabled),
+.player-panel .audio-settings .icon-button[aria-expanded='true'] {
+  border-color: var(--ui-line);
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+.player-panel .audio-settings .icon-button .icon {
+  width: var(--reader-icon-size);
+  height: var(--reader-icon-size);
+}
+.player-panel .audio-settings select {
+  min-height: var(--reader-control-size);
+  width: 66px;
+  padding-block: 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border-color: transparent;
+}
+.player-panel .transport {
+  gap: 18px;
+}
+.player-panel .transport .play-button {
+  box-shadow: 0 3px 10px #0002;
+}
+.player-panel .seek-row {
+  gap: 10px;
+}
+.player-panel .seek-row time {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.player-panel .player-dock-feedback {
+  min-height: 22px;
+}
+.player-panel .player-dock-feedback > span {
+  min-width: 0;
+}
+.player-panel :is(button, select, summary, .player-title, [tabindex='0']):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+@media (max-width: 900px) {
+  .player-panel .audio-settings {
+    gap: 2px;
+  }
+  .player-panel .audio-settings .icon-button {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 7px;
+  }
+  .player-panel .audio-settings select {
+    width: 60px;
+    min-height: 32px;
+  }
+}
+@media (max-width: 800px) {
+  .player-panel[data-reader-dock='false'] {
+    grid-template-columns: minmax(130px, 1fr) minmax(200px, 1.5fr) auto;
+    column-gap: 12px;
+  }
+  .player-panel .transport {
+    gap: 12px;
+  }
+  .player-panel .seek-row {
+    gap: 6px;
+  }
+}

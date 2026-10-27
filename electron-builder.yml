@@ -1,0 +1,30 @@
+appId: com.readandlistenbook.desktop
+productName: ReadAndListenBook
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+  - THIRD_PARTY_NOTICES.md
+asar: true
+extraResources:
+  - from: python
+    to: asr
+    filter:
+      - asr_*.py
+      - evaluation-models.json
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ReadAndListenBook-${version}-win-${arch}-setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  runAfterFinish: false
+  shortcutName: 听读 ReadAndListenBook

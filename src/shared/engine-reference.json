@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "evidenceDate": "2026-10-21",
+  "status": "provisional-reference",
+  "normalization": "NFKC, casefold, letters and numbers only; no number or traditional/simplified conversion",
+  "suggestedTrialEngine": "paraformer",
+  "automaticSelection": false,
+  "novelQualityAcceptance": "pending-human-review",
+  "scope": "Fixed published manual Chinese-reference subsets only; no book accuracy, human timing, official corpus or default-engine acceptance. Training overlap unknown.",
+  "datasets": [
+    {
+      "id": "studio",
+      "label": "真人干声短句",
+      "source": "AISHELL-3",
+      "samples": 40,
+      "referenceCharacters": 267,
+      "durationMs": 123689,
+      "manifestSha256": "19aaef24050a90c948b3ca9444bb57fc33d0e1c90049c089168ca9f4767a9f51",
+      "scope": "两位说话人的短词、短句及数字；数字写法差异保留为编辑错误。",
+      "summaries": [
+        {
+          "path": "cache/asr-evaluation/studio-source-discovery/summary-final.json",
+          "sha256": "540290506b2558dc4469123cbe8996d60c9f3e079c35d376c6977825000c16fd"
+        }
+      ],
+      "profiles": [
+        {
+          "engine": "paraformer",
+          "device": "cpu",
+          "completedSamples": 40,
+          "editDistance": 5,
+          "cer": 0.018726591760299626,
+          "report": "cache/asr-evaluation/studio-worker-runs/2026-10-20T23-20-00.206Z-paraformer-cpu/report.json",
+          "reportSha256": "6fc018b4ddbecdd99d6bb900d69351a9c91db1bc42f5e5c4bb45d5d93511fde9",
+          "documentsSha256": "a848c5d94b6e8fe4abec9e34f8c80006c355cbf5bc4699b142bb6b3335ae002f",
+          "checkpointsSha256": "3a03104ba653a2781c33243b563e9d4331422c5f854d26e727dbbb64347365ed"
+        },
+        {
+          "engine": "whisperx",
+          "device": "cpu",
+          "completedSamples": 40,
+          "editDistance": 116,
+          "cer": 0.4344569288389513,
+          "report": "cache/asr-evaluation/studio-worker-runs/2026-10-20T23-21-40.067Z-whisperx-cpu/report.json",
+          "reportSha256": "fe8387aeb5722dee53212ac99e0a095f37037ccdb56ba3ae742032296f38e63a",
+          "documentsSha256": "6923409e2fd178667361b2738acf87e92df64fe992fe87d031ba07124f15ac34",
+          "checkpointsSha256": "3f498c10ef76f3edcd744195ca9ccbbbe0e8a55ebda5ff3ab4dab6eed8627d3b"
+        },
+        {
+          "engine": "paraformer",
+          "device": "cuda",
+          "completedSamples": 40,
+          "editDistance": 5,
+          "cer": 0.018726591760299626,
+          "report": "cache/asr-evaluation/studio-worker-runs/2026-10-20T23-17-05.344Z-paraformer-cuda/report.json",
+          "reportSha256": "ea7bd9a0f3bd3f5ea034b4f716ee308979570dca581ff8e556442aeeabb038d7",
+          "documentsSha256": "3d0821d35ae64a633e059d2ef83df24192aef729071eba281e9c43671f78f01a",
+          "checkpointsSha256": "02851adf76bc4c5669fea1696f0696adae160aa16c105425ae4dd644d2946bac"
+        },
+        {
+          "engine": "whisperx",
+          "device": "cuda",
+          "completedSamples": 40,
+          "editDistance": 117,
+          "cer": 0.43820224719101125,
+          "report": "cache/asr-evaluation/studio-worker-runs/2026-10-20T23-18-43.232Z-whisperx-cuda/report.json",
+          "reportSha256": "79e774364dc5126ccff55163db872e301b760ca7c0c3240e2ae1e004eb430063",
+          "documentsSha256": "ef163e97f459a7f789e0d6901fa4b6d347e5c97e6f55831a0dabbf5d8d912c22",
+          "checkpointsSha256": "698a197859be3c13cb353eca6fa6a49600195db2c732073d4b4793b52e1f664b"
+        }
+      ]
+    },
+    {
+      "id": "continuous",
+      "label": "连续会议语音",
+      "source": "AISHELL-4",
+      "samples": 3,
+      "referenceCharacters": 1012,
+      "durationMs": 288422,
+      "manifestSha256": "83e892faf6b4c426ad4ddde0211451bdf5eacbb1eb62c9b94468215f2be10896",
+      "scope": "同一场会议中的三段连续单人及轮流对话，包含分块切口。",
+      "summaries": [
+        {
+          "path": "cache/asr-evaluation/continuous-reference-summary-final.json",
+          "sha256": "3a3e86590d42a473b630253d3a883b1473127463ac25ab1a7f075dc1178a73b4"
+        }
+      ],
+      "profiles": [
+        {
+          "engine": "paraformer",
+          "device": "cpu",
+          "completedSamples": 3,
+          "editDistance": 84,
+          "cer": 0.08300395256916997,
+          "report": "cache/asr-evaluation/continuous-worker-runs/2026-10-20T09-53-26.755Z-paraformer-cpu/report.json",
+          "reportSha256": "895049de3653f1692acb9e55c220d64139901e5210d0992bd03fbea23f9e5b64",
+          "documentsSha256": "f243fbb055ea70afa81fb4b65eb3e87b6b160aafd9302eb79f5b32a8c64a34ab",
+          "checkpointsSha256": "00ffd883a40e520bc4c69ce12cb972ec26f0b1a1aa5a19a3e02737699c3334b7"
+        },
+        {
+          "engine": "whisperx",
+          "device": "cpu",
+          "completedSamples": 3,
+          "editDistance": 189,
+          "cer": 0.18675889328063242,
+          "report": "cache/asr-evaluation/continuous-worker-runs/2026-10-20T09-55-30.731Z-whisperx-cpu/report.json",
+          "reportSha256": "b2f66ca70402afd5032865b9b9a9a906074c4c11ee97577e262dbd1ff3278278",
+          "documentsSha256": "f2635c22f823abc9fd3a094de3237c8934ea35e4f8712e835e7faeb39fed49ad",
+          "checkpointsSha256": "fcb6f983f8d01fd7122a5643e918ec1d348855a17e3b9c55b9542b65b958ecb1"
+        },
+        {
+          "engine": "paraformer",
+          "device": "cuda",
+          "completedSamples": 3,
+          "editDistance": 85,
+          "cer": 0.08399209486166008,
+          "report": "cache/asr-evaluation/continuous-worker-runs/2026-10-20T09-48-19.521Z-paraformer-cuda/report.json",
+          "reportSha256": "2a7bfc8044a0517c5142e649104fff36dff88d0b3994297509ca8ade740c50e8",
+          "documentsSha256": "0cf6f0ca3668b814b69f567b052b6266771eac8d0946676119203a921d945d05",
+          "checkpointsSha256": "ab29157d356af50a79bb7574e804b5846173afdeebd1821b0287f75039077ede"
+        },
+        {
+          "engine": "whisperx",
+          "device": "cuda",
+          "completedSamples": 3,
+          "editDistance": 191,
+          "cer": 0.18873517786561264,
+          "report": "cache/asr-evaluation/continuous-worker-runs/2026-10-20T09-49-23.187Z-whisperx-cuda/report.json",
+          "reportSha256": "c7527e458c6563f7a65a57e5899ac59e0d93f607c835f1ba64ebb8392a39ad54",
+          "documentsSha256": "49a9819da20e234038e6742d995d1ddda39f421e49c0210e940456605538cb98",
+          "checkpointsSha256": "7e4a2633f6895ccd149dad1583a19040e76be6e9d4fdd7d648575381058ce40c"
+        }
+      ]
+    },
+    {
+      "id": "film",
+      "label": "影视短对白",
+      "source": "CH-SIMS",
+      "samples": 18,
+      "referenceCharacters": 244,
+      "durationMs": 55425,
+      "manifestSha256": "1462a41e250bd63756e2dc56e7d9e61744b647185c5be2c3dd59d18367c8e778",
+      "scope": "官方 test 中固定十个源视频组；WhisperX 使用末端修复后的完整集合。",
+      "summaries": [
+        {
+          "path": "cache/asr-evaluation/film-summary-four-groups.json",
+          "sha256": "1de9b02ddd5a766f0376261cdbbd78210680ed2f339338e004ea9c56331fb957"
+        },
+        {
+          "path": "cache/asr-evaluation/film-summary-bounded-whisper.json",
+          "sha256": "ea0fe274c7ce86c5417d3216ac54d4738122160ddcb0091be96483b6da0d5812"
+        }
+      ],
+      "profiles": [
+        {
+          "engine": "paraformer",
+          "device": "cpu",
+          "completedSamples": 18,
+          "editDistance": 24,
+          "cer": 0.09836065573770492,
+          "report": "cache/asr-evaluation/film-worker-runs/2026-10-21T07-36-18.922Z-paraformer-cpu/report.json",
+          "reportSha256": "72b134d0db6c2a7b72b7e2b106421f53db21b508f6057366e25d6103e61746be",
+          "documentsSha256": "713ccd5cdf0fa5e71896f7630e22a4429f7eff91a53de06f31a47b8741b69ab4",
+          "checkpointsSha256": "fe65d77b32880ce32957af03832efe3d1fd377826cf5c1ccb869b69eb8d0631a"
+        },
+        {
+          "engine": "whisperx",
+          "device": "cpu",
+          "completedSamples": 18,
+          "editDistance": 39,
+          "cer": 0.1598360655737705,
+          "report": "cache/asr-evaluation/film-worker-runs/2026-10-21T07-50-20.736Z-whisperx-cpu/report.json",
+          "reportSha256": "8f3d8207dd89b382aaf22371608f6a4a02ad758e4790ab255410787c1f89cd10",
+          "documentsSha256": "ff90c20c6c73668ac374278f34cd0cae2a6fbffca16fdc324bc5cf95b5ce582a",
+          "checkpointsSha256": "c497b1c38714bc7244c8ae42ac92457c25c12788e7ced039c9172a276f2fdebe"
+        },
+        {
+          "engine": "paraformer",
+          "device": "cuda",
+          "completedSamples": 18,
+          "editDistance": 24,
+          "cer": 0.09836065573770492,
+          "report": "cache/asr-evaluation/film-worker-runs/2026-10-21T07-30-11.306Z-paraformer-cuda/report.json",
+          "reportSha256": "adf328726d7dbf8d8df203faec2f0a00616374ea9826fff2cf899e388a3d6fb5",
+          "documentsSha256": "4b0da603d9283e1f4fcd4db54737b1e949eb64bcf5d397339e150acd79aebf3c",
+          "checkpointsSha256": "72e201fa80c9ed9d553510f7ef93711580347ed40e2332f11b9e854121bcbb82"
+        },
+        {
+          "engine": "whisperx",
+          "device": "cuda",
+          "completedSamples": 18,
+          "editDistance": 41,
+          "cer": 0.1680327868852459,
+          "report": "cache/asr-evaluation/film-worker-runs/2026-10-21T07-49-16.598Z-whisperx-cuda/report.json",
+          "reportSha256": "e28cf2f97faf77444d47e37ba87e34893161dfc7c2c1cdb8f7f165486200387f",
+          "documentsSha256": "f9a71791af8e6b6087b310cd496660d665a30068e5a0f2d7e79491e81062a197",
+          "checkpointsSha256": "900e717c98cfe051788ca391377a248beed019be17b316869b18d5b184961077"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+/* Shared book typography is supplied by useReaderPreferences in both readers. */
+.reading .reader-panel.companion-page {
+  --reader-muted: color-mix(in srgb, var(--reader-text) 78%, var(--reader-surface));
+  --reader-border: color-mix(in srgb, var(--reader-text) 28%, var(--reader-surface));
+  --reader-field: color-mix(in srgb, var(--reader-text) 5%, var(--reader-surface));
+  --reader-current: color-mix(in srgb, var(--reader-text) 12%, var(--reader-surface));
+}
+.reading .companion-page :is(.companion-prose, .original-prose, .transcript-segments) {
+  width: min(100%, var(--reading-width));
+  font-family: var(--reader-book-font);
+  font-size: var(--reader-size);
+  font-weight: var(--reading-weight);
+  line-height: var(--reader-leading);
+  letter-spacing: var(--reading-tracking);
+  color: var(--reader-text);
+}
+.reading .companion-page :is(.companion-paragraph, .original-prose > p) {
+  margin-bottom: var(--reading-paragraph-gap);
+  text-indent: var(--reading-indent);
+}
+.companion-page .companion-drawer--settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(390px, calc(100vw - 28px));
+  padding: 20px;
+  background: color-mix(
+    in srgb,
+    var(--reader-panel-solid) var(--reader-panel-opacity, 100%),
+    transparent
+  );
+}
+.companion-page .companion-drawer--settings[hidden] {
+  display: none;
+}
+.companion-drawer--settings .reader-preferences {
+  min-height: 140px;
+}
+.companion-drawer--settings .reader-preferences :is(label, fieldset) {
+  color: var(--ui-text);
+}
+.companion-page .companion-drawer--settings .companion-drawer-heading h2 {
+  font-size: 15px;
+}
+.companion-page .companion-drawer--settings .tools-hint {
+  flex-shrink: 0;
+  margin: 0;
+}
+.companion-page .companion-source-bar {
+  justify-content: center;
+  min-height: 44px;
+}
+.companion-page .companion-source-tabs button {
+  min-height: 34px;
+  padding-block: 5px;
+}
+.companion-page .original-reading-footer {
+  justify-content: space-between;
+  gap: 8px 20px;
+  flex-wrap: wrap;
+}
+.original-follow-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.original-follow-controls .original-current-chapter {
+  max-width: 180px;
+  font-size: 13px;
+}
+.original-follow-controls .original-reading-status {
+  flex: 0 1 auto;
+}
+.original-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+@media (max-width: 800px) {
+  .original-follow-controls .original-current-chapter {
+    display: none;
+  }
+  .original-follow-controls {
+    gap: 8px;
+  }
+  .companion-page .original-reading-footer {
+    padding-inline: 16px;
+  }
+}
