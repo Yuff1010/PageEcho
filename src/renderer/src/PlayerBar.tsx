@@ -90,6 +90,47 @@ export function PlayerBar({
           <ReaderDockOutlet name="navigation" />
         </div>
       )}
+      <div
+        className="player-seek-rail"
+        style={
+          {
+            '--player-position': `${Math.min(100, Math.max(0, playback.durationMs > 0 ? (playback.positionMs / playback.durationMs) * 100 : 0))}%`,
+          } as CSSProperties
+        }
+      >
+        <Tooltip
+          content={`已播放 ${time(playback.positionMs)} / 总时长 ${time(playback.durationMs)}`}
+        >
+          <input
+            type="range"
+            aria-label="播放进度"
+            min="0"
+            max={Math.max(1, playback.durationMs)}
+            step="1"
+            value={Math.min(playback.positionMs, Math.max(1, playback.durationMs))}
+            aria-valuetext={`已播放 ${time(playback.positionMs)}，总时长 ${time(playback.durationMs)}`}
+            disabled={!playback.ready}
+            onChange={(event) => player.seek(Number(event.target.value))}
+            onKeyDown={(event) => {
+              if (event.altKey || event.ctrlKey || event.metaKey) return
+              const position = player.getPosition()
+              const target =
+                event.key === 'ArrowRight' || event.key === 'ArrowUp'
+                  ? position + 5000
+                  : event.key === 'ArrowLeft' || event.key === 'ArrowDown'
+                    ? position - 5000
+                    : event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? playback.durationMs
+                        : null
+              if (target === null) return
+              event.preventDefault()
+              player.seek(target)
+            }}
+          />
+        </Tooltip>
+      </div>
       <div className="player-heading">
         <div className="player-cover">
           {playback.episode ? (
@@ -106,62 +147,7 @@ export function PlayerBar({
               </span>
             </Tooltip>
           </h2>
-          {feedback ? (
-            <div
-              className={`player-dock-feedback${playback.error || playback.saveError ? ' error-message' : ''}`}
-              role={playback.error || playback.saveError ? 'alert' : 'status'}
-            >
-              <Tooltip content={feedback}>
-                <span tabIndex={0}>{feedback}</span>
-              </Tooltip>
-              {playback.error && playback.episode ? (
-                <button onClick={() => void player.load(playback.episode!.id)}>重试播放</button>
-              ) : playback.saveError ? (
-                <button onClick={() => void player.save()}>重试保存</button>
-              ) : notice ? (
-                <button
-                  className="icon-button"
-                  aria-label="关闭书签提示"
-                  onClick={() => setNotice('')}
-                >
-                  <Icon name="close" />
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <p>{playback.episode ? playback.bookTitle : '选择一本书，开始收听'}</p>
-          )}
-          {playback.episode && !inlineNotice && !reading && (
-            <SubtitleStatus
-              snapshot={playback.subtitleStatus}
-              rate={playback.rate}
-              variant="player"
-            />
-          )}
-          {inlineNotice && !reading && (
-            <div className="player-notice player-subtitle-notice" role="status">
-              <Tooltip content={playback.subtitleNotice || playback.skipNotice || '正在加载音频…'}>
-                <span tabIndex={0}>
-                  {playback.loading
-                    ? '正在加载音频…'
-                    : playback.subtitleNotice || playback.skipNotice}
-                </span>
-              </Tooltip>
-              {playback.subtitleWaiting && (
-                <button className="text-button" onClick={() => void player.play(true)}>
-                  立即播放
-                </button>
-              )}
-              {playback.subtitleSetupNeeded && playback.episode && (
-                <button
-                  className="text-button"
-                  onClick={() => onTools(playback.episode!.bookId, 'subtitles')}
-                >
-                  配置字幕组件
-                </button>
-              )}
-            </div>
-          )}
+          <p>{playback.episode ? playback.bookTitle : '选择一本书，开始收听'}</p>
         </div>
       </div>
       <div className="player-center">
@@ -201,41 +187,16 @@ export function PlayerBar({
             </button>
           </Tooltip>
         </div>
-        <div className="seek-row">
-          <time>{time(playback.positionMs)}</time>
-          <input
-            type="range"
-            aria-label="播放进度"
-            min="0"
-            max={Math.max(1, playback.durationMs)}
-            step="1"
-            value={Math.min(playback.positionMs, Math.max(1, playback.durationMs))}
-            aria-valuetext={`已播放 ${time(playback.positionMs)}，总时长 ${time(playback.durationMs)}`}
-            disabled={!playback.ready}
-            onChange={(event) => player.seek(Number(event.target.value))}
-            onKeyDown={(event) => {
-              if (event.altKey || event.ctrlKey || event.metaKey) return
-              const position = player.getPosition()
-              const target =
-                event.key === 'ArrowRight' || event.key === 'ArrowUp'
-                  ? position + 5000
-                  : event.key === 'ArrowLeft' || event.key === 'ArrowDown'
-                    ? position - 5000
-                    : event.key === 'Home'
-                      ? 0
-                      : event.key === 'End'
-                        ? playback.durationMs
-                        : null
-              if (target === null) return
-              event.preventDefault()
-              player.seek(target)
-            }}
-          />
-          <time>{time(playback.durationMs)}</time>
-        </div>
       </div>
       <div className="player-right">
         <div className="audio-settings">
+          {!reading && playback.episode && (
+            <SubtitleStatus
+              snapshot={playback.subtitleStatus}
+              rate={playback.rate}
+              variant="icon"
+            />
+          )}
           <Tooltip content="字幕与伴读设置">
             <button
               className="icon-button player-action subtitle-settings-button"
@@ -334,6 +295,55 @@ export function PlayerBar({
               收听工具
             </button>
           </Popover>
+        </div>
+        <div className="player-messages">
+          {feedback && (
+            <div
+              className={`player-dock-feedback${playback.error || playback.saveError ? ' error-message' : ''}`}
+              role={playback.error || playback.saveError ? 'alert' : 'status'}
+            >
+              <Tooltip content={feedback}>
+                <span tabIndex={0}>{feedback}</span>
+              </Tooltip>
+              {playback.error && playback.episode ? (
+                <button onClick={() => void player.load(playback.episode!.id)}>重试播放</button>
+              ) : playback.saveError ? (
+                <button onClick={() => void player.save()}>重试保存</button>
+              ) : notice ? (
+                <button
+                  className="icon-button"
+                  aria-label="关闭书签提示"
+                  onClick={() => setNotice('')}
+                >
+                  <Icon name="close" />
+                </button>
+              ) : null}
+            </div>
+          )}
+          {inlineNotice && !reading && (
+            <div className="player-notice player-subtitle-notice" role="status">
+              <Tooltip content={playback.subtitleNotice || playback.skipNotice || '正在加载音频…'}>
+                <span tabIndex={0}>
+                  {playback.loading
+                    ? '正在加载音频…'
+                    : playback.subtitleNotice || playback.skipNotice}
+                </span>
+              </Tooltip>
+              {playback.subtitleWaiting && (
+                <button className="text-button" onClick={() => void player.play(true)}>
+                  立即播放
+                </button>
+              )}
+              {playback.subtitleSetupNeeded && playback.episode && (
+                <button
+                  className="text-button"
+                  onClick={() => onTools(playback.episode!.bookId, 'subtitles')}
+                >
+                  配置字幕组件
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>

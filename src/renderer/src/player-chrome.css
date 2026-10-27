@@ -1,6 +1,128 @@
+.app-shell:not(.companion-mode):not(.player-hidden) {
+  --player-height: var(--player-bar-height);
+}
+.player-panel[data-reader-dock='false'],
+.player-panel[data-reader-dock='true'] {
+  grid-template-columns: minmax(0, 1fr) var(--player-transport-width) minmax(0, 1fr);
+  column-gap: 16px;
+}
 .player-panel[data-reader-dock='false'] {
-  grid-template-columns: minmax(150px, 1fr) minmax(250px, 1.5fr) auto;
-  column-gap: var(--reader-toolbar-gap);
+  height: var(--player-bar-height);
+  min-height: var(--player-bar-height);
+  padding: 12px 24px 8px;
+}
+.player-panel .player-heading {
+  grid-column: 1;
+}
+.player-panel .player-center {
+  grid-column: 2;
+}
+.player-panel .player-right {
+  grid-column: 3;
+  min-width: 0;
+  max-width: 100%;
+}
+.player-panel .reader-dock-row {
+  border-bottom: 0;
+}
+.player-panel .player-seek-rail {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--player-seek-hit-height);
+  z-index: 1;
+}
+.player-panel[data-reader-dock='true'] .player-seek-rail {
+  top: var(--reader-dock-row-height);
+}
+.player-panel .player-seek-rail input {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: var(--player-seek-hit-height);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.player-panel .player-seek-rail input::-webkit-slider-runnable-track {
+  height: var(--player-seek-track-height);
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(
+    to right,
+    var(--ui-accent) 0 var(--player-position),
+    var(--ui-line) var(--player-position) 100%
+  );
+}
+.player-panel .player-seek-rail input::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--player-seek-thumb-size);
+  height: var(--player-seek-thumb-size);
+  margin-top: calc((var(--player-seek-track-height) - var(--player-seek-thumb-size)) / 2);
+  border: 0;
+  border-radius: 50%;
+  background: var(--ui-accent);
+  opacity: 0;
+}
+.player-panel .player-seek-rail input:is(:hover, :focus-visible, :active)::-webkit-slider-thumb {
+  opacity: 1;
+}
+.player-panel .player-seek-rail input:focus-visible {
+  outline-offset: -2px;
+}
+.player-panel .player-cover {
+  display: grid;
+  width: 44px;
+  height: 48px;
+  border-radius: 6px;
+}
+.player-panel .now-playing > p,
+.player-panel[data-reader-dock='true'] .now-playing > p {
+  display: block;
+  margin: 3px 0 0;
+}
+.player-panel .player-messages {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.player-panel .player-messages:empty {
+  display: none;
+}
+.player-panel .player-messages :is(.player-dock-feedback, .player-subtitle-notice) {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  margin: 2px 0 0;
+  font-size: 11px;
+  min-height: 20px;
+  line-height: 18px;
+}
+.player-panel .player-messages .player-dock-feedback {
+  justify-content: flex-end;
+}
+.player-panel .player-messages .player-dock-feedback button {
+  min-height: 20px;
+}
+.player-panel .player-messages .player-subtitle-notice {
+  position: static;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.player-panel .player-messages .player-subtitle-notice > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .player-panel .player-title {
   display: block;
@@ -13,6 +135,7 @@
 }
 .player-panel .audio-settings {
   gap: 4px;
+  flex-wrap: nowrap;
 }
 .player-panel .audio-settings .icon-button {
   display: inline-flex;
@@ -53,15 +176,8 @@
 .player-panel .transport .play-button {
   box-shadow: 0 3px 10px #0002;
 }
-.player-panel .seek-row {
-  gap: 10px;
-}
-.player-panel .seek-row time {
-  font-size: 12px;
-  letter-spacing: 0.02em;
-}
 .player-panel .player-dock-feedback {
-  min-height: 22px;
+  min-height: 20px;
 }
 .player-panel .player-dock-feedback > span {
   min-width: 0;
@@ -87,13 +203,13 @@
 }
 @media (max-width: 800px) {
   .player-panel[data-reader-dock='false'] {
-    grid-template-columns: minmax(130px, 1fr) minmax(200px, 1.5fr) auto;
-    column-gap: 12px;
+    padding-inline: 12px;
+  }
+  .player-panel[data-reader-dock='false'],
+  .player-panel[data-reader-dock='true'] {
+    column-gap: 10px;
   }
   .player-panel .transport {
     gap: 12px;
-  }
-  .player-panel .seek-row {
-    gap: 6px;
   }
 }

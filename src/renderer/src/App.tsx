@@ -19,7 +19,7 @@ import { BookCover, Icon } from './Icons'
 import { Popover } from './Popover'
 import { Tooltip } from './Tooltip'
 import { PlayerBar } from './PlayerBar'
-import { AppInfo } from './AppInfo'
+import { AppInfo, type AppInfoPanel } from './AppInfo'
 import { ReaderPage } from './ReaderPage'
 import { appRouteHash, parseAppRoute, type AppRoute } from './app-navigation'
 import { useAppAppearance } from './app-appearance'
@@ -75,7 +75,10 @@ export function App() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('added')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [infoOpen, setInfoOpen] = useState(false)
+  const [infoOpen, setInfoOpen] = useState<AppInfoPanel | null>(null)
+  const [infoError, setInfoError] = useState('')
+  const infoTrigger = useRef<HTMLElement | null>(null)
+  const infoSession = useRef(0)
   const [layout, setLayout] = useState(readLayout)
   const [readAloudId, setReadAloudId] = useState<string | null>(null)
   const readingShelf = useRef<ReadingShelfHandle>(null)
@@ -252,17 +255,32 @@ export function App() {
     setRemoveTarget(null)
     requestAnimationFrame(() => removeTrigger.current?.focus({ preventScroll: true }))
   }
+  function openInfo(panel: AppInfoPanel) {
+    infoSession.current += 1
+    infoTrigger.current = persistentTrigger()
+    setInfoError('')
+    setInfoOpen(panel)
+    if (panel === 'about' && !state) void load()
+  }
+  function closeInfo() {
+    infoSession.current += 1
+    setInfoOpen(null)
+    requestAnimationFrame(() => infoTrigger.current?.focus({ preventScroll: true }))
+  }
   async function importRemembered(id: string) {
+    const session = infoSession.current
     setBusy(true)
-    setError('')
+    setInfoError('')
     try {
       const result = await window.desktop.importRemembered({ id })
       if (result.ok) {
         update(result.value)
-        setInfoOpen(false)
-      } else setError(result.error.message)
+        if (session === infoSession.current) closeInfo()
+      } else if (session === infoSession.current) setInfoError(result.error.message)
+      else setError(result.error.message)
     } catch {
-      setError('导入未完成，请重试。')
+      if (session === infoSession.current) setInfoError('导入未完成，请重试。')
+      else setError('导入未完成，请重试。')
     } finally {
       setBusy(false)
     }
@@ -436,7 +454,7 @@ export function App() {
         </nav>
         <div className="sidebar-bottom">
           <Popover label="应用设置" icon="settings" placement="top">
-            <button role="menuitem" onClick={() => setInfoOpen(true)}>
+            <button role="menuitem" onClick={() => openInfo('appearance')}>
               <Icon name="book" />
               外观设置
             </button>
@@ -448,7 +466,7 @@ export function App() {
               <Icon name="folder" />
               离线准备计划
             </button>
-            <button role="menuitem" onClick={() => setInfoOpen(true)}>
+            <button role="menuitem" onClick={() => openInfo('about')}>
               <Icon name="info" />
               应用信息
             </button>
@@ -932,9 +950,12 @@ export function App() {
       {infoOpen && (
         <AppInfo
           state={state}
+          panel={infoOpen}
           busy={busy || !!draft}
+          error={infoError || (!state ? error : '')}
           onImport={(id) => void importRemembered(id)}
-          onClose={() => setInfoOpen(false)}
+          onRetry={() => void load()}
+          onClose={closeInfo}
         />
       )}
     </div>

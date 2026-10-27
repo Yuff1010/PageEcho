@@ -182,6 +182,64 @@
   align-items: center;
   min-height: 26px;
 }
+.subtitle-status-icon {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.subtitle-status-icon > summary,
+.subtitle-status-loading-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--reader-control-size);
+  height: var(--reader-control-size);
+  min-height: var(--reader-control-size);
+  padding: 8px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--ui-muted);
+}
+.subtitle-status-icon > summary::after {
+  display: none;
+}
+.subtitle-status-icon > summary:is(:hover, :focus-visible),
+.subtitle-status-icon[open] > summary {
+  border-color: var(--ui-line);
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+.subtitle-status-icon .subtitle-status-compact > .icon,
+.subtitle-status-loading-icon > .icon {
+  width: var(--reader-icon-size);
+  height: var(--reader-icon-size);
+}
+.subtitle-status-expanded-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.subtitle-status-expanded-progress > progress {
+  width: 100%;
+  min-width: 0;
+  height: var(--reader-progress-height);
+  flex: 1;
+  accent-color: var(--ui-accent);
+}
+.subtitle-status-expanded-progress > span {
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .subtitle-status-icon > summary,
+  .subtitle-status-loading-icon {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 7px;
+  }
+}
 .episode-list .subtitle-status-badge {
   flex-shrink: 0;
   max-width: 160px;

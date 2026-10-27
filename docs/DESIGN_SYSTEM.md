@@ -70,6 +70,17 @@
 
 ## 阅读与单一控制栏
 
+播放器主控行由 `PlayerBar`／`player-chrome.css` 统一负责：普通页面采用 84px 单排底栏，左侧只保留章节标题与书名，中间播放控件使用等宽左右列保持居中，右侧放工具图标。原生播放进度滑杆移到横贯底栏的上缘，阅读模式则位于来源／分页行与播放主控行之间，不与来源按钮叠放。进度只显示实际媒体位置，时间通过悬浮／聚焦提示和 `aria-valuetext` 提供，不常驻另一行时间文字，也不将字幕覆盖量冒充播放进度。
+
+| 播放器参数                                                | 默认值     | 用途                           |
+| --------------------------------------------------------- | ---------- | ------------------------------ |
+| `--player-bar-height`                                     | 84px       | 普通页面底栏高度及主内容预留   |
+| `--player-transport-width`                                | 160px      | 居中播放操作所在列，两侧等宽   |
+| `--player-seek-hit-height` / `--player-seek-track-height` | 16px / 3px | 原生滑杆命中范围与可见细轨     |
+| `--player-seek-thumb-size`                                | 10px       | 悬浮、聚焦或拖动时出现的进度柄 |
+
+非阅读页面的 `SubtitleStatus` 使用 `icon` 变体放在右侧；入口不显示第三行字幕时长／领先秒数，完整覆盖区间、分段数、真实进度与待采用稿保留在原详情中。阅读底栏仍使用其 `player` 变体。加载、字幕等待、配置缺失、定时、书签提示和错误放在右侧的条件消息区，保留立即播放、配置和重试；不替换左侧书名，也不另外堆叠常驻通栏。所有拖动、5 秒方向键、Home／End、暂停与媒体会话仍使用原播放器接口。
+
 `ReaderToolbar` 负责两种阅读页相同的顶部操作尺寸；正文排版仍由 `reader-settings.ts` 中的全局／本书偏好提供。`reader-dom.ts` 是可视句子／字符锚点、列步长和恢复位置的共同基础，`motion.ts` 是共同翻页动画基础。有声书的 `useCompanionPagination` 与电子书的 `useEbookDocument` 都使用这些函数，60 句只属于有界的数据窗口，不能把它显示为按屏幕排版后的“整书页数”。
 
 | 参数                                                     | 默认值                               | 负责组件                 |
@@ -105,6 +116,12 @@
 
 `tests/desktop/reader-settings-compact.spec.ts` 覆盖 1200px／720px 宽度、浅色／深色、面板高度与滚动、三个设置分类、键盘／悬停／触屏帮助提示、Escape 焦点、范围短选项、配色草稿及常显错误。既有 `reader-preferences.spec.ts` 和 `reader-blending.spec.ts` 仍验证配色持久化、透明度和真实绘制对比度；高级控件改为先展开后操作。此处列出验收范围，最终桌面结果由主任务统一运行记录。
 
+## 应用外观与信息
+
+`AppInfo` 的 `appearance`／`about` 面板互斥，`App` 分别保存打开意图。外观设置只提供应用主题，不混入版本、数据目录和旧导入；应用信息显示从主进程读取的实际版本、实际 Electron／Chromium 运行环境，以及按需展开的数据目录和旧音频记录，不放主题选择框。阅读纸色继续由阅读设置负责。
+
+`app-info.css` 使用 `--app-info-width`（520px）、`--app-info-gap`（16px）、`--app-info-label-width`（72px）控制两个面板的共同尺寸。关闭或 Escape 后恢复应用设置入口的焦点。主题保存失败和应用信息读取／旧导入失败应在对应面板直接可见；异步旧导入结果不能关闭后来打开的其他面板。
+
 ## 0.25.0-dev.8 历史交付记录
 
 `0.25.0-dev.8` 的 529 项单元／模块检查、类型、lint、格式及最终 176 项桌面回归全部通过，无失败、跳过或不稳定重试。最终桌面结果为 `cache/compact-reader-validation/desktop-results.json`，截图位于 `cache/compact-reader-verified-tests/`；汇总为 `cache/compact-reader-validation/report.json`。最终构建的 192 个源码文件与当前实现一致，主 `out/` 的 8 个文件未变。
@@ -118,3 +135,9 @@
 529 项单元／模块检查、类型、lint 和格式检查通过。197 个源码文件与最终构建一致，主 `out/` 的 8 个文件未变。181 项桌面用例均验证：完整运行通过 180 项，唯一旧文案断言改为核对真实集名及时间后复验通过；书签、媒体坐标、重启和音频版本检查保持完整。原始完整报告与复验分别为 `cache/icon-ui-validation/desktop-results.json`、`recent-position-recheck.json`，汇总为同目录 `report.json`。
 
 新增用例检查图标操作的准确名称、悬浮与焦点气泡、原生下拉和菜单的 Escape、真实导入与布局、媒体会话及字幕数值。最终目录通过独立路径、新数据、系统 PATH 下的 WAV／TXT worker／Windows 声音播放与重启恢复验证，报告为 `cache/handoff-smoke/2026-10-27T04-38-56.477Z/report.json`。截图位于 `cache/icon-ui-verified-tests/`，包路径及校验见 [交付说明](DELIVERY.md)。
+
+## 0.27.0-dev.1 播放底栏与应用信息交付
+
+529 项单元／模块测试、类型、lint 和格式检查通过；最终构建完整 185 项桌面回归一次通过，无失败、跳过或不稳定重试。198 个源码文件及字幕 Python 脚本与构建一致，根 `out/` 的 8 个文件保持原样。报告为 `cache/player-strip-validation/desktop-results.json`，汇总为同目录 `report.json`。
+
+新增和扩展回归覆盖两个独立应用面板、真实版本／运行环境、主题保存与失败、焦点恢复；单排播放布局、上缘细轨与命中范围、时间提示、5 秒／毫秒／端点跳转、字幕右侧详情、媒体会话和减少动态效果。宽窄窗口与两种主题的底栏截图及两个面板均已视觉检查。最终自包含目录的独立路径、全新数据、仅系统 PATH 下运行、声音／文字处理及重启恢复也通过，报告为 `cache/handoff-smoke/2026-10-27T23-18-06.027Z/report.json`。发行摘要和完整边界见 [本版记录](releases/0.27.0-dev.1.md)。

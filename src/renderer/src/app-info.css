@@ -1,0 +1,44 @@
+.listening-dialog.app-info-dialog {
+  width: min(var(--app-info-width), calc(100vw - var(--app-info-gap) * 2));
+}
+.app-info-dialog .section-heading h2:focus {
+  outline: none;
+}
+.app-info-dialog .app-theme-setting {
+  margin: 0;
+  gap: var(--app-info-gap);
+  padding: var(--app-info-gap);
+}
+.app-info-dialog .app-info-facts {
+  display: grid;
+  gap: var(--app-info-gap);
+  margin: 0;
+}
+.app-info-dialog .app-info-facts > div {
+  display: grid;
+  grid-template-columns: var(--app-info-label-width) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--app-info-gap);
+}
+.app-info-dialog .app-info-facts dt {
+  color: var(--ui-muted);
+}
+.app-info-dialog .app-info-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.app-info-dialog .app-info-storage {
+  margin-top: var(--app-info-gap);
+}
+.app-info-dialog .app-info-storage p {
+  margin-block: var(--app-info-gap);
+  user-select: text;
+}
+.app-info-dialog .app-info-error {
+  margin-block: var(--app-info-gap);
+}
+.app-info-dialog .app-info-error p {
+  overflow-wrap: anywhere;
+}

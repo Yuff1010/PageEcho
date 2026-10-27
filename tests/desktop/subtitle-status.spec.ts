@@ -174,7 +174,9 @@ test('gapped subtitles show exact saved coverage and 2x lead consistently; direc
     await expect(panel.locator('.subtitle-status-player > summary')).toHaveAccessibleName(
       /字幕部分已备/,
     )
-    await panel.locator('.subtitle-status-player > summary').click()
+    await expect(panel.locator('.subtitle-status-icon > summary')).toHaveText('')
+    await expect(panel.locator('.now-playing .subtitle-status-player')).toHaveCount(0)
+    await panel.locator('.subtitle-status-icon > summary').click()
     const status = panel.getByRole('group', { name: '字幕准备状态', exact: true })
     await expect(status).toContainText('已备 01:00 / 01:30')
     await expect(status).toContainText('从头连续 00:30')
@@ -204,6 +206,9 @@ test('gapped subtitles show exact saved coverage and 2x lead consistently; direc
     expect(traffic.full).toBe(0)
     await page.getByRole('button', { name: '伴读阅读', exact: true }).click()
     const reader = page.getByRole('region', { name: '同步伴读', exact: true })
+    await expect(
+      panel.locator('.reader-dock-slot--activity .subtitle-status-player > summary'),
+    ).not.toHaveText('')
     await toggleCompanionGeneration(reader)
     await expect(reader.getByRole('group', { name: '字幕准备状态', exact: true })).toContainText(
       '25 秒音频，2×可听约 12 秒',
@@ -275,6 +280,8 @@ test('complete saved subtitles stay complete while a separate preview awaits ado
     await expect(panel.locator('.subtitle-status-player > summary')).toHaveAccessibleName(
       /新稿待采用/,
     )
+    await expect(panel.locator('.subtitle-status-icon > summary')).toHaveText('')
+    await expect(panel.locator('.now-playing .subtitle-status-player')).toHaveCount(0)
     await page.getByRole('button', { name: '伴读阅读', exact: true }).click()
     const reader = page.getByRole('region', { name: '同步伴读', exact: true }),
       status = reader.getByRole('group', { name: '字幕准备状态', exact: true })

@@ -9,10 +9,12 @@ function PlayerSubtitleStatus({
   summary,
   title,
   children,
+  iconOnly = false,
 }: {
   summary: ReactNode
   title: string
   children: ReactNode
+  iconOnly?: boolean
 }) {
   const root = useRef<HTMLDetailsElement>(null),
     popup = useRef<HTMLDivElement>(null)
@@ -37,7 +39,11 @@ function PlayerSubtitleStatus({
       panel.style.maxHeight = `${Math.max(0, bottom - margin)}px`
       const bounds = panel.getBoundingClientRect()
       let top = bottom - bounds.height
-      const left = Math.max(margin, Math.min(24, width - bounds.width - margin))
+      const anchor = details.querySelector('summary')!.getBoundingClientRect()
+      const left = Math.max(
+        margin,
+        Math.min(iconOnly ? anchor.right - bounds.width : 24, width - bounds.width - margin),
+      )
       // Protect the visible part of the active sentence, including folded regions.
       // This runs on opening, sentence changes and layout events, never timeupdate.
       const current = [
@@ -134,15 +140,18 @@ function PlayerSubtitleStatus({
       document.removeEventListener('pointerdown', close)
       document.removeEventListener('keydown', escape)
     }
-  }, [])
+  }, [iconOnly])
   return (
-    <details className="subtitle-status-player" ref={root}>
+    <details
+      className={`subtitle-status-player${iconOnly ? ' subtitle-status-icon' : ''}`}
+      ref={root}
+    >
       <Tooltip content={`${title}${collapsedForSpace ? '；阅读空间不足，详情已收起' : ''}`}>
         <summary
           aria-label={`字幕状态：${title}${collapsedForSpace ? '；阅读空间不足，详情已收起' : ''}`}
         >
           {summary}
-          {collapsedForSpace && <Icon name="info" />}
+          {collapsedForSpace && !iconOnly && <Icon name="info" />}
         </summary>
       </Tooltip>
       <div className="subtitle-status-popup" ref={popup}>
@@ -221,12 +230,16 @@ export function SubtitleStatus({
 }: {
   snapshot: SubtitleStatusSnapshot | null
   rate?: number
-  variant?: 'player' | 'badge' | 'detail'
+  variant?: 'player' | 'icon' | 'badge' | 'detail'
 }) {
   if (!snapshot)
-    return variant === 'player' ? (
+    return variant === 'player' || variant === 'icon' ? (
       <Tooltip content="正在读取字幕状态…">
-        <span className="subtitle-status-loading" aria-label="正在读取字幕状态…" tabIndex={0}>
+        <span
+          className={`subtitle-status-loading${variant === 'icon' ? ' subtitle-status-loading-icon' : ''}`}
+          aria-label="正在读取字幕状态…"
+          tabIndex={0}
+        >
           <Icon name="clock" />
         </span>
       </Tooltip>
@@ -256,7 +269,10 @@ export function SubtitleStatus({
       <p className="subtitle-status-summary">
         <strong>{text.title}</strong> · 已备 {text.amount}
       </p>
-      <details className="subtitle-status-diagnostics" open={variant === 'player'}>
+      <details
+        className="subtitle-status-diagnostics"
+        open={variant === 'player' || variant === 'icon'}
+      >
         <summary>查看覆盖范围与任务详情</summary>
         <p>{text.coverage}</p>
         <p>{text.lead}</p>
@@ -308,48 +324,66 @@ export function SubtitleStatus({
           : snapshot.savedCoverage.coveredMs > 0
             ? 'partial'
             : 'missing'
-  return variant === 'player' ? (
+  const statusIcon =
+    state === 'complete'
+      ? 'check'
+      : state === 'failed' || state === 'stale'
+        ? 'info'
+        : active
+          ? 'clock'
+          : 'transcript'
+  return variant === 'player' || variant === 'icon' ? (
     <PlayerSubtitleStatus
+      iconOnly={variant === 'icon'}
       summary={
-        <span className="subtitle-status-compact" data-state={state}>
-          <Icon
-            name={
-              state === 'complete'
-                ? 'check'
-                : state === 'failed' || state === 'stale'
-                  ? 'info'
-                  : active
-                    ? 'clock'
-                    : 'transcript'
-            }
-          />
-          {stage && <span className="subtitle-status-stage">{stage}</span>}
-          <span className="subtitle-status-value">
-            {active
-              ? `${job.completedChunks}/${job.totalChunks || '…'}`
-              : snapshot.savedCoverage.coveredMs > 0
-                ? subtitleTime(snapshot.savedCoverage.coveredMs)
-                : '—'}
+        variant === 'icon' ? (
+          <span className="subtitle-status-compact" data-state={state}>
+            <Icon name={statusIcon} />
           </span>
-          {active && !progress ? (
-            <progress className="subtitle-status-mini-progress" aria-label="字幕任务进度未知" />
-          ) : (
-            progress && (
-              <progress
-                className="subtitle-status-mini-progress"
-                aria-label={progress.label}
-                value={progress.value}
-                max={progress.max}
-              />
-            )
-          )}
-          {!active && seconds > 0 && <span className="subtitle-status-lead">{seconds}s</span>}
-          {text.preview && <Icon name="leaf" />}
-        </span>
+        ) : (
+          <span className="subtitle-status-compact" data-state={state}>
+            <Icon name={statusIcon} />
+            {stage && <span className="subtitle-status-stage">{stage}</span>}
+            <span className="subtitle-status-value">
+              {active
+                ? `${job.completedChunks}/${job.totalChunks || '…'}`
+                : snapshot.savedCoverage.coveredMs > 0
+                  ? subtitleTime(snapshot.savedCoverage.coveredMs)
+                  : '—'}
+            </span>
+            {active && !progress ? (
+              <progress className="subtitle-status-mini-progress" aria-label="字幕任务进度未知" />
+            ) : (
+              progress && (
+                <progress
+                  className="subtitle-status-mini-progress"
+                  aria-label={progress.label}
+                  value={progress.value}
+                  max={progress.max}
+                />
+              )
+            )}
+            {!active && seconds > 0 && <span className="subtitle-status-lead">{seconds}s</span>}
+            {text.preview && <Icon name="leaf" />}
+          </span>
+        )
       }
       title={`${text.details.join('；')}${text.preview ? '；新稿待采用' : ''}`}
     >
       {body}
+      {variant === 'icon' && (active || progress) && (
+        <div className="subtitle-status-expanded-progress">
+          {active && (
+            <span>
+              {stage} · {job.completedChunks}/{job.totalChunks || '…'} 段
+            </span>
+          )}
+          <progress
+            aria-label={active && !progress ? '字幕任务进度未知' : progress!.label}
+            {...(progress ? { value: progress.value, max: progress.max } : {})}
+          />
+        </div>
+      )}
     </PlayerSubtitleStatus>
   ) : (
     body

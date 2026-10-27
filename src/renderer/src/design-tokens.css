@@ -1,4 +1,10 @@
 :root {
+  /* PlayerBar owns the single playback strip and its full-width seek rail. */
+  --player-bar-height: 84px;
+  --player-transport-width: 160px;
+  --player-seek-hit-height: 16px;
+  --player-seek-track-height: 3px;
+  --player-seek-thumb-size: 10px;
   /* Reader chrome/dock owner: ReaderToolbar + ReaderDock. Content uses user preferences. */
   --reader-toolbar-height: 60px;
   --reader-toolbar-inset: 22px;
@@ -18,6 +24,10 @@
   --shell-rail-width: 80px;
   --shell-nav-size: 44px;
   --shell-control-radius: 10px;
+  /* AppInfo owns the distinct appearance/about dialogs. */
+  --app-info-width: 520px;
+  --app-info-gap: 16px;
+  --app-info-label-width: 72px;
   --shelf-header-height: 94px;
   --shelf-header-padding-start: 26px;
   --shelf-header-padding-end: 15px;
