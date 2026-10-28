@@ -5,6 +5,7 @@
 .player-panel[data-reader-dock='true'] {
   grid-template-columns: minmax(0, 1fr) var(--player-transport-width) minmax(0, 1fr);
   column-gap: 16px;
+  border-top: 0;
 }
 .player-panel[data-reader-dock='false'] {
   height: var(--player-bar-height);
@@ -48,14 +49,20 @@
   cursor: pointer;
 }
 .player-panel .player-seek-rail input::-webkit-slider-runnable-track {
-  height: var(--player-seek-track-height);
+  /* Match the native track box to the hit area, then paint only its top 3px.
+     Moving a centered 3px track by 6.5px leaves half-pixel antialiasing after
+     WebKit rounds the native track's centered position to a whole pixel. */
+  height: var(--player-seek-hit-height);
   border: 0;
   border-radius: 0;
-  background: linear-gradient(
+  background-image: linear-gradient(
     to right,
     var(--ui-accent) 0 var(--player-position),
     var(--ui-line) var(--player-position) 100%
   );
+  background-size: 100% var(--player-seek-track-height);
+  background-position: left top;
+  background-repeat: no-repeat;
 }
 .player-panel .player-seek-rail input::-webkit-slider-thumb {
   appearance: none;

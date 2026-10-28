@@ -1,4 +1,12 @@
-import { expect, test, _electron as electron, type Locator, type Page } from '@playwright/test'
+import {
+  expect,
+  test,
+  _electron as electron,
+  type ElectronApplication,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from '@playwright/test'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -109,6 +117,135 @@ async function playerGeometry(panel: Locator) {
   })
 }
 
+async function expectTrackPaintOnBoundary(
+  app: ElectronApplication,
+  page: Page,
+  panel: Locator,
+  info: TestInfo,
+  name: string,
+) {
+  // Inspect the actual WebKit track painting, not the 16px input's rectangle:
+  // the old centered native track passed all hit-area geometry assertions.
+  await page.mouse.move(20, 20)
+  await panel.locator('.player-title').focus()
+  await page.keyboard.press('Escape')
+  const metrics = await panel.evaluate((node) => {
+    const bounds = node.getBoundingClientRect()
+    const rail = node.querySelector<HTMLElement>('.player-seek-rail')!
+    const input = rail.querySelector('input')!
+    const railBounds = rail.getBoundingClientRect()
+    const row = node.querySelector('.reader-dock-row')?.getBoundingClientRect()
+    const resolve = (value: string) => {
+      const probe = document.createElement('span')
+      probe.style.cssText = `position:fixed;visibility:hidden;color:${value}`
+      node.append(probe)
+      const color = getComputedStyle(probe).color
+      probe.remove()
+      return color
+        .match(/[\d.]+/g)!
+        .slice(0, 3)
+        .map(Number)
+    }
+    const track = getComputedStyle(input, '::-webkit-slider-runnable-track')
+    return {
+      panelTop: bounds.top,
+      borderTop: getComputedStyle(node).borderTopWidth,
+      rowBottom: row?.bottom,
+      rail: {
+        x: railBounds.x,
+        y: railBounds.y,
+        width: railBounds.width,
+        height: railBounds.height,
+      },
+      trackStyle: { height: track.height, transform: track.transform },
+      colors: {
+        played: resolve('var(--ui-accent)'),
+        remaining: resolve('var(--ui-line)'),
+        background: resolve(getComputedStyle(node).backgroundColor),
+      },
+      sourceControls: Array.from(
+        node.querySelectorAll<HTMLElement>(
+          '.reader-dock-row button, .reader-dock-row input, .reader-dock-row select',
+        ),
+      )
+        .filter((element) => element.checkVisibility({ visibilityProperty: true }))
+        .map((element) => ({
+          name: element.getAttribute('aria-label') ?? element.textContent?.trim(),
+          className: element.className,
+          top: element.getBoundingClientRect().top,
+          bottom: element.getBoundingClientRect().bottom,
+        })),
+    }
+  })
+  expect(metrics.borderTop).toBe('0px')
+  expect(metrics.rail.height).toBe(16)
+  expect(Math.abs(metrics.rail.y - (metrics.rowBottom ?? metrics.panelTop))).toBeLessThanOrEqual(1)
+  await info.attach(`${name}-control-bounds`, {
+    body: JSON.stringify(metrics, null, 2),
+    contentType: 'application/json',
+  })
+  expect(metrics.sourceControls.filter((element) => element.bottom > metrics.rail.y + 1)).toEqual(
+    [],
+  )
+  const strip = await page.screenshot({
+    path: info.outputPath(`${name}-track-paint.png`),
+    animations: 'disabled',
+    scale: 'css',
+    clip: {
+      x: metrics.rail.x,
+      y: metrics.rail.y,
+      width: metrics.rail.width,
+      height: 14,
+    },
+  })
+  const paint = await app.evaluate(
+    ({ nativeImage }, data) => {
+      const image = nativeImage.createFromBuffer(Buffer.from(data.image, 'base64'))
+      const { width, height } = image.getSize()
+      const bitmap = image.toBitmap()
+      const sample = (fraction: number) => {
+        const x = Math.floor(width * fraction)
+        return Array.from({ length: height }, (_, y) => {
+          const offset = (y * width + x) * 4
+          return [bitmap[offset + 2]!, bitmap[offset + 1]!, bitmap[offset]!]
+        })
+      }
+      return { width, height, played: sample(0.15), remaining: sample(0.85) }
+    },
+    { image: strip.toString('base64') },
+  )
+  await info.attach(`${name}-track-pixels`, {
+    body: JSON.stringify({ metrics, paint }, null, 2),
+    contentType: 'application/json',
+  })
+  for (const kind of ['played', 'remaining'] as const) {
+    for (let y = 0; y < 3; y++) {
+      const difference = Math.max(
+        ...paint[kind][y]!.map((value, channel) =>
+          Math.abs(value - metrics.colors[kind][channel]!),
+        ),
+      )
+      expect(
+        difference,
+        `${kind} track row ${y} must paint directly on the boundary`,
+      ).toBeLessThanOrEqual(2)
+    }
+    // The former track occupied rows 6–9. They must now be plain player paper,
+    // leaving one boundary line rather than a border plus an inset track.
+    for (let y = 6; y <= 10; y++) {
+      const difference = Math.max(
+        ...paint[kind][y]!.map((value, channel) =>
+          Math.abs(value - metrics.colors.background[channel]!),
+        ),
+      )
+      expect(
+        difference,
+        `${kind} old inset-track row ${y} must be player background`,
+      ).toBeLessThanOrEqual(2)
+    }
+  }
+}
+
 for (const [width, height] of [
   [1180, 800],
   [720, 600],
@@ -158,6 +295,7 @@ for (const [width, height] of [
           expect(control.bottom).toBeLessThanOrEqual(geometry.bounds.bottom + 1)
         }
         expect(geometry.overflow).toBe(false)
+        await expectTrackPaintOnBoundary(app, page, panel, info, `player-${width}-${theme}`)
         await seek.hover()
         await expect(
           page.getByRole('tooltip', { name: '已播放 01:05 / 总时长 01:30', exact: true }),
@@ -268,6 +406,7 @@ for (const [width, height] of [
       expect(Math.abs(rail!.x - dock!.x)).toBeLessThanOrEqual(1)
       expect(Math.abs(rail!.x + rail!.width - dock!.x - dock!.width)).toBeLessThanOrEqual(1)
       expect(Math.abs(rail!.y - (row!.y + row!.height))).toBeLessThanOrEqual(1)
+      await expectTrackPaintOnBoundary(app, page, panel, info, `reader-dock-${width}`)
     } finally {
       await closeOwnedElectron(app)
     }
