@@ -6,7 +6,7 @@
   align-items: center;
   gap: 0;
   padding: 28px 0 18px;
-  border-color: color-mix(in srgb, var(--ui-line) 45%, transparent);
+  border-color: transparent;
 }
 .sidebar > .brand {
   justify-content: center;
@@ -14,7 +14,7 @@
   height: var(--shell-nav-size);
   padding: 0;
   border-radius: var(--shell-control-radius);
-  background: var(--ui-accent-soft);
+  background: transparent;
 }
 .sidebar > .brand .icon {
   width: 24px;
@@ -36,6 +36,7 @@
 .sidebar .view-nav > button.active {
   color: var(--ui-accent);
   background: var(--ui-accent-soft);
+  box-shadow: var(--ui-pressed-shadow);
 }
 .sidebar .view-nav > button.active::before {
   left: -10px;

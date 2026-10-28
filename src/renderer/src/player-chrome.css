@@ -181,7 +181,7 @@
   gap: 18px;
 }
 .player-panel .transport .play-button {
-  box-shadow: 0 3px 10px #0002;
+  box-shadow: var(--ui-primary-shadow);
 }
 .player-panel .player-dock-feedback {
   min-height: 20px;

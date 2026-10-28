@@ -111,7 +111,7 @@
 .shelf-controls .library-tabs {
   padding: 4px;
   border-radius: calc(var(--shell-control-radius) + 2px);
-  background: var(--ui-nav);
+  background: transparent;
 }
 .shelf-controls .library-tabs button {
   display: inline-flex;
@@ -128,6 +128,7 @@
 .shelf-controls .library-tabs button.active {
   color: var(--ui-accent);
   background: var(--ui-accent-soft);
+  box-shadow: var(--ui-raised-shadow);
 }
 .shelf-controls .library-tabs button::after {
   display: none;
@@ -153,14 +154,25 @@
   padding: 0;
   border: 0;
   border-radius: var(--shell-control-radius);
-  background: var(--ui-accent-soft);
+  background: var(--ui-raised);
   color: var(--ui-accent);
+  box-shadow: var(--ui-raised-shadow);
 }
 .shelf-header .audio-import:hover {
   background: var(--ui-hover);
+}
+.shelf-header .audio-import:active,
+.shelf-controls .library-tabs button.active:active {
+  box-shadow: var(--ui-pressed-shadow);
 }
 .shelf-header .import-options > .icon-button {
   min-width: var(--shelf-import-menu-width);
   border: 0;
   border-radius: var(--shell-control-radius);
+}
+@media (forced-colors: active) {
+  .shelf-controls .library-tabs button.active {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }

@@ -9,6 +9,7 @@
 .bookshelf .shelf-card .book-cover {
   aspect-ratio: var(--shelf-cover-ratio);
   border-radius: var(--shelf-card-cover-radius);
+  box-shadow: var(--ui-cover-shadow);
 }
 .bookshelf .shelf-card .book-cover-button {
   border-radius: var(--shelf-card-cover-radius);
@@ -78,7 +79,7 @@
   border-radius: 50%;
   background: var(--ui-panel);
   color: var(--ui-accent);
-  box-shadow: 0 2px 6px #0002;
+  box-shadow: var(--ui-primary-shadow);
 }
 .bookshelf .shelf-card .shelf-cross-action .icon {
   width: var(--shelf-card-cross-icon-size);
@@ -106,6 +107,7 @@
 .bookshelf .shelf-card .card-play {
   width: var(--shelf-card-primary-size);
   height: var(--shelf-card-primary-size);
+  box-shadow: var(--ui-primary-shadow);
 }
 .normal-reading.library-section {
   margin: 0;

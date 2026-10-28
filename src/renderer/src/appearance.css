@@ -1,22 +1,35 @@
 /* Shared interface palette; reading paper keeps its user-selected colors. */
 :root {
-  --ui-bg: #141c19;
-  --ui-panel: #1c2822;
-  --ui-nav: #111b17;
-  --ui-field: #17221c;
-  --ui-text: #eef5ef;
-  --ui-muted: #abbdb2;
-  --ui-line: #3b5044;
-  --ui-control-line: #718b7b;
-  --ui-hover: #293e31;
-  --ui-accent: #79d9a2;
-  --ui-accent-soft: #263f30;
-  --ui-on-accent: #10261b;
+  --ui-bg: #1b1e1c;
+  --ui-panel: #222623;
+  --ui-nav: #191c1a;
+  --ui-field: #272c28;
+  --ui-text: #e9ede7;
+  --ui-muted: #a8b3a9;
+  --ui-line: #3b453e;
+  --ui-control-line: #78897a;
+  --ui-hover: #303931;
+  --ui-accent: #a6d5b0;
+  --ui-accent-soft: #2b3c30;
+  --ui-on-accent: #182b1d;
   --ui-danger: #ffb6a8;
   --ui-danger-bg: #3c2723;
   --ui-warning: #f3cf92;
   --ui-warning-bg: #3a3021;
-  --ui-shadow: 0 12px 40px #0004;
+  --ui-shadow: 0 12px 36px #0004;
+  /* Material tokens change paint only; shared geometry stays in design-tokens.css. */
+  --ui-raised: #2b312c;
+  --ui-raised-shadow: 3px 3px 8px #080b0966, -2px -2px 6px #ffffff05, inset 0 1px #ffffff0a;
+  --ui-pressed-shadow: inset 2px 2px 5px #080b0955, inset -1px -1px 4px #ffffff06;
+  --ui-primary-shadow: 0 3px 8px #0003, inset 0 1px #ffffff40;
+  --ui-cover-shadow: inset 5px 0 #00000012, inset 7px 0 #ffffff08, 0 4px 10px #0002;
+  /* Book covers retain their five identities in both themes, with readable titles. */
+  --ui-cover-ink: #faf7ee;
+  --ui-cover-tone-0: #34574b;
+  --ui-cover-tone-1: #806448;
+  --ui-cover-tone-2: #435d69;
+  --ui-cover-tone-3: #5d684e;
+  --ui-cover-tone-4: #935f50;
   --ink: var(--ui-text);
   --muted: var(--ui-muted);
   --line: var(--ui-line);
@@ -28,23 +41,28 @@
 }
 :root[data-ui-theme='light'] {
   color-scheme: light;
-  --ui-bg: #f4f7f4;
-  --ui-panel: #ffffff;
-  --ui-nav: #eaf0ea;
-  --ui-field: #f5f8f5;
-  --ui-text: #213c31;
-  --ui-muted: #54695e;
-  --ui-line: #d0dcd3;
-  --ui-control-line: #7d9086;
-  --ui-hover: #e7eee8;
-  --ui-accent: #17633f;
-  --ui-accent-soft: #e1efe4;
+  --ui-bg: #f6f5f1;
+  --ui-panel: #faf9f6;
+  --ui-nav: #f0efeb;
+  --ui-field: #eeede8;
+  --ui-text: #252d28;
+  --ui-muted: #606a62;
+  --ui-line: #dedfd9;
+  --ui-control-line: #7c847d;
+  --ui-hover: #e7eae3;
+  --ui-accent: #315d48;
+  --ui-accent-soft: #e3ebe2;
   --ui-on-accent: #ffffff;
   --ui-danger: #a33124;
   --ui-danger-bg: #fff0ec;
   --ui-warning: #7d4f0a;
   --ui-warning-bg: #fff4dc;
-  --ui-shadow: 0 12px 40px #193e281a;
+  --ui-shadow: 0 12px 36px #242b221a;
+  --ui-raised: #f4f4ef;
+  --ui-raised-shadow: 3px 3px 8px #343c2f16, -2px -2px 6px #ffffffb3, inset 0 1px #ffffffb3;
+  --ui-pressed-shadow: inset 2px 2px 5px #343c2f14, inset -1px -1px 4px #ffffff99;
+  --ui-primary-shadow: 0 3px 8px #24392b26, inset 0 1px #ffffff30;
+  --ui-cover-shadow: inset 5px 0 #00000012, inset 7px 0 #ffffff14, 0 4px 10px #343c2f14;
 }
 .app-shell {
   background: var(--ui-bg);

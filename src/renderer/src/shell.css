@@ -469,28 +469,24 @@ summary:focus-visible,
   aspect-ratio: 0.87;
   padding: 18px 13px 13px 19px;
   overflow: hidden;
-  color: #ded8bc;
-  background: #34574b;
+  color: var(--ui-cover-ink);
+  background: var(--ui-cover-tone-0);
   border-radius: 3px 6px 6px 3px;
   box-shadow:
     inset 5px 0 #00000016,
     inset 7px 0 #ffffff0a;
 }
 .cover-tone-1 {
-  color: #e7d6b6;
-  background: #967657;
+  background: var(--ui-cover-tone-1);
 }
 .cover-tone-2 {
-  color: #dce3df;
-  background: #435d69;
+  background: var(--ui-cover-tone-2);
 }
 .cover-tone-3 {
-  color: #dfdfc4;
-  background: #68735a;
+  background: var(--ui-cover-tone-3);
 }
 .cover-tone-4 {
-  color: #efd2bc;
-  background: #935f50;
+  background: var(--ui-cover-tone-4);
 }
 .cover-label {
   font-size: 13px;
