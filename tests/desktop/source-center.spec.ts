@@ -13,8 +13,9 @@ import { join, resolve } from 'node:path'
 import { closeOwnedElectron } from '../model/electron-lifecycle'
 import { LibraryStore } from '../../src/main/database'
 import { createDataPaths } from '../../src/main/paths'
+import { syntheticCredentials } from '../helpers/synthetic-auth'
 
-const credentials = { username: 'reader-fixture', password: 'synthetic-test-secret' }
+const credentials = syntheticCredentials()
 const expectedAuthorization = `Basic ${Buffer.from(`${credentials.username}:${credentials.password}`).toString('base64')}`
 const bookEntry = (title = '河岸来信') =>
   `<entry><id>urn:synthetic:river</id><title>${title}</title><author><name>合成测试作者</name></author><summary>此书为回归测试生成，不含下载作品。</summary><link rel="http://opds-spec.org/acquisition/open-access" type="text/plain" href="/books/river.txt" /></entry>`

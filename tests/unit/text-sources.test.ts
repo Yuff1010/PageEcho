@@ -14,6 +14,7 @@ import type { ReadingBook } from '../../src/shared/reading'
 import { parseOriginal } from '../../src/main/original/parse'
 import type { TextLibraryConnector } from '../../src/main/sources/text-provider'
 import { epub, zip } from '../fixtures/original-epub'
+import { syntheticCredentials, syntheticToken } from '../helpers/synthetic-auth'
 
 const atom = (content: string) =>
   `<feed xmlns="http://www.w3.org/2005/Atom"><id>urn:fixture</id><title>书库</title>${content}</feed>`
@@ -76,6 +77,7 @@ function setup(
 }
 
 test('personal OPDS search, navigation, next page and open-access TXT import use bounded authenticated requests', async (t) => {
+  const credentials = syntheticCredentials()
   const requests: string[] = []
   const authorization: Array<string | undefined> = []
   const origin = await server(t, (req, res) => {
@@ -107,13 +109,13 @@ test('personal OPDS search, navigation, next page and open-access TXT import use
     label: '我的书库',
     baseUrl: origin,
     enabled: true,
-    username: 'reader',
-    password: 'private-password',
+    username: credentials.username,
+    password: credentials.password,
   })
   assert.equal(saved.hasCredentials, true)
-  assert.equal(JSON.stringify(service.state()).includes('private-password'), false)
+  assert.equal(JSON.stringify(service.state()).includes(credentials.password), false)
   assert.equal(
-    readFileSync(join(directory, 'text-libraries.json'), 'utf8').includes('private-password'),
+    readFileSync(join(directory, 'text-libraries.json'), 'utf8').includes(credentials.password),
     false,
   )
   const page = await service.browse({ requestId: 'browse', sourceId: saved.id })
@@ -162,12 +164,15 @@ test('personal OPDS search, navigation, next page and open-access TXT import use
   assert.match(restricted.notice!, /购买或借阅/)
   assert.ok(
     authorization.every(
-      (value) => value === `Basic ${Buffer.from('reader:private-password').toString('base64')}`,
+      (value) =>
+        value ===
+        `Basic ${Buffer.from(`${credentials.username}:${credentials.password}`).toString('base64')}`,
     ),
   )
 })
 
 test('connection manifests preview without side effects, accept pretty JSON, and protect secrets on updates', (t) => {
+  const credentials = syntheticCredentials()
   const { service } = setup(t)
   const emptyExport = service.manifestExport()
   assert.equal(service.manifestPreview(emptyExport).manifest.libraries.length, 0)
@@ -177,10 +182,10 @@ test('connection manifests preview without side effects, accept pretty JSON, and
     label: '本地',
     baseUrl: 'https://library.example/opds',
     enabled: true,
-    password: 'keep-me',
+    password: credentials.password,
   })
   const exported = service.manifestExport()
-  assert.equal(exported.includes('keep-me'), false)
+  assert.equal(exported.includes(credentials.password), false)
   validateTextSourceArgs(TEXT_SOURCE_CHANNELS.manifestPreview, [{ rawJson: exported }])
   const preview = service.manifestPreview(exported)
   assert.equal(preview.applicable, true)
@@ -195,7 +200,7 @@ test('connection manifests preview without side effects, accept pretty JSON, and
   service.manifestApply(JSON.stringify(changed, null, 2))
   assert.equal(service.state().libraries[0]!.hasCredentials, false)
   changed.version++
-  changed.libraries[0].password = 'not-allowed'
+  changed.libraries[0].password = syntheticToken()
   assert.throws(() => parseRemoteManifest(JSON.stringify(changed)), code('INVALID_SOURCE_REQUEST'))
   assert.throws(
     () =>
@@ -238,7 +243,7 @@ test('HTTP rejects DTD feeds, foreign acquisition URLs, foreign redirects and st
       '<!DOCTYPE feed [<!ENTITY xxe SYSTEM "file:///secret">]><feed xmlns="http://www.w3.org/2005/Atom">&xxe;</feed>',
     )
   })
-  const http = new TextHttpClient({ baseUrl: origin, username: 'a', password: 'b' })
+  const http = new TextHttpClient({ baseUrl: origin, ...syntheticCredentials() })
   await assert.rejects(
     http.get(`${origin}/redirect`, new AbortController().signal),
     code('INVALID_SOURCE_REQUEST'),
@@ -414,7 +419,7 @@ test('same connection id on a different endpoint does not reuse a previous readi
     label: '书库一',
     baseUrl: 'https://one.example/opds',
     enabled: true,
-    token: 'old-secret',
+    token: syntheticToken(),
   })
   const request = { requestId: 'first', sourceId: 'stable', workId: 'item_1', acquisitionId: 'txt' }
   await service.import(request)

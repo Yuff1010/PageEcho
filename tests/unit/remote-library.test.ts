@@ -6,6 +6,7 @@ import { AudiobookshelfLibraryConnector } from '../../src/main/sources/audiobook
 import { WebdavLibraryConnector, webdavUrl } from '../../src/main/sources/webdav-library'
 import { TextHttpClient } from '../../src/main/sources/text-http'
 import type { TextLibraryContext } from '../../src/main/sources/text-provider'
+import { syntheticToken } from '../helpers/synthetic-auth'
 
 async function server(handler: (req: IncomingMessage, res: ServerResponse) => void) {
   const instance = createServer(handler)
@@ -44,10 +45,11 @@ function dav(items: Array<[string, string, boolean]>) {
 }
 
 test('WebDAV traverses one directory at a time, filters formats, searches and imports a real TXT response', async () => {
+  const token = syntheticToken()
   const requests: string[] = []
   const fixture = await server((req, res) => {
     requests.push(`${req.method} ${req.url}`)
-    assert.equal(req.headers.authorization, 'Bearer private-token')
+    assert.equal(req.headers.authorization, `Bearer ${token}`)
     if (req.method === 'PROPFIND') {
       assert.equal(req.headers.depth, '1')
       res.writeHead(207, { 'Content-Type': 'application/xml' })
@@ -73,7 +75,7 @@ test('WebDAV traverses one directory at a time, filters formats, searches and im
     }
   })
   try {
-    const c = context(`${fixture.url}/dav/`, 'webdav', 'private-token')
+    const c = context(`${fixture.url}/dav/`, 'webdav', token)
     const source = new WebdavLibraryConnector()
     const root = await source.browse(c, { requestId: 'one', sourceId: c.connection.id })
     assert.equal(root.books.length, 0)
@@ -135,7 +137,7 @@ test('WebDAV rejects traversal, DTDs and out-of-directory redirects before crede
     }
   })
   try {
-    const c = context(`${fixture.url}/dav/`, 'webdav', 'secret')
+    const c = context(`${fixture.url}/dav/`, 'webdav', syntheticToken())
     for (const path of [
       '/other/a.txt',
       '/dav/%252e%252e/a.txt',
@@ -166,6 +168,7 @@ test('WebDAV rejects traversal, DTDs and out-of-directory redirects before crede
 })
 
 test('Audiobookshelf uses library navigation, paged item APIs, search and primary ebook acquisition without playback writes', async () => {
+  const token = syntheticToken()
   const requests: string[] = []
   const book = {
     id: 'item_1',
@@ -181,7 +184,7 @@ test('Audiobookshelf uses library navigation, paged item APIs, search and primar
   }
   const fixture = await server((req, res) => {
     requests.push(`${req.method} ${req.url}`)
-    assert.equal(req.headers.authorization, 'Bearer local-key')
+    assert.equal(req.headers.authorization, `Bearer ${token}`)
     assert.equal(req.method, 'GET')
     if (req.url === '/abs/api/items/item_1/ebook') {
       res.writeHead(200, { 'Content-Type': 'text/plain' })
@@ -213,7 +216,7 @@ test('Audiobookshelf uses library navigation, paged item APIs, search and primar
     )
   })
   try {
-    const c = context(`${fixture.url}/abs`, 'audiobookshelf', 'local-key')
+    const c = context(`${fixture.url}/abs`, 'audiobookshelf', token)
     const source = new AudiobookshelfLibraryConnector()
     const root = await source.browse(c, { requestId: 'root', sourceId: c.connection.id })
     assert.equal(root.searchable, false)
