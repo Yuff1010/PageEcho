@@ -94,6 +94,7 @@
 .player-panel .player-messages {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   min-width: 0;
   width: 100%;
@@ -102,10 +103,10 @@
   display: none;
 }
 .player-panel .player-messages :is(.player-dock-feedback, .player-subtitle-notice) {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
-  width: 100%;
+  width: auto;
   margin: 2px 0 0;
   font-size: 11px;
   min-height: 20px;
@@ -119,6 +120,7 @@
 }
 .player-panel .player-messages .player-subtitle-notice {
   position: static;
+  justify-content: flex-end;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -130,6 +132,7 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  text-align: right;
 }
 .player-panel .player-title {
   display: block;

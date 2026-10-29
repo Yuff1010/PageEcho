@@ -50,10 +50,21 @@ export function PlayerBar({
   const inlineNotice =
     playback.subtitleWaiting ||
     playback.subtitleSetupNeeded ||
-    playback.subtitlePreparationPhase === 'checking' ||
     playback.subtitlePreparationPhase === 'canceling' ||
     !!playback.skipNotice ||
     playback.loading
+  const checkingNotice =
+    playback.subtitlePreparationPhase === 'checking' &&
+    !playback.subtitleWaiting &&
+    !playback.subtitleSetupNeeded &&
+    !playback.loading
+      ? playback.subtitleNotice || '正在后台检查字幕…'
+      : undefined
+  const inlineNoticeText = playback.loading
+    ? '正在加载音频…'
+    : checkingNotice
+      ? playback.skipNotice
+      : playback.subtitleNotice || playback.skipNotice
   useEffect(() => {
     if (!notice) return
     const timer = window.setTimeout(() => setNotice(''), 3500)
@@ -195,6 +206,7 @@ export function PlayerBar({
               snapshot={playback.subtitleStatus}
               rate={playback.rate}
               variant="icon"
+              checkingNotice={checkingNotice}
             />
           )}
           <Tooltip content="字幕与伴读设置">
@@ -322,12 +334,8 @@ export function PlayerBar({
           )}
           {inlineNotice && !reading && (
             <div className="player-notice player-subtitle-notice" role="status">
-              <Tooltip content={playback.subtitleNotice || playback.skipNotice || '正在加载音频…'}>
-                <span tabIndex={0}>
-                  {playback.loading
-                    ? '正在加载音频…'
-                    : playback.subtitleNotice || playback.skipNotice}
-                </span>
+              <Tooltip content={inlineNoticeText}>
+                <span tabIndex={0}>{inlineNoticeText}</span>
               </Tooltip>
               {playback.subtitleWaiting && (
                 <button className="text-button" onClick={() => void player.play(true)}>

@@ -10,11 +10,13 @@ function PlayerSubtitleStatus({
   title,
   children,
   iconOnly = false,
+  busy = false,
 }: {
   summary: ReactNode
   title: string
   children: ReactNode
   iconOnly?: boolean
+  busy?: boolean
 }) {
   const root = useRef<HTMLDetailsElement>(null),
     popup = useRef<HTMLDivElement>(null)
@@ -149,6 +151,7 @@ function PlayerSubtitleStatus({
       <Tooltip content={`${title}${collapsedForSpace ? '；阅读空间不足，详情已收起' : ''}`}>
         <summary
           aria-label={`字幕状态：${title}${collapsedForSpace ? '；阅读空间不足，详情已收起' : ''}`}
+          aria-busy={busy || undefined}
         >
           {summary}
           {collapsedForSpace && !iconOnly && <Icon name="info" />}
@@ -227,20 +230,29 @@ export function SubtitleStatus({
   snapshot,
   rate = 1,
   variant = 'detail',
+  checkingNotice,
 }: {
   snapshot: SubtitleStatusSnapshot | null
   rate?: number
   variant?: 'player' | 'icon' | 'badge' | 'detail'
+  checkingNotice?: string
 }) {
+  const checking = variant === 'icon' && !!checkingNotice
   if (!snapshot)
     return variant === 'player' || variant === 'icon' ? (
-      <Tooltip content="正在读取字幕状态…">
+      <Tooltip content={checking ? checkingNotice : '正在读取字幕状态…'}>
         <span
           className={`subtitle-status-loading${variant === 'icon' ? ' subtitle-status-loading-icon' : ''}`}
-          aria-label="正在读取字幕状态…"
+          aria-label={checking ? checkingNotice : '正在读取字幕状态…'}
+          aria-busy={checking || undefined}
+          data-state={checking ? 'checking' : undefined}
           tabIndex={0}
         >
-          <Icon name="clock" />
+          {checking ? (
+            <span className="subtitle-status-spinner" aria-hidden="true" />
+          ) : (
+            <Icon name="clock" />
+          )}
         </span>
       </Tooltip>
     ) : null
@@ -335,10 +347,15 @@ export function SubtitleStatus({
   return variant === 'player' || variant === 'icon' ? (
     <PlayerSubtitleStatus
       iconOnly={variant === 'icon'}
+      busy={checking}
       summary={
         variant === 'icon' ? (
-          <span className="subtitle-status-compact" data-state={state}>
-            <Icon name={statusIcon} />
+          <span className="subtitle-status-compact" data-state={checking ? 'checking' : state}>
+            {checking ? (
+              <span className="subtitle-status-spinner" aria-hidden="true" />
+            ) : (
+              <Icon name={statusIcon} />
+            )}
           </span>
         ) : (
           <span className="subtitle-status-compact" data-state={state}>
@@ -368,8 +385,13 @@ export function SubtitleStatus({
           </span>
         )
       }
-      title={`${text.details.join('；')}${text.preview ? '；新稿待采用' : ''}`}
+      title={
+        checking && checkingNotice
+          ? checkingNotice
+          : `${text.details.join('；')}${text.preview ? '；新稿待采用' : ''}`
+      }
     >
+      {checking && <p role="status">{checkingNotice}</p>}
       {body}
       {variant === 'icon' && (active || progress) && (
         <div className="subtitle-status-expanded-progress">

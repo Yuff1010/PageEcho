@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path'
 import { LibraryStore } from '../../src/main/database'
 import { scanBook } from '../../src/main/files'
 import { createDataPaths } from '../../src/main/paths'
+import { CHANNELS } from '../../src/shared/contracts'
 import { closeOwnedElectron } from '../model/electron-lifecycle'
 
 async function fixture() {
@@ -127,8 +128,12 @@ async function expectTrackPaintOnBoundary(
   // Inspect the actual WebKit track painting, not the 16px input's rectangle:
   // the old centered native track passed all hit-area geometry assertions.
   await page.mouse.move(20, 20)
-  await panel.locator('.player-title').focus()
-  await page.keyboard.press('Escape')
+  // Blur instead of focusing another tooltip trigger: its zero-delay timer
+  // could open after Escape and paint a bubble over the sampled track strip.
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  })
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
   const metrics = await panel.evaluate((node) => {
     const bounds = node.getBoundingClientRect()
     const rail = node.querySelector<HTMLElement>('.player-seek-rail')!
@@ -438,6 +443,202 @@ test('reduced motion keeps the top seek rail, time help and actual paused and pl
     expect((await mediaState(page)).paused).toBe(true)
     await expect(page.locator('audio[data-player="persistent"]')).toHaveCount(1)
   } finally {
+    await closeOwnedElectron(app)
+  }
+})
+
+test('background subtitle checking stays in the right-hand status icon while audio continues', async ({}, info) => {
+  const { app, page } = await fixture()
+  try {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const panel = page.getByRole('region', { name: '播放器', exact: true })
+    const audio = page.locator('audio[data-player="persistent"]')
+    const originalElement = await audio.elementHandle()
+    const source = (await mediaState(page)).source
+    await seekTo(page, 10000)
+    await panel.getByRole('combobox', { name: '播放倍速', exact: true }).selectOption('0.5')
+    await app.evaluate(({ ipcMain }, channel) => {
+      const handlers = Reflect.get(ipcMain, '_invokeHandlers') as Map<
+        string,
+        (...args: unknown[]) => unknown
+      >
+      const original = handlers.get(channel)!
+      Reflect.set(globalThis, 'playerCheckingCalls', 0)
+      handlers.set(channel, async (...args) => {
+        Reflect.set(
+          globalThis,
+          'playerCheckingCalls',
+          Number(Reflect.get(globalThis, 'playerCheckingCalls')) + 1,
+        )
+        // Delay the real reply, leaving prepareSubtitles in its actual checking
+        // state without replacing player state, media or subtitle contents.
+        await new Promise<void>((resolve) => {
+          Reflect.set(globalThis, 'releasePlayerChecking', resolve)
+        })
+        return original(...args)
+      })
+    }, CHANNELS.startAutomaticSubtitles)
+    await panel.getByRole('button', { name: '播放', exact: true }).click()
+    await expect
+      .poll(() => app.evaluate(() => Reflect.get(globalThis, 'playerCheckingCalls')))
+      .toBe(1)
+    await expect.poll(async () => (await mediaState(page)).time).toBeGreaterThan(10.05)
+    const summary = panel.locator('.audio-settings .subtitle-status-icon > summary')
+    const checkingText = '正在后台检查字幕…'
+    const observations: unknown[] = []
+    for (const width of [1144, 720]) {
+      await app.evaluate(
+        ({ BrowserWindow }, size) =>
+          BrowserWindow.getAllWindows()[0]!.setContentSize(size.width, size.height),
+        { width, height: width === 1144 ? 761 : 600 },
+      )
+      await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width)
+      for (const style of ['minimal', 'neumorphic']) {
+        await page.evaluate((value) => {
+          localStorage.setItem('ralb:app:style:v1', value)
+          window.dispatchEvent(new Event('ralb:app-style'))
+        }, style)
+        await expect(page.locator('html')).toHaveAttribute('data-ui-style', style)
+        for (const theme of ['light', 'dark'] as const) {
+          await page.emulateMedia({ colorScheme: theme })
+          await expect(page.locator('html')).toHaveAttribute('data-ui-theme', theme)
+          await expect(summary).toHaveAttribute('aria-busy', 'true')
+          await expect(summary).toHaveAccessibleName(new RegExp(`^字幕状态：${checkingText}`))
+          await expect(
+            summary.locator('[data-state="checking"] .subtitle-status-spinner'),
+          ).toBeVisible()
+          await expect(summary).toHaveText('')
+          await expect(panel.locator('.player-subtitle-notice')).toHaveCount(0)
+          await expect(panel.locator('.player-messages')).toHaveText('')
+          const geometry = await panel.evaluate((node) => {
+            const rect = (element: Element) => {
+              const bounds = element.getBoundingClientRect()
+              return {
+                x: bounds.x,
+                y: bounds.y,
+                right: bounds.right,
+                bottom: bounds.bottom,
+                width: bounds.width,
+                height: bounds.height,
+              }
+            }
+            return {
+              panel: rect(node),
+              status: rect(node.querySelector('.subtitle-status-icon > summary')!),
+              controls: rect(node.querySelector('.audio-settings')!),
+              transport: rect(node.querySelector('.transport')!),
+              overflow: document.documentElement.scrollWidth > innerWidth,
+            }
+          })
+          expect(geometry.status.x).toBeGreaterThanOrEqual(geometry.controls.x - 1)
+          expect(geometry.status.right).toBeLessThanOrEqual(geometry.controls.right + 1)
+          expect(geometry.status.x).toBeGreaterThanOrEqual(geometry.transport.right - 1)
+          expect(geometry.status.y).toBeGreaterThanOrEqual(geometry.panel.y)
+          expect(geometry.status.bottom).toBeLessThanOrEqual(geometry.panel.bottom + 1)
+          expect(geometry.panel.height).toBe(84)
+          expect(geometry.overflow).toBe(false)
+          const beforeHover = await mediaState(page)
+          expect(beforeHover.paused).toBe(false)
+          await page.mouse.move(20, 20)
+          await summary.hover()
+          const tip = page.getByRole('tooltip')
+          await expect(tip).toContainText(checkingText)
+          const bubble = await tip.boundingBox()
+          expect(bubble).not.toBeNull()
+          const horizontalOverlap =
+            Math.min(bubble!.x + bubble!.width, geometry.transport.right) -
+            Math.max(bubble!.x, geometry.transport.x)
+          const verticalOverlap =
+            Math.min(bubble!.y + bubble!.height, geometry.transport.bottom) -
+            Math.max(bubble!.y, geometry.transport.y)
+          expect(horizontalOverlap <= 0 || verticalOverlap <= 0).toBe(true)
+          await expect
+            .poll(async () => (await mediaState(page)).time)
+            .toBeGreaterThan(beforeHover.time)
+          expect((await mediaState(page)).paused).toBe(false)
+          await page.screenshot({
+            path: info.outputPath(`checking-${width}-${style}-${theme}.png`),
+            animations: 'disabled',
+          })
+          observations.push({ width, style, theme, geometry, bubble })
+          await page.mouse.move(20, 20)
+          await expect(tip).toHaveCount(0)
+        }
+      }
+    }
+    // A simultaneous skip warning must keep its own visible and accessible
+    // wording; background work stays represented by the busy subtitle icon.
+    await panel.getByRole('button', { name: '字幕与伴读', exact: true }).click()
+    const tools = page.getByRole('dialog', { name: '收听工具', exact: true })
+    await tools.getByRole('tab', { name: '播放与定时', exact: true }).click()
+    await tools.getByRole('spinbutton', { name: '跳过片头秒数', exact: true }).fill('120')
+    await tools.getByRole('button', { name: '保存跳过设置', exact: true }).click()
+    await expect(tools.getByText('本书跳过设置已保存。', { exact: true })).toBeVisible()
+    await tools.getByRole('button', { name: '关闭收听工具', exact: true }).click()
+    const skipText = '本集短于跳过时长，本集完整播放。'
+    const skipNotice = panel.locator('.player-subtitle-notice')
+    await expect(skipNotice).toHaveText(skipText)
+    await expect(skipNotice).not.toContainText(checkingText)
+    await expect(summary).toHaveAttribute('aria-busy', 'true')
+    const skipGeometry = await panel.evaluate((node) => {
+      const rect = (element: Element) => {
+        const bounds = element.getBoundingClientRect()
+        return { x: bounds.x, y: bounds.y, right: bounds.right, bottom: bounds.bottom }
+      }
+      return {
+        panel: rect(node),
+        notice: rect(node.querySelector('.player-subtitle-notice')!),
+        controls: rect(node.querySelector('.audio-settings')!),
+        transport: rect(node.querySelector('.transport')!),
+      }
+    })
+    expect(skipGeometry.notice.x).toBeGreaterThanOrEqual(skipGeometry.controls.x - 1)
+    expect(skipGeometry.notice.right).toBeLessThanOrEqual(skipGeometry.controls.right + 1)
+    expect(skipGeometry.notice.x).toBeGreaterThanOrEqual(skipGeometry.transport.right - 1)
+    expect(skipGeometry.notice.y).toBeGreaterThanOrEqual(skipGeometry.panel.y)
+    expect(skipGeometry.notice.bottom).toBeLessThanOrEqual(skipGeometry.panel.bottom + 1)
+    const beforeSkipHelp = await mediaState(page)
+    expect(beforeSkipHelp.paused).toBe(false)
+    await skipNotice.locator(':scope > span').focus()
+    await expect(page.getByRole('tooltip')).toHaveText(skipText)
+    await page.screenshot({
+      path: info.outputPath('checking-with-skip-notice-720-neumorphic-dark.png'),
+      animations: 'disabled',
+    })
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('tooltip')).toHaveCount(0)
+    await expect
+      .poll(async () => (await mediaState(page)).time)
+      .toBeGreaterThan(beforeSkipHelp.time)
+    expect((await mediaState(page)).paused).toBe(false)
+    observations.push({ state: 'checking-with-skip-notice', geometry: skipGeometry })
+    await app.evaluate(() => {
+      const release = Reflect.get(globalThis, 'releasePlayerChecking') as () => void
+      release()
+    })
+    await expect(summary).not.toHaveAttribute('aria-busy', 'true')
+    await expect(summary.locator('.subtitle-status-spinner')).toHaveCount(0)
+    await expect(summary).toHaveAccessibleName(/字幕部分已备/)
+    expect(await app.evaluate(() => Reflect.get(globalThis, 'playerCheckingCalls'))).toBe(1)
+    expect((await mediaState(page)).source).toBe(source)
+    expect((await mediaState(page)).paused).toBe(false)
+    expect(
+      await page.evaluate(
+        (element) => document.querySelector('audio[data-player="persistent"]') === element,
+        originalElement,
+      ),
+    ).toBe(true)
+    await info.attach('background-check-status-geometry', {
+      body: JSON.stringify(observations, null, 2),
+      contentType: 'application/json',
+    })
+  } finally {
+    await app
+      .evaluate(() => {
+        const release = Reflect.get(globalThis, 'releasePlayerChecking')
+        if (typeof release === 'function') release()
+      })
+      .catch(() => undefined)
     await closeOwnedElectron(app)
   }
 })

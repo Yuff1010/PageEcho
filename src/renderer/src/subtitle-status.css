@@ -52,6 +52,25 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+.subtitle-status-spinner {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--reader-icon-size);
+  height: var(--reader-icon-size);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .subtitle-status-spinner {
+    animation: subtitle-status-spin 1s linear infinite;
+  }
+  @keyframes subtitle-status-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
 .subtitle-status-compact > .icon,
 .subtitle-status-loading > .icon,
 .subtitle-status-player > summary > .icon {
