@@ -40,6 +40,7 @@
     "test:audiobook:input": "tsx tests/model/long-input-smoke.ts",
     "test:audiobook:audit": "tsx scripts/audit-long-playback.ts",
     "test:source": "tsx tests/model/source-ting13.ts",
+    "test:source:wikisource": "tsx tests/model/source-wikisource.ts",
     "test:source:app": "tsx tests/model/source-app.ts",
     "test:source:playback": "tsx tests/model/source-playback.ts",
     "test:source:preparation": "tsx tests/model/source-preparation.ts",

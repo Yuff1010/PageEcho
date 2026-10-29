@@ -1,5 +1,6 @@
 import type { TranscriptRequest, TranscriptState } from './transcript'
 import type { EbookSpeechApi } from './ebook-speech'
+import type { TextSourceApi } from './text-source-api'
 import type {
   ApplySubtitleImport,
   SubtitleImportPageRequest,
@@ -66,6 +67,7 @@ import type { SubtitleExportRequest, SubtitleExportResult } from './subtitles'
 import type { TranscriptRegions, RegionUpdate } from './regions'
 import type { Bookmark, SaveBookmark, BookSkips } from './listening'
 import type {
+  SourceId,
   SourceSearchRequest,
   SourceBookRequest,
   SourceEpisodesRequest,
@@ -270,7 +272,7 @@ export interface Episode {
   durationMs: number | null
   positionMs: number
   // Uncached online entries have no measured size/hash yet; no local file row exists.
-  online?: { sourceId: 'ting13'; bookId: string; episodeId: string; cached: boolean }
+  online?: { sourceId: SourceId; bookId: string; episodeId: string; cached: boolean }
 }
 
 export interface Book extends BookSkips {
@@ -282,7 +284,7 @@ export interface Book extends BookSkips {
   episodes: Episode[]
   subtitlePreparation?: SubtitlePreparation
   online?: {
-    sourceId: 'ting13'
+    sourceId: SourceId
     bookId: string
     catalogComplete: boolean
     preparation: SourcePreparation
@@ -328,7 +330,7 @@ export type Result<T> =
   { ok: true; value: T } | { ok: false; error: { code: ErrorCode; message: string } }
 export type AudioSelection = { canceled: true } | { canceled: false; state: AppState }
 
-export interface DesktopApi extends EbookSpeechApi {
+export interface DesktopApi extends EbookSpeechApi, TextSourceApi {
   getTranscriptEditingState(request: TranscriptRequest): Promise<Result<TranscriptEditingState>>
   changeTranscript(request: TranscriptEditRequest): Promise<Result<TranscriptEditResult>>
   undoTranscriptEdit(request: TranscriptHistoryRequest): Promise<Result<TranscriptEditResult>>

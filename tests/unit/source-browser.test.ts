@@ -107,6 +107,14 @@ test('source IPC accepts only the selected source, bounded text, IDs and owned c
   const id = randomUUID(),
     common = { id, sourceId: 'ting13', bookId: '39941' }
   validateRequest('source:search', [{ id, sourceId: 'ting13', query: '书名', cursor: null }])
+  validateRequest('source:search', [
+    {
+      id,
+      sourceId: 'librivox',
+      query: 'A longer title with more than twenty characters',
+      cursor: null,
+    },
+  ])
   validateRequest('source:book', [common])
   validateRequest('source:episodes', [{ ...common, cursor: randomUUID() }])
   validateRequest('source:cancel', [{ id }])
@@ -116,6 +124,7 @@ test('source IPC accepts only the selected source, bounded text, IDs and owned c
     ['source:book', { ...common, bookId: '../etc' }],
     ['source:search', { id, sourceId: 'ting13', query: ' ', cursor: null }],
     ['source:search', { id, sourceId: 'ting13', query: '书'.repeat(21), cursor: null }],
+    ['source:search', { id, sourceId: 'librivox', query: 'a'.repeat(201), cursor: null }],
     ['source:episodes', { ...common, cursor: 'https://www.ting13.cc/' }],
     ['source:cancel', { id, cookie: 'secret' }],
     ['source:resolve-arbitrary-url', { id }],

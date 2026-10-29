@@ -5,13 +5,14 @@ import { join } from 'node:path'
 import type { LibraryStore, StoredAudio } from '../database'
 import { checkAudio } from '../media'
 import { AppError } from '../../shared/validation'
-import { SourceError, type SourceAdapter } from '../../shared/sources'
+import { SourceError, type SourceAdapter, type SourceId } from '../../shared/sources'
 import type { Episode } from '../../shared/contracts'
 import type { SourceCache } from './source-cache'
 import type { OfflineSelection } from '../../shared/offline'
 import { continueSourceCatalog } from './source-continuation'
-import { SourceBrowser } from './source-browser'
-import { sourceMediaUrl, sourcePageUrl } from './ting13'
+import { SourceOperations } from './source-browser'
+import { AudioSourceRegistry } from './source-registry'
+import { audioSourceMediaUrl, audioSourcePageUrl } from './source-policy'
 
 const MAX_BYTES = 256 * 1024 * 1024
 const RESERVE_BYTES = 32 * 1024 * 1024
@@ -33,7 +34,7 @@ async function digest(path: string, signal?: AbortSignal) {
 // Complete, hash-bound files feed the existing Range protocol and ASR queue.
 // The renderer supplies only a library UUID; temporary provider URLs stay in memory.
 export class OnlineMedia {
-  private readonly requests: SourceBrowser
+  private readonly requests: SourceOperations
   private readonly statistics = new Set<Promise<unknown>>()
   private closed = false
   private active:
@@ -48,7 +49,7 @@ export class OnlineMedia {
   private currentEpisodeId: string | null = null
   constructor(
     private readonly store: LibraryStore,
-    adapter: SourceAdapter,
+    private readonly adapters: SourceAdapter | AudioSourceRegistry,
     private readonly directory: string,
     closeLoader: () => void,
     private readonly request: typeof fetch = (input, init) => globalThis.fetch(input, init),
@@ -57,7 +58,14 @@ export class OnlineMedia {
     private readonly mutateCache: <T>(action: () => Promise<T>) => Promise<T> = (action) =>
       action(),
   ) {
-    this.requests = new SourceBrowser(adapter, closeLoader)
+    this.requests = new SourceOperations(closeLoader)
+  }
+
+  private adapter(sourceId: SourceId): SourceAdapter {
+    if (this.adapters instanceof AudioSourceRegistry) return this.adapters.get(sourceId).adapter
+    if (this.adapters.id !== sourceId)
+      throw new SourceError('INVALID_SOURCE_REQUEST', '在线音频来源与已保存的章节不一致。')
+    return this.adapters
   }
 
   cancel(id: string) {
@@ -66,6 +74,7 @@ export class OnlineMedia {
   async close() {
     this.closed = true
     await this.requests.close()
+    if (this.adapters instanceof AudioSourceRegistry) await this.adapters.close()
     await Promise.allSettled([...this.statistics])
   }
   setCurrent(id: string) {
@@ -123,7 +132,9 @@ export class OnlineMedia {
     const deadline = AbortSignal.timeout(60000),
       signal = AbortSignal.any([deadline, canceled])
     try {
-      await continueSourceCatalog(this.store, this.requests.adapter, id, signal)
+      const current = this.store.getEpisode(id)
+      if (!current?.online) throw new SourceError('SOURCE_CHANGED', '在线章节已移除。')
+      await continueSourceCatalog(this.store, this.adapter(current.online.sourceId), id, signal)
     } catch (error) {
       if (canceled.aborted) throw new SourceError('SOURCE_CANCELED', '目录续载已取消。')
       if (deadline.aborted) throw new SourceError('SOURCE_TIMEOUT', '目录续载超时，请重试。')
@@ -197,7 +208,8 @@ export class OnlineMedia {
     return this.run(bookId, 'maintenance', async (operationSignal) => {
       const signal = AbortSignal.any([operationSignal, canceled, AbortSignal.timeout(60000)])
       signal.throwIfAborted()
-      const book = await this.requests.adapter.getBook(known.online!.bookId, signal)
+      const adapter = this.adapter(known.online!.sourceId)
+      const book = await adapter.getBook(known.online!.bookId, signal)
       if (book.id !== known.online!.bookId || book.sourceId !== known.online!.sourceId)
         throw new SourceError('SOURCE_CHANGED', '书源书籍身份已变化，请重新打开。')
       const episodes = [] as import('../../shared/sources').SourceEpisode[]
@@ -205,7 +217,7 @@ export class OnlineMedia {
       let cursor: string | undefined
       for (let pageIndex = 0; pageIndex < 100; pageIndex++) {
         signal.throwIfAborted()
-        const page = await this.requests.adapter.getEpisodes(book.id, cursor, signal)
+        const page = await adapter.getEpisodes(book.id, cursor, signal)
         if (!page.items.length || (page.nextCursor !== null && seen.has(page.nextCursor)))
           throw new SourceError('SOURCE_CHANGED', '书源目录分页异常，已保留原目录。')
         episodes.push(...page.items)
@@ -216,7 +228,12 @@ export class OnlineMedia {
           if (
             !this.store
               .listBooks()
-              .some((saved) => saved.id === bookId && saved.online?.bookId === book.id)
+              .some(
+                (saved) =>
+                  saved.id === bookId &&
+                  saved.online?.bookId === book.id &&
+                  saved.online.sourceId === book.sourceId,
+              )
           )
             throw new SourceError('SOURCE_CHANGED', '书籍已移除，请重新预览。')
           this.store.rememberSourceBook(book, episodes, page.nextCursor === null)
@@ -268,13 +285,18 @@ export class OnlineMedia {
       signal.throwIfAborted()
       await mkdir(this.directory, { recursive: true })
       for (let attempt = 0; attempt < 2; attempt++) {
-        const resolved = await this.requests.adapter.resolveAudio(
+        const resolved = await this.adapter(episode.online.sourceId).resolveAudio(
           episode.online.bookId,
           episode.online.episodeId,
           signal,
         )
-        let url = sourceMediaUrl(resolved.url)
-        const referer = sourcePageUrl(resolved.pageUrl).href
+        if (
+          resolved.sourceId !== episode.online.sourceId ||
+          resolved.episodeId !== episode.online.episodeId
+        )
+          throw new SourceError('SOURCE_CHANGED', '音频解析返回了其他来源或分集。')
+        let url = audioSourceMediaUrl(episode.online.sourceId, resolved.url)
+        const referer = audioSourcePageUrl(episode.online.sourceId, resolved.pageUrl).href
         let response: Response | undefined
         for (let redirect = 0; redirect <= 4; redirect++) {
           response = await this.request(url, {
@@ -287,7 +309,11 @@ export class OnlineMedia {
           await response.body?.cancel()
           if (!location || redirect === 4)
             throw new SourceError('SOURCE_MEDIA_UNAVAILABLE', '音频地址重定向过多或不完整。')
-          url = sourceMediaUrl(new URL(location, url).href)
+          url = audioSourceMediaUrl(
+            episode.online.sourceId,
+            new URL(location, url).href,
+            resolved.url,
+          )
         }
         if (!response) throw new SourceError('SOURCE_MEDIA_UNAVAILABLE', '未收到音频响应。')
         if ([401, 403, 410].includes(response.status) && attempt === 0) {

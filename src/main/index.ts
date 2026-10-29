@@ -9,6 +9,7 @@ import {
   Tray,
   nativeImage,
   powerMonitor,
+  safeStorage,
 } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { deflateSync } from 'node:zlib'
@@ -21,12 +22,13 @@ import { registerIpc } from './ipc'
 import { APP_URL, PRODUCTION_CSP, resolveRendererResource } from './resources'
 import { serveMedia } from './media'
 import { CHANNELS } from '../shared/contracts'
-import { isTrustedRenderer } from '../shared/validation'
+import { AppError, isTrustedRenderer } from '../shared/validation'
 import { AsrComponent } from './asr-component'
 import { ComponentSetup, componentDiscoveryRoots } from './component-setup'
 import { TranscriptionQueue } from './transcription-queue'
 import { CacheMaintenance } from './cache-maintenance'
-import { SourceBrowser } from './sources/source-browser'
+import { AudioSourceRegistry } from './sources/source-registry'
+import { LibriVoxAdapter } from './sources/librivox'
 import { Ting13Adapter } from './sources/ting13'
 import { Ting13Session } from './sources/ting13-session'
 import { OnlineMedia } from './sources/online-media'
@@ -48,6 +50,11 @@ import { registerTranscriptEditingIpc } from './transcript-editing-ipc'
 import { SubtitleImportService } from './subtitle-import-service'
 import { EbookSpeech, SPEECH_MEDIA_PREFIX } from './ebook-speech'
 import { registerEbookSpeechIpc } from './ebook-speech-ipc'
+import { TextSourceService } from './sources/text-service'
+import { TextBookImporter } from './sources/text-book-importer'
+import { WebdavLibraryConnector } from './sources/webdav-library'
+import { AudiobookshelfLibraryConnector } from './sources/audiobookshelf-library'
+import { registerTextSourceIpc } from './sources/text-source-ipc'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -76,13 +83,15 @@ let listeningReviews: ListeningReviewStore | undefined
 let acoustic: OriginalAcousticService | undefined
 let componentInstallation: ComponentInstallationService | undefined
 let finishing = false
-let sources: SourceBrowser | undefined
+let sources: AudioSourceRegistry | undefined
 let onlineMedia: OnlineMedia | undefined
 let preparation: OnlinePreparation | undefined
 let offlinePreparation: OfflinePreparation | undefined
 let transcriptEditing: TranscriptEditingService | undefined
 let subtitleImports: SubtitleImportService | undefined
 let ebookSpeech: EbookSpeech | undefined
+let textSources: TextSourceService | undefined
+let textImporter: TextBookImporter | undefined
 const originals = new OriginalService()
 
 // A small code-drawn book icon; no external assets or network dependency.
@@ -135,6 +144,8 @@ function finishQuit() {
     const stoppingEditing = transcriptEditing?.close().catch(logError)
     const stoppingImports = subtitleImports?.close().catch(logError)
     ebookSpeech?.close()
+    textSources?.close()
+    const stoppingTextImporter = textImporter?.close().catch(logError)
     const stoppingTranscription = transcription?.close().catch(logError)
     const stoppingComponents = componentSetup?.close()
     await originals.close().catch(logError)
@@ -156,6 +167,7 @@ function finishQuit() {
       await stoppingOffline
       await stoppingEditing
       await stoppingImports
+      await stoppingTextImporter
       await stoppingComponents
     } catch (error) {
       logError(error)
@@ -332,7 +344,10 @@ async function start() {
     },
   )
   const sourceSession = new Ting13Session()
-  sources = new SourceBrowser(new Ting13Adapter(sourceSession), () => sourceSession.close())
+  sources = new AudioSourceRegistry([
+    { adapter: new Ting13Adapter(sourceSession), close: () => sourceSession.close() },
+    { adapter: new LibriVoxAdapter(), close: () => {} },
+  ])
   const mediaSession = new Ting13Session()
   const sourceCache = new SourceCache(
     store,
@@ -348,9 +363,12 @@ async function start() {
   )
   onlineMedia = new OnlineMedia(
     store,
-    new Ting13Adapter(mediaSession),
+    new AudioSourceRegistry([
+      { adapter: new Ting13Adapter(mediaSession), close: () => mediaSession.close() },
+      { adapter: new LibriVoxAdapter(), close: () => {} },
+    ]),
     join(paths.cache, 'source-media'),
-    () => mediaSession.close(),
+    () => {},
     undefined,
     undefined,
     sourceCache,
@@ -419,6 +437,31 @@ async function start() {
   )
   registerListeningReviewIpc(window, rendererUrl, listeningReviews, logError)
   registerEbookSpeechIpc(window, rendererUrl, ebookSpeech)
+  textImporter = new TextBookImporter(store, paths.cache)
+  textSources = new TextSourceService({
+    directory: paths.data,
+    importBook: (bytes, filename, signal) => textImporter!.import(bytes, filename, signal),
+    getReadingBook: (id) => {
+      try {
+        return store!.reading.get(id)
+      } catch {
+        return null
+      }
+    },
+    connectors: {
+      webdav: new WebdavLibraryConnector(),
+      audiobookshelf: new AudiobookshelfLibraryConnector(),
+    },
+    secretCodec: {
+      encrypt: (value) => {
+        if (!safeStorage.isEncryptionAvailable())
+          throw new AppError('INVALID_REQUEST', '系统凭据加密不可用，请先使用无凭据书库。')
+        return safeStorage.encryptString(value).toString('base64')
+      },
+      decrypt: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
+    },
+  })
+  registerTextSourceIpc(window, rendererUrl, textSources)
   acoustic = new OriginalAcousticService(
     store,
     component,

@@ -77,12 +77,12 @@ try {
     { timeout: 40000 },
   )
   await page.getByRole('button', { name: '查看 众仙俯首 的详情', exact: true }).click()
-  await expect(page.getByText('已读取 60 集 · 还有后续分集', { exact: true })).toBeVisible({
+  await expect(page.getByText('已读取 60 集 · 未完', { exact: true })).toBeVisible({
     timeout: 65000,
   })
-  await expect(page.getByText('作者：咸鱼老白 · 演播：三声文化', { exact: true })).toBeVisible()
+  await expect(page.getByText('咸鱼老白 · 三声文化', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '加载更多分集', exact: true }).click()
-  await expect(page.getByText('已读取 120 集 · 还有后续分集', { exact: true })).toBeVisible({
+  await expect(page.getByText('已读取 120 集 · 未完', { exact: true })).toBeVisible({
     timeout: 40000,
   })
   assert.equal(await page.locator('.source-episodes > li').count(), 120)
@@ -132,9 +132,7 @@ try {
   assert.ok(Number(report.blockedSourceRequests) > 0)
   await page.getByRole('button', { name: '搜索', exact: true }).click()
   await page.getByRole('button', { name: '取消读取', exact: true }).click()
-  await expect(
-    page.getByText('已取消读取，可以重新搜索或打开书籍。', { exact: true }),
-  ).toBeVisible()
+  await expect(page.getByText('已取消读取。', { exact: true })).toBeVisible()
   await expect
     .poll(() => app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length))
     .toBe(1)

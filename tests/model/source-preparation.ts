@@ -93,7 +93,7 @@ try {
   await page
     .getByRole('button', { name: '查看 众仙俯首 的详情', exact: true })
     .click({ timeout: 40000 })
-  await expect(page.getByText('已读取 60 集 · 还有后续分集', { exact: true })).toBeVisible({
+  await expect(page.getByText('已读取 60 集 · 未完', { exact: true })).toBeVisible({
     timeout: 65000,
   })
   await page.getByRole('button', { name: '加入书架', exact: true }).click()

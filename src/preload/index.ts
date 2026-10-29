@@ -1,10 +1,23 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CHANNELS, type DesktopApi } from '../shared/contracts'
 import { SPEECH_CHANNELS } from '../shared/ebook-speech'
+import { TEXT_SOURCE_CHANNELS } from '../shared/text-source-api'
 import type { TranscriptionChange } from '../shared/transcription'
 import type { OriginalTarget } from '../shared/original'
 
 const api: DesktopApi = {
+  textSources: () => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.state),
+  textBrowse: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.browse, request),
+  textDetail: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.detail, request),
+  textImport: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.import, request),
+  textCancel: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.cancel, request),
+  remoteLibrarySave: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.save, request),
+  remoteLibraryRemove: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.remove, request),
+  remoteLibraryCheck: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.check, request),
+  remoteManifestPreview: (request) =>
+    ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.manifestPreview, request),
+  remoteManifestApply: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.manifestApply, request),
+  remoteManifestExport: () => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.manifestExport),
   getEbookSpeechVoices: () => ipcRenderer.invoke(SPEECH_CHANNELS.voices),
   synthesizeEbookSpeech: (request) => ipcRenderer.invoke(SPEECH_CHANNELS.synthesize, request),
   releaseEbookSpeech: () => ipcRenderer.invoke(SPEECH_CHANNELS.release),

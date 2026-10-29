@@ -317,7 +317,7 @@ export function App() {
     : normalReading
       ? '我的书架'
       : sourceOpen
-        ? '在线书源'
+        ? '来源中心'
         : book
           ? '章节目录'
           : '我的书架'
@@ -857,7 +857,13 @@ export function App() {
               )}
             </section>
           )}
-          {sourceOpen && <OnlineSourceBrowser state={state} onLibrary={update} />}
+          {sourceOpen && (
+            <OnlineSourceBrowser
+              state={state}
+              onLibrary={update}
+              onReadBook={(id) => navigateTo({ view: 'reader', bookId: id })}
+            />
+          )}
           <div className="reading-view" hidden={!reading}>
             <TranscriptReader
               episode={playback.episode?.contentHash ? playback.episode : null}

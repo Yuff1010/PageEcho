@@ -140,7 +140,7 @@ test('schema 12 upgrades atomically without changing book, player, manual text o
   assert.equal(reopened.processingResources().policy.lowPriority, true)
   assert.equal(reopened.offlinePlans().total, 0)
   const check = new DatabaseSync(f.filename)
-  assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 15)
+  assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 16)
   assert.equal(
     check
       .prepare(

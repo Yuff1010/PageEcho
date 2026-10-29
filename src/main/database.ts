@@ -63,6 +63,7 @@ import type {
 } from '../shared/processing-resources'
 import {
   DEFAULT_SOURCE_PREPARATION,
+  isSourceId,
   type SourcePreparation,
   type SourceBook,
   type SourceEpisode,
@@ -82,7 +83,7 @@ export interface FileMetadata {
   modifiedAt: number
 }
 
-const SCHEMA_VERSION = 15
+const SCHEMA_VERSION = 16
 
 export interface StoredTranscriptionJob extends TranscriptionJob {
   configurationHash: string | null
@@ -305,6 +306,23 @@ export class LibraryStore {
         this.db.exec(`BEGIN IMMEDIATE; ${TRANSCRIPT_EDIT_SCHEMA} PRAGMA user_version=14; COMMIT;`)
       if (version < 15)
         this.db.exec(`BEGIN IMMEDIATE; ${SUBTITLE_IMPORT_SCHEMA} PRAGMA user_version=15; COMMIT;`)
+      if (version < 16)
+        this.db.exec(`
+          BEGIN IMMEDIATE;
+          CREATE TABLE online_books_multi (
+            book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+            source_id TEXT NOT NULL CHECK(source_id IN ('ting13','librivox')),
+            source_book_id TEXT NOT NULL, metadata_json TEXT NOT NULL,
+            catalog_complete INTEGER NOT NULL DEFAULT 0, preparation_json TEXT,
+            UNIQUE(source_id, source_book_id)
+          ) STRICT;
+          INSERT INTO online_books_multi SELECT book_id,source_id,source_book_id,metadata_json,
+            catalog_complete,preparation_json FROM online_books;
+          DROP TABLE online_books;
+          ALTER TABLE online_books_multi RENAME TO online_books;
+          PRAGMA user_version=16;
+          COMMIT;
+        `)
       this.offline = new OfflineStore(this.db, {
         getEpisode: (id) => this.getEpisode(id),
         getAudio: (id) => this.getAudio(id),
@@ -643,7 +661,7 @@ export class LibraryStore {
         ...(online
           ? {
               online: {
-                sourceId: 'ting13',
+                sourceId: online.source_id,
                 bookId: online.source_book_id,
                 catalogComplete: Boolean(online.catalog_complete),
                 preparation: online.preparation_json
@@ -667,25 +685,25 @@ export class LibraryStore {
       SELECT e.id, e.book_id AS bookId, e.title, e.sort_order AS 'order',
         e.size_bytes AS sizeBytes, e.modified_at AS modifiedAt, e.content_hash AS contentHash,
         e.duration_ms AS durationMs, e.position_ms AS positionMs,
-        NULL AS sourceBookId, NULL AS sourceEpisodeId, 1 AS cacheAvailable
+        NULL AS sourceBookId, NULL AS sourceEpisodeId, 1 AS cacheAvailable, NULL AS sourceId
       FROM episodes e WHERE NOT EXISTS (SELECT 1 FROM online_episodes o WHERE o.id=e.id)
       UNION ALL
       SELECT o.id, o.book_id, o.title, o.sort_order, coalesce(e.size_bytes,0),
         coalesce(e.modified_at,0), coalesce(e.content_hash,''), e.duration_ms,
-        coalesce(e.position_ms,0), b.source_book_id, o.source_episode_id, o.cache_available
+        coalesce(e.position_ms,0), b.source_book_id, o.source_episode_id, o.cache_available, b.source_id
       FROM online_episodes o JOIN online_books b ON b.book_id=o.book_id
         LEFT JOIN episodes e ON e.id=o.id
     ) WHERE ${field}=? ORDER BY "order"`,
       )
       .all(value)
     return rows.map(
-      ({ sourceBookId, sourceEpisodeId, cacheAvailable, ...row }) =>
+      ({ sourceBookId, sourceEpisodeId, cacheAvailable, sourceId, ...row }) =>
         ({
           ...row,
           ...(sourceEpisodeId
             ? {
                 online: {
-                  sourceId: 'ting13' as const,
+                  sourceId,
                   bookId: String(sourceBookId),
                   episodeId: String(sourceEpisodeId),
                   cached: Boolean(cacheAvailable),
@@ -698,6 +716,7 @@ export class LibraryStore {
 
   rememberSourceBook(book: SourceBook, episodes: SourceEpisode[], complete: boolean): string {
     if (
+      !isSourceId(book.sourceId) ||
       !episodes.length ||
       episodes.length > 100000 ||
       episodes.some(

@@ -135,7 +135,7 @@ test('schema 11 migrates to 12 with old four-thread jobs, configuration identity
       paused: false,
     })
     const check = new DatabaseSync(t.filename)
-    assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 15)
+    assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 16)
     check.close()
   } finally {
     migrated.close()

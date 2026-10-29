@@ -17,6 +17,8 @@ export async function continueSourceCatalog(
   )
     return
   const book = await adapter.getBook(current.online.bookId, signal)
+  if (book.sourceId !== current.online.sourceId || book.id !== current.online.bookId)
+    throw new SourceError('SOURCE_CHANGED', '书源书籍身份变化，已保留原目录和进度。')
   const all: SourceEpisode[] = []
   let cursor: string | undefined
   for (let pages = 0; pages < 100; pages++) {

@@ -1,28 +1,121 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { AppState, Result } from '../../shared/contracts'
-import type { SourceBook, SourceBookDetail, SourcePage } from '../../shared/sources'
+import {
+  SOURCE_METADATA,
+  SOURCE_QUERY_LIMITS,
+  type SourceBook,
+  type SourceBookDetail,
+  type SourceId,
+  type SourcePage,
+} from '../../shared/sources'
+import { Icon } from './Icons'
 import { player } from './player'
+import { SourceCenterAction, SourceCenterEmpty } from './SourceCenterUI'
+import { SourceCenterText } from './SourceCenterText'
+import './source-center.css'
 
+const categories = [
+  { id: 'audio', label: '有声书', icon: 'headphones' },
+  { id: 'text', label: '电子书', icon: 'book' },
+  { id: 'personal', label: '我的书库', icon: 'folder' },
+] as const
+
+type Category = (typeof categories)[number]['id']
+interface AudioView {
+  query: string
+  resultsFor: string
+  results: SourcePage<SourceBook> | null
+  detail: SourceBookDetail | null
+}
+const emptyView = (): AudioView => ({ query: '', resultsFor: '', results: null, detail: null })
+const bookKey = (book: SourceBook) => `${book.sourceId}:${book.id}`
 function appendBooks(previous: SourceBook[], next: SourceBook[]) {
-  return [...new Map([...previous, ...next].map((book) => [book.id, book])).values()]
+  return [...new Map([...previous, ...next].map((book) => [bookKey(book), book])).values()]
 }
 
 export function OnlineSourceBrowser({
+  state,
+  onLibrary,
+  onReadBook,
+}: {
+  state: AppState | null
+  onLibrary: (state: AppState) => void
+  onReadBook?: (id: string) => void
+}) {
+  const [category, setCategory] = useState<Category>('audio')
+  const prefix = useId()
+  return (
+    <section className="online-source source-center" aria-label="来源中心">
+      <div
+        className="source-center-tabs"
+        role="tablist"
+        aria-label="来源分类"
+        onKeyDown={(event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+          event.preventDefault()
+          const index = categories.findIndex((item) => item.id === category)
+          const next =
+            event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? categories.length - 1
+                : (index + (event.key === 'ArrowRight' ? 1 : -1) + categories.length) %
+                  categories.length
+          setCategory(categories[next]!.id)
+          event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus()
+        }}
+      >
+        {categories.map((item) => (
+          <SourceCenterAction
+            key={item.id}
+            label={item.label}
+            icon={item.icon}
+            role="tab"
+            id={`${prefix}-${item.id}`}
+            aria-selected={category === item.id}
+            aria-controls={`${prefix}-panel`}
+            tabIndex={category === item.id ? 0 : -1}
+            onClick={() => setCategory(item.id)}
+          />
+        ))}
+      </div>
+      <div role="tabpanel" id={`${prefix}-panel`} aria-labelledby={`${prefix}-${category}`}>
+        {category === 'audio' ? (
+          <AudioSourcePanel state={state} onLibrary={onLibrary} />
+        ) : (
+          <SourceCenterText
+            key={category}
+            personal={category === 'personal'}
+            onReadBook={onReadBook}
+          />
+        )}
+      </div>
+    </section>
+  )
+}
+
+function AudioSourcePanel({
   state,
   onLibrary,
 }: {
   state: AppState | null
   onLibrary: (state: AppState) => void
 }) {
-  const [query, setQuery] = useState('')
-  const [resultsFor, setResultsFor] = useState('')
-  const [results, setResults] = useState<SourcePage<SourceBook> | null>(null)
-  const [detail, setDetail] = useState<SourceBookDetail | null>(null)
+  const [sourceId, setSourceId] = useState<SourceId>('ting13')
+  const [views, setViews] = useState<Partial<Record<SourceId, AudioView>>>({})
+  const view = views[sourceId] ?? emptyView()
+  const { query, resultsFor, results, detail } = view
+  const update = (patch: Partial<AudioView>) =>
+    setViews((current) => ({
+      ...current,
+      [sourceId]: { ...(current[sourceId] ?? emptyView()), ...patch },
+    }))
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const active = useRef<string | null>(null)
   const openingEpisode = useRef<string | null>(null)
+  const retry = useRef<(() => void) | null>(null)
   useEffect(
     () => () => {
       const id = active.current
@@ -37,6 +130,8 @@ export function OnlineSourceBrowser({
     action: (id: string) => Promise<Result<T>>,
     apply: (value: T) => void,
   ) {
+    const previous = active.current
+    if (previous) void window.desktop.cancelSourceRequest({ id: previous }).catch(() => undefined)
     const id = crypto.randomUUID()
     active.current = id
     setBusy(true)
@@ -45,12 +140,11 @@ export function OnlineSourceBrowser({
     try {
       const result = await action(id)
       if (active.current !== id) return
+      setStatus('')
       if (result.ok) {
         apply(result.value)
-        setStatus('')
       } else {
         setError(result.error.message)
-        setStatus('')
       }
     } catch {
       if (active.current === id) {
@@ -64,90 +158,93 @@ export function OnlineSourceBrowser({
       }
     }
   }
-  function cancel() {
+  function cancel(showMessage = true) {
     const id = active.current
     active.current = null
     setBusy(false)
-    setStatus('已取消读取，可以重新搜索或打开书籍。')
+    setStatus(showMessage ? '已取消读取。' : '')
     if (id) void window.desktop.cancelSourceRequest({ id }).catch(() => undefined)
     if (openingEpisode.current) void player.stop()
   }
   function search() {
     const text = query.trim()
     if (!text) return
+    retry.current = search
     void run(
       `正在搜索「${text}」…`,
-      (id) => window.desktop.searchSource({ id, sourceId: 'ting13', query: text, cursor: null }),
-      (value) => {
-        setDetail(null)
-        setResultsFor(text)
-        setResults(value)
-      },
+      (id) => window.desktop.searchSource({ id, sourceId, query: text, cursor: null }),
+      (value) => update({ detail: null, resultsFor: text, results: value }),
     )
   }
   function moreSearch() {
     if (!results?.nextCursor) return
     const cursor = results.nextCursor
+    retry.current = moreSearch
     void run(
       '正在读取更多搜索结果…',
-      (id) => window.desktop.searchSource({ id, sourceId: 'ting13', query: resultsFor, cursor }),
-      (value) => {
-        setResults((current) => ({
-          ...value,
-          items: appendBooks(current?.items ?? [], value.items),
-        }))
-      },
+      (id) => window.desktop.searchSource({ id, sourceId, query: resultsFor, cursor }),
+      (value) => update({ results: { ...value, items: appendBooks(results.items, value.items) } }),
     )
   }
   function open(book: SourceBook) {
+    retry.current = () => open(book)
     void run(
       `正在读取《${book.title}》的详情与目录…`,
-      (id) => window.desktop.getSourceBook({ id, sourceId: 'ting13', bookId: book.id }),
-      setDetail,
+      (id) => window.desktop.getSourceBook({ id, sourceId: book.sourceId, bookId: book.id }),
+      (value) => update({ detail: value }),
     )
   }
   function moreEpisodes() {
     if (!detail?.episodes.nextCursor) return
-    const cursor = detail.episodes.nextCursor,
-      bookId = detail.book.id
+    const cursor = detail.episodes.nextCursor
+    const book = detail.book
+    retry.current = moreEpisodes
     void run(
       '正在读取后续分集…',
-      (id) => window.desktop.getSourceEpisodes({ id, sourceId: 'ting13', bookId, cursor }),
-      (value) => {
-        setDetail((current) =>
-          current?.book.id === bookId
-            ? {
-                ...current,
-                episodes: {
-                  ...value,
-                  items: [
-                    ...new Map(
-                      [...current.episodes.items, ...value.items].map((episode) => [
-                        episode.id,
-                        episode,
-                      ]),
-                    ).values(),
-                  ],
-                },
-              }
-            : current,
-        )
-      },
+      (id) =>
+        window.desktop.getSourceEpisodes({ id, sourceId: book.sourceId, bookId: book.id, cursor }),
+      (value) =>
+        update({
+          detail: {
+            ...detail,
+            episodes: {
+              ...value,
+              items: [
+                ...new Map(
+                  [...detail.episodes.items, ...value.items].map((episode) => [
+                    `${episode.sourceId}:${episode.bookId}:${episode.id}`,
+                    episode,
+                  ]),
+                ).values(),
+              ],
+            },
+          },
+        }),
     )
   }
   function add(episodeId?: string) {
     if (!detail) return
-    const bookId = detail.book.id
+    const book = detail.book
+    retry.current = () => add(episodeId)
     void run(
       episodeId ? '正在缓存本集，完成后开始播放…' : '正在保存书籍与已读取目录…',
       async (id) => {
-        const result = await window.desktop.addSourceBook({ id, sourceId: 'ting13', bookId })
+        const result = await window.desktop.addSourceBook({
+          id,
+          sourceId: book.sourceId,
+          bookId: book.id,
+        })
         if (!result.ok) return result
         onLibrary(result.value)
-        if (episodeId) {
+        if (episodeId && active.current === id) {
           const episode = result.value.books
-            .find((book) => book.online?.bookId === bookId)
-            ?.episodes.find((episode) => episode.online?.episodeId === episodeId)
+            .find(
+              (item) => item.online?.sourceId === book.sourceId && item.online.bookId === book.id,
+            )
+            ?.episodes.find(
+              (item) =>
+                item.online?.sourceId === book.sourceId && item.online.episodeId === episodeId,
+            )
           if (!episode)
             return {
               ok: false as const,
@@ -166,85 +263,116 @@ export function OnlineSourceBrowser({
         }
         return result
       },
-      onLibrary,
+      (value) => {
+        onLibrary(value)
+        setStatus(episodeId ? '' : '已保存到有声书架。')
+      },
     )
   }
-  const added = !!state?.books.some((book) => book.online?.bookId === detail?.book.id)
+  const added =
+    !!detail &&
+    !!state?.books.some(
+      (book) =>
+        book.online?.sourceId === detail.book.sourceId && book.online.bookId === detail.book.id,
+    )
+  const source = SOURCE_METADATA.find((item) => item.id === sourceId)
   return (
-    <section className="online-source" aria-label="在线书源">
-      <div className="section-heading">
-        <div>
-          <h2>13 听书网</h2>
-          <p>搜索书名、演播或作者，查看书籍与分集。</p>
-        </div>
-      </div>
+    <div className="source-center-panel" aria-busy={busy}>
       <form
-        className="source-search"
+        className="source-center-search"
         onSubmit={(event) => {
           event.preventDefault()
           search()
         }}
       >
-        <label htmlFor="source-query">搜索书籍</label>
+        <select
+          aria-label="有声书来源"
+          value={sourceId}
+          onChange={(event) => {
+            cancel(false)
+            setError('')
+            retry.current = null
+            setSourceId(event.target.value as SourceId)
+          }}
+        >
+          {SOURCE_METADATA.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
         <input
-          id="source-query"
+          aria-label="搜索书籍"
           type="search"
           value={query}
-          maxLength={20}
-          placeholder="输入书名、演播或作者"
-          onChange={(event) => setQuery(event.target.value)}
+          maxLength={SOURCE_QUERY_LIMITS[sourceId]}
+          placeholder="书名、演播或作者"
+          onChange={(event) => update({ query: event.target.value })}
         />
-        <button className="primary-button" type="submit" disabled={!query.trim()}>
-          搜索
-        </button>
-        {busy && (
-          <button className="secondary-button" type="button" onClick={cancel}>
-            取消读取
-          </button>
-        )}
+        <SourceCenterAction
+          label="搜索"
+          icon="search"
+          type="submit"
+          disabled={busy || !query.trim()}
+        />
+        {busy && <SourceCenterAction label="取消读取" icon="close" onClick={() => cancel()} />}
       </form>
-      <p role="status" className="source-status">
-        {status}
-      </p>
-      {error && (
-        <p className="error-message" role="alert">
-          {error}
+      {status && (
+        <p role="status" className="source-center-status">
+          <span className={busy ? 'source-center-spinner' : ''} aria-hidden="true" />
+          {status}
         </p>
       )}
+      {error && (
+        <div className="source-center-error" role="alert">
+          <p>{error}</p>
+          <SourceCenterAction
+            label="重试当前来源"
+            icon="forward"
+            onClick={() => retry.current?.()}
+          />
+        </div>
+      )}
       {detail ? (
-        <div className="source-detail">
-          <button
-            className="text-button"
-            onClick={() => {
-              cancel()
-              setDetail(null)
-              setStatus('')
-            }}
-          >
-            返回搜索结果
-          </button>
-          <h2>{detail.book.title}</h2>
-          <p className="source-credit">
-            作者：{detail.book.authors.join('、') || '未提供'} · 演播：
-            {detail.book.narrators.join('、') || '未提供'}
-          </p>
-          <p className="source-description">{detail.book.description}</p>
-          <button className="primary-button" disabled={busy} onClick={() => add()}>
-            {added ? '更新书架目录' : '加入书架'}
-          </button>
-          <p className="source-status">
-            点击分集后先缓存本集，再开始播放。已缓存的音频可离线续听。
-          </p>
-          <div className="section-heading">
+        <div className="source-detail source-center-detail">
+          <div className="source-center-detail-heading">
+            <SourceCenterAction
+              label="返回搜索结果"
+              icon="arrow"
+              className="source-center-back"
+              onClick={() => {
+                cancel(false)
+                update({ detail: null })
+                setError('')
+              }}
+            />
+            <div>
+              <h2>{detail.book.title}</h2>
+              <p className="source-credit">
+                {[detail.book.authors.join('、'), detail.book.narrators.join('、')]
+                  .filter(Boolean)
+                  .join(' · ') || source?.name}
+              </p>
+            </div>
+            <SourceCenterAction
+              label={added ? '更新书架目录' : '加入书架'}
+              icon={added ? 'check' : 'plus'}
+              disabled={busy}
+              onClick={() => add()}
+            />
+          </div>
+          {!!detail.book.description && (
+            <p className="source-description">{detail.book.description}</p>
+          )}
+          <div className="source-center-list-heading">
             <h3>播放目录</h3>
             <span>
-              已读取 {detail.episodes.items.length} 集
-              {detail.episodes.nextCursor ? ' · 还有后续分集' : ''}
+              已读取 {detail.episodes.items.length} 集{detail.episodes.nextCursor ? ' · 未完' : ''}
             </span>
           </div>
           <ol className="source-episodes">
             {detail.episodes.items.map((episode) => (
-              <li key={episode.id}>
+              <li key={`${episode.sourceId}:${episode.bookId}:${episode.id}`}>
                 <span className="episode-number">{episode.order}</span>
                 <button
                   className="text-button"
@@ -254,50 +382,70 @@ export function OnlineSourceBrowser({
                 >
                   {episode.title}
                 </button>
+                <Icon name="play" />
               </li>
             ))}
           </ol>
           {detail.episodes.nextCursor && (
-            <button className="secondary-button" disabled={busy} onClick={moreEpisodes}>
+            <button
+              className="secondary-button source-center-more"
+              disabled={busy}
+              onClick={moreEpisodes}
+            >
               加载更多分集
             </button>
           )}
         </div>
       ) : results ? (
         <div className="source-results">
-          <h3>「{resultsFor}」的搜索结果</h3>
+          <div className="source-center-list-heading">
+            <h3>「{resultsFor}」的搜索结果</h3>
+            <span>{source?.name}</span>
+          </div>
           {results.items.length ? (
             <ul className="source-book-grid">
               {results.items.map((book) => (
-                <li key={book.id}>
-                  <h3>{book.title}</h3>
-                  <p className="source-credit">演播：{book.narrators.join('、') || '未提供'}</p>
-                  {!!book.authors.length && (
-                    <p className="source-credit">作者：{book.authors.join('、')}</p>
-                  )}
-                  <p className="source-description">{book.description}</p>
-                  <button
-                    className="secondary-button"
-                    aria-label={`查看 ${book.title} 的详情`}
-                    onClick={() => open(book)}
-                  >
-                    查看目录
-                  </button>
+                <li key={bookKey(book)}>
+                  <div className="source-center-result-heading">
+                    <h3>{book.title}</h3>
+                    <SourceCenterAction
+                      label={`查看 ${book.title} 的详情`}
+                      icon="arrow"
+                      disabled={busy}
+                      onClick={() => open(book)}
+                    />
+                  </div>
+                  <p className="source-credit">
+                    {[book.narrators.join('、'), book.authors.join('、')]
+                      .filter(Boolean)
+                      .join(' · ') || source?.name}
+                  </p>
+                  {!!book.description && <p className="source-description">{book.description}</p>}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="source-status">没有找到相关书籍，请换一个书名、演播或作者。</p>
+            <SourceCenterEmpty icon="search">
+              没有找到相关书籍，试试其他关键词或来源。
+            </SourceCenterEmpty>
           )}
           {results.nextCursor && (
-            <button className="secondary-button" disabled={busy} onClick={moreSearch}>
+            <button
+              className="secondary-button source-center-more"
+              disabled={busy}
+              onClick={moreSearch}
+            >
               加载更多搜索结果
             </button>
           )}
         </div>
       ) : (
-        !busy && <p className="source-status">从书名开始寻找下一段故事。</p>
+        !busy && (
+          <SourceCenterEmpty icon="headphones">
+            {source?.description || '搜索书名，发现下一段故事。'}
+          </SourceCenterEmpty>
+        )
       )}
-    </section>
+    </div>
   )
 }

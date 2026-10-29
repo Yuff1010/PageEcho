@@ -50,7 +50,7 @@ import {
   type SourceBookDetail,
   type SourcePreparation,
 } from '../shared/sources'
-import type { SourceBrowser } from './sources/source-browser'
+import type { AudioSourceRegistry } from './sources/source-registry'
 import type { OnlineMedia } from './sources/online-media'
 import type { OnlinePreparation } from './sources/online-preparation'
 import { AutomaticOriginals } from './original/automatic'
@@ -75,7 +75,7 @@ export function registerIpc(
   transcription: TranscriptionQueue,
   component: AsrComponent,
   maintenance: CacheMaintenance,
-  sources: SourceBrowser,
+  sources: AudioSourceRegistry,
   onlineMedia: OnlineMedia,
   preparation: OnlinePreparation,
   originals: OriginalService,
@@ -117,9 +117,9 @@ export function registerIpc(
   }
   const catalogs = new Map<string, SourceBookDetail>()
   const rememberCatalog = (detail: SourceBookDetail) => {
-    if (!catalogs.has(detail.book.id) && catalogs.size >= 10)
-      catalogs.delete(catalogs.keys().next().value!)
-    catalogs.set(detail.book.id, detail)
+    const key = `${detail.book.sourceId}:${detail.book.id}`
+    if (!catalogs.has(key) && catalogs.size >= 10) catalogs.delete(catalogs.keys().next().value!)
+    catalogs.set(key, detail)
   }
 
   function handle(channel: string, action: (request: unknown) => unknown) {
@@ -430,16 +430,18 @@ export function registerIpc(
   })
   handle(CHANNELS.sourceSearch, (request) => {
     const input = request as SourceSearchRequest
-    return sources.run(input.id, (signal) =>
-      sources.adapter.search(input.query, input.cursor ?? undefined, signal),
+    const source = sources.get(input.sourceId)
+    return source.run(input.id, (signal) =>
+      source.adapter.search(input.query, input.cursor ?? undefined, signal),
     )
   })
   handle(CHANNELS.sourceBook, (request) => {
     const input = request as SourceBookRequest
-    return sources.run(input.id, async (signal) => {
+    const source = sources.get(input.sourceId)
+    return source.run(input.id, async (signal) => {
       const detail = {
-        book: await sources.adapter.getBook(input.bookId, signal),
-        episodes: await sources.adapter.getEpisodes(input.bookId, undefined, signal),
+        book: await source.adapter.getBook(input.bookId, signal),
+        episodes: await source.adapter.getEpisodes(input.bookId, undefined, signal),
       }
       rememberCatalog(detail)
       return detail
@@ -447,13 +449,10 @@ export function registerIpc(
   })
   handle(CHANNELS.sourceEpisodes, (request) => {
     const input = request as SourceEpisodesRequest
-    return sources.run(input.id, async (signal) => {
-      const page = await sources.adapter.getEpisodes(
-        input.bookId,
-        input.cursor ?? undefined,
-        signal,
-      )
-      const current = catalogs.get(input.bookId)
+    const source = sources.get(input.sourceId)
+    return source.run(input.id, async (signal) => {
+      const page = await source.adapter.getEpisodes(input.bookId, input.cursor ?? undefined, signal)
+      const current = catalogs.get(`${input.sourceId}:${input.bookId}`)
       if (current && current.episodes.nextCursor === input.cursor && input.cursor) {
         const items = [...current.episodes.items, ...page.items]
         if (items.length > 100000)
@@ -465,12 +464,13 @@ export function registerIpc(
   })
   handle(CHANNELS.sourceAdd, (request) => {
     const input = request as SourceBookRequest
-    return sources.run(input.id, async (signal) => {
-      let detail = catalogs.get(input.bookId)
+    const source = sources.get(input.sourceId)
+    return source.run(input.id, async (signal) => {
+      let detail = catalogs.get(`${input.sourceId}:${input.bookId}`)
       if (!detail) {
         detail = {
-          book: await sources.adapter.getBook(input.bookId, signal),
-          episodes: await sources.adapter.getEpisodes(input.bookId, undefined, signal),
+          book: await source.adapter.getBook(input.bookId, signal),
+          episodes: await source.adapter.getEpisodes(input.bookId, undefined, signal),
         }
         rememberCatalog(detail)
       }

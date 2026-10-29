@@ -1,0 +1,319 @@
+/* SourceCenter owns source discovery, request feedback and personal-library panels. */
+.source-center {
+  --source-center-gap: 16px;
+  --source-center-result-min: 260px;
+  --source-center-empty-height: 180px;
+  --source-center-form-width: 560px;
+  --source-center-icon-size: 18px;
+  padding: 0;
+}
+.source-center .source-center-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--shelf-controls-height);
+  margin-bottom: var(--shelf-controls-bottom-gap);
+}
+.source-center .source-center-action {
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: var(--shell-control-size);
+  height: var(--shell-control-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-control-radius);
+  color: var(--ui-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.source-center .source-center-action .icon {
+  width: var(--source-center-icon-size);
+  height: var(--source-center-icon-size);
+}
+.source-center .source-center-action:hover:not(:disabled) {
+  color: var(--ui-text);
+  background: var(--ui-hover);
+}
+.source-center .source-center-action[aria-selected='true'],
+.source-center .source-center-action[aria-pressed='true'] {
+  color: var(--ui-accent);
+  background: var(--ui-accent-soft);
+  box-shadow: var(--ui-pressed-shadow);
+}
+.source-center :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+.source-center .source-center-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.source-center-search,
+.source-center-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 var(--source-center-gap);
+}
+.source-center-search input {
+  flex: 1;
+  min-width: 140px;
+}
+.source-center-search select {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.source-center .source-center-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ui-muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 8px 0 var(--source-center-gap);
+}
+.source-center-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 2px solid var(--ui-line);
+  border-top-color: var(--ui-accent);
+  border-radius: 50%;
+  animation: source-center-spin 900ms linear infinite;
+}
+@keyframes source-center-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.source-center-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ui-danger);
+  margin-bottom: var(--source-center-gap);
+}
+.source-center-error p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.source-center-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--source-center-empty-height);
+  color: var(--ui-muted);
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.source-center-empty > .icon {
+  width: 30px;
+  height: 30px;
+  opacity: 0.65;
+}
+.source-center-empty p {
+  max-width: 440px;
+}
+.source-center .source-book-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--source-center-result-min), 100%), 1fr));
+  gap: var(--source-center-gap);
+  margin: 0 0 var(--source-center-gap);
+}
+.source-center .source-book-grid li {
+  padding: 18px;
+  background: transparent;
+  border-color: var(--ui-line);
+  border-radius: var(--shell-control-radius);
+}
+.source-center-result-heading,
+.source-center-list-heading,
+.source-center-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.source-center-result-heading,
+.source-center-list-heading {
+  justify-content: space-between;
+}
+.source-center-list-heading {
+  margin: 20px 0 14px;
+}
+.source-center-list-heading span {
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.source-center .source-center-result-heading h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.source-center .source-center-list-heading h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.source-center .source-credit {
+  margin: 8px 0;
+  font-size: 13px;
+}
+.source-center .source-description {
+  margin: 12px 0;
+  font-size: 14px;
+}
+.source-center .source-center-detail {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.source-center-detail-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+.source-center .source-center-detail-heading h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.source-center-detail-heading .source-credit {
+  margin: 4px 0 0;
+}
+.source-center .source-center-back .icon {
+  transform: rotate(180deg);
+}
+.source-center .source-episodes {
+  margin: 0 0 16px;
+}
+.source-center .source-episodes li {
+  align-items: center;
+  min-height: 48px;
+}
+.source-center .source-episodes li .text-button {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.source-center .source-episodes li > .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--ui-muted);
+}
+.source-center .source-center-more {
+  display: block;
+  margin: 16px auto;
+}
+.source-center-chapters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.source-center-chapters li {
+  border-bottom: 1px solid var(--ui-line);
+}
+.source-center-chapters label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  line-height: 1.6;
+  padding: 8px 4px;
+}
+.source-center-acquisitions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.source-center-acquisitions label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.source-center-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.source-center .source-center-connection {
+  width: min(var(--source-center-form-width), 100%);
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  margin: 0 0 20px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--shell-control-radius);
+  background: var(--ui-panel);
+}
+.source-center-connection h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.source-center-connection label:not(.source-center-checkbox) {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.source-center-connection input {
+  width: 100%;
+}
+.source-center-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+}
+.source-center-connection .source-center-checkbox input {
+  width: auto;
+}
+.source-center-connection-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.source-center-connection-note {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ui-muted);
+  margin: 0;
+}
+.source-center-manifest textarea {
+  min-height: 150px;
+  resize: vertical;
+  font-family: monospace;
+  width: 100%;
+}
+.source-center-manifest ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--ui-muted);
+}
+@media (max-width: 700px) {
+  .source-center-search input {
+    min-width: 0;
+  }
+  .source-center-search select {
+    flex-basis: 100%;
+  }
+  .source-center-detail-heading {
+    gap: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .source-center-spinner {
+    animation: none;
+  }
+}

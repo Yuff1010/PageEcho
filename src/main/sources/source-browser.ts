@@ -1,13 +1,10 @@
 import { SourceError, type SourceAdapter } from '../../shared/sources'
 
 // One source operation owns one cancelable request; a replacement waits for cleanup.
-export class SourceBrowser {
+export class SourceOperations {
   private active: { id: string; controller: AbortController; done: Promise<unknown> } | undefined
   private closed = false
-  constructor(
-    readonly adapter: SourceAdapter,
-    private readonly closeLoader: () => void,
-  ) {}
+  constructor(private readonly closeLoader: () => void) {}
   async run<T>(id: string, action: (signal: AbortSignal) => Promise<T>): Promise<T> {
     if (this.closed) throw new SourceError('SOURCE_CANCELED', '书源已关闭。')
     if (this.active?.id === id)
@@ -45,5 +42,14 @@ export class SourceBrowser {
     active?.controller.abort()
     this.closeLoader()
     await active?.done.catch(() => undefined)
+  }
+}
+
+export class SourceBrowser extends SourceOperations {
+  constructor(
+    readonly adapter: SourceAdapter,
+    closeLoader: () => void,
+  ) {
+    super(closeLoader)
   }
 }

@@ -1,4 +1,36 @@
-export type SourceId = 'ting13'
+export type SourceId = 'ting13' | 'librivox'
+export const SOURCE_QUERY_LIMITS: Readonly<Record<SourceId, number>> = {
+  ting13: 20,
+  librivox: 200,
+}
+export const SOURCE_METADATA: readonly {
+  id: SourceId
+  name: string
+  kind: 'audio'
+  description: string
+  homepage: string
+  language: string
+}[] = [
+  {
+    id: 'ting13',
+    name: '听十三',
+    kind: 'audio',
+    description: '中文有声书，沿用现有来源。',
+    homepage: 'https://www.ting13.cc',
+    language: '中文',
+  },
+  {
+    id: 'librivox',
+    name: 'LibriVox',
+    kind: 'audio',
+    description: '志愿者朗读的公版有声书；以外文作品为主。',
+    homepage: 'https://librivox.org',
+    language: '多语言',
+  },
+]
+export function isSourceId(value: unknown): value is SourceId {
+  return value === 'ting13' || value === 'librivox'
+}
 export interface SourcePreparation {
   cacheNext: boolean
   transcribeNext: boolean

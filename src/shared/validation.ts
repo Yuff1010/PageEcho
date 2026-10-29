@@ -1,4 +1,5 @@
 import type { ErrorCode } from './contracts'
+import { SOURCE_QUERY_LIMITS } from './sources'
 import { LISTENING_REVIEW_TEXT_LIMITS } from './listening-review'
 import { MAX_OFFLINE_ITEMS, MAX_OFFLINE_AUDIO_BUDGET_BYTES } from './offline'
 import {
@@ -869,7 +870,10 @@ export function validateRequest(channel: string, args: unknown[]): void {
       isExactObject(request, 'id', 'sourceId', 'query', 'cursor') &&
       typeof request.query === 'string' &&
       request.query.trim().length > 0 &&
-      request.query.trim().length <= 20 &&
+      request.query.trim().length <=
+        (request.sourceId === 'librivox'
+          ? SOURCE_QUERY_LIMITS.librivox
+          : SOURCE_QUERY_LIMITS.ting13) &&
       (request.cursor === null || isId(request.cursor))) ||
       (['source:book', 'source:add'].includes(channel) &&
         isExactObject(request, 'id', 'sourceId', 'bookId') &&
@@ -881,7 +885,7 @@ export function validateRequest(channel: string, args: unknown[]): void {
         /^[1-9]\d{0,8}$/.test(request.bookId) &&
         (request.cursor === null || isId(request.cursor)))) &&
     isId(request.id) &&
-    request.sourceId === 'ting13'
+    (request.sourceId === 'ting13' || request.sourceId === 'librivox')
   )
     return
   if (
