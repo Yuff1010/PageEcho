@@ -58,6 +58,17 @@
     color 140ms ease,
     background-color 140ms ease;
 }
+:root[data-ui-style='neumorphic'] .sidebar :is(.brand, .view-nav > button),
+:root[data-ui-style='neumorphic'] .sidebar-bottom .popover > .icon-button {
+  background: var(--ui-raised);
+  box-shadow: var(--ui-raised-shadow);
+}
+:root[data-ui-style='neumorphic'] .sidebar .view-nav > button.active,
+:root[data-ui-style='neumorphic'] .sidebar-bottom .popover > .icon-button[aria-expanded='true'],
+:root[data-ui-style='neumorphic'] .sidebar :is(.brand, .view-nav > button):active {
+  background: var(--ui-accent-soft);
+  box-shadow: var(--ui-pressed-shadow);
+}
 @media (prefers-reduced-motion: reduce) {
   .sidebar :is(.brand, .view-nav > button, .icon-button),
   .shelf-header :is(.icon-button, .audio-import),

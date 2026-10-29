@@ -64,6 +64,42 @@
   --ui-primary-shadow: 0 3px 8px #24392b26, inset 0 1px #ffffff30;
   --ui-cover-shadow: inset 5px 0 #00000012, inset 7px 0 #ffffff14, 0 4px 10px #343c2f14;
 }
+/* Neumorphism uses one continuous surface, a common light direction and
+   separate shadow scales for roomy controls, tight groups and colored covers. */
+:root[data-ui-style='neumorphic'] {
+  --ui-bg: #282e2a;
+  --ui-panel: #282e2a;
+  --ui-nav: #282e2a;
+  --ui-field: #252b27;
+  --ui-hover: #333d35;
+  --ui-line: #48564b;
+  --ui-raised: #2a302c;
+  --ui-raised-shadow: 5px 5px 10px #111712b3, -5px -5px 10px #46514980, inset 0 1px #ffffff0a;
+  --ui-pressed-shadow: inset 3px 3px 6px #101611b3, inset -3px -3px 6px #46514980;
+  --ui-compact-shadow: 2px 2px 4px #111712b3, -2px -2px 4px #46514980;
+  --ui-compact-pressed-shadow: inset 2px 2px 4px #101611b3, inset -2px -2px 4px #46514980;
+  --ui-on-cover-shadow: 0 3px 6px #0005, inset 1px 1px 2px #ffffff40, inset -1px -1px 2px #0003;
+  --ui-cover-shadow:
+    inset 5px 0 #00000012, inset 7px 0 #ffffff08, 6px 6px 12px #11171299, -6px -6px 12px #46514966;
+}
+:root[data-ui-style='neumorphic'][data-ui-theme='light'] {
+  --ui-bg: #e6e8e5;
+  --ui-panel: #e6e8e5;
+  --ui-nav: #e6e8e5;
+  --ui-field: #e3e6e1;
+  --ui-hover: #dce3d9;
+  --ui-muted: #535e56;
+  --ui-line: #c7cec5;
+  --ui-raised: #e8eae7;
+  --ui-raised-shadow: 5px 5px 10px #b9c0b7b3, -5px -5px 10px #fffffff2, inset 0 1px #ffffff80;
+  --ui-pressed-shadow: inset 3px 3px 6px #b9c0b7b3, inset -3px -3px 6px #ffffffed;
+  --ui-compact-shadow: 2px 2px 4px #b9c0b7b3, -2px -2px 4px #ffffffed;
+  --ui-compact-pressed-shadow: inset 2px 2px 4px #b9c0b7b3, inset -2px -2px 4px #ffffffed;
+  --ui-on-cover-shadow:
+    0 3px 6px #17261c4d, inset 1px 1px 2px #ffffffcc, inset -1px -1px 2px #233c2926;
+  --ui-cover-shadow:
+    inset 5px 0 #00000012, inset 7px 0 #ffffff14, 6px 6px 12px #b9c0b7b3, -6px -6px 12px #ffffffcc;
+}
 .app-shell {
   background: var(--ui-bg);
   color: var(--ui-text);

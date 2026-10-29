@@ -68,6 +68,9 @@ test('appearance and application information have separate content, real version
     await expect(
       appearance.getByRole('combobox', { name: '应用界面主题', exact: true }),
     ).toBeVisible()
+    await expect(
+      appearance.getByRole('combobox', { name: '应用视觉风格', exact: true }),
+    ).toBeVisible()
     await expect(appearance.locator('[data-app-version], [data-app-runtime]')).toHaveCount(0)
     await expect(appearance.getByText('数据与存储位置', { exact: true })).toHaveCount(0)
     await expect(appearance.getByText(`数据目录：${root}`, { exact: true })).toHaveCount(0)
@@ -90,6 +93,7 @@ test('appearance and application information have separate content, real version
     await expect(about.getByRole('heading', { name: '应用信息', exact: true })).toBeFocused()
     await expect(appearance).toHaveCount(0)
     await expect(about.getByRole('combobox', { name: '应用界面主题', exact: true })).toHaveCount(0)
+    await expect(about.getByRole('combobox', { name: '应用视觉风格', exact: true })).toHaveCount(0)
     await expect(about.locator('[data-app-version]')).toHaveText(`v${state.value.version}`)
     await expect(about.locator('[data-app-runtime]')).toContainText(runtime.electron)
     await expect(about.locator('[data-app-runtime]')).toContainText(runtime.chrome)
@@ -121,20 +125,33 @@ test('appearance and application information have separate content, real version
   }
 })
 
-test('application theme changes immediately and preserves explicit and system choices after reload', async () => {
+test('application theme and visual style change independently and preserve choices after reload', async () => {
   const { app, page } = await fixture()
   try {
     await page.emulateMedia({ colorScheme: 'light' })
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'neumorphic')
     await menuAction(page, '应用设置', '外观设置')
     const appearance = page.getByRole('dialog', { name: '外观设置', exact: true })
     const theme = appearance.getByRole('combobox', { name: '应用界面主题', exact: true })
+    const style = appearance.getByRole('combobox', { name: '应用视觉风格', exact: true })
+    await expect(style).toHaveValue('neumorphic')
+    await style.selectOption('minimal')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'minimal')
+    await expect(theme).toHaveValue('system')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'light')
     await theme.selectOption('dark')
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'minimal')
     await appearance.getByRole('button', { name: '关闭外观设置', exact: true }).click()
     await expect(page.getByRole('button', { name: '应用设置', exact: true })).toBeFocused()
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'minimal')
     await menuAction(page, '应用设置', '外观设置')
+    await expect(theme).toHaveValue('dark')
+    await expect(style).toHaveValue('minimal')
+    await style.selectOption('neumorphic')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'neumorphic')
     await expect(theme).toHaveValue('dark')
     await theme.selectOption('light')
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'light')
@@ -142,6 +159,7 @@ test('application theme changes immediately and preserves explicit and system ch
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'light')
     await theme.selectOption('system')
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'neumorphic')
     await page.emulateMedia({ colorScheme: 'light' })
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'light')
     await page.keyboard.press('Escape')
@@ -149,16 +167,24 @@ test('application theme changes immediately and preserves explicit and system ch
     await expect(page.getByRole('button', { name: '应用设置', exact: true })).toBeFocused()
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'light')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'neumorphic')
     await menuAction(page, '应用设置', '外观设置')
     await expect(theme).toHaveValue('system')
+    await expect(style).toHaveValue('neumorphic')
     await page.emulateMedia({ colorScheme: 'dark' })
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'dark')
+    expect(
+      await page.evaluate(() => ({
+        theme: localStorage.getItem('ralb:app:theme:v1'),
+        style: localStorage.getItem('ralb:app:style:v1'),
+      })),
+    ).toEqual({ theme: 'system', style: 'neumorphic' })
   } finally {
     await closeOwnedElectron(app)
   }
 })
 
-test('a failed theme save remains visible and keeps the last saved application theme', async () => {
+test('failed theme and style saves stay visible and retain their independent saved values', async () => {
   const { app, page } = await fixture()
   try {
     const errors: string[] = []
@@ -166,12 +192,15 @@ test('a failed theme save remains visible and keeps the last saved application t
     await menuAction(page, '应用设置', '外观设置')
     const appearance = page.getByRole('dialog', { name: '外观设置', exact: true })
     const theme = appearance.getByRole('combobox', { name: '应用界面主题', exact: true })
+    const style = appearance.getByRole('combobox', { name: '应用视觉风格', exact: true })
     await theme.selectOption('light')
     await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'light')
+    await style.selectOption('minimal')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'minimal')
     await page.evaluate(() => {
       const original = Storage.prototype.setItem
       Storage.prototype.setItem = function (key, value) {
-        if (key === 'ralb:app:theme:v1')
+        if (key === 'ralb:app:theme:v1' || key === 'ralb:app:style:v1')
           throw new DOMException('controlled full storage', 'QuotaExceededError')
         return original.call(this, key, value)
       }
@@ -184,6 +213,14 @@ test('a failed theme save remains visible and keeps the last saved application t
     expect(await page.evaluate(() => localStorage.getItem('ralb:app:theme:v1'))).toBe('light')
     await theme.focus()
     await expect(appearance.getByRole('alert')).toBeVisible()
+    await style.selectOption('neumorphic')
+    await expect(
+      appearance.getByRole('alert').filter({ hasText: '视觉风格保存失败，请重试。' }),
+    ).toBeVisible()
+    await expect(style).toHaveValue('minimal')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-style', 'minimal')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-theme', 'light')
+    expect(await page.evaluate(() => localStorage.getItem('ralb:app:style:v1'))).toBe('minimal')
     expect(errors).toEqual([])
   } finally {
     await closeOwnedElectron(app)

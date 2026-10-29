@@ -183,6 +183,30 @@
 .player-panel .transport .play-button {
   box-shadow: var(--ui-primary-shadow);
 }
+:root[data-ui-style='neumorphic'] .player-panel .transport > button {
+  border-radius: 50%;
+  background: var(--ui-raised);
+  color: var(--ui-accent);
+  box-shadow: var(--ui-compact-shadow);
+}
+:root[data-ui-style='neumorphic'] .player-panel .transport .play-button {
+  box-shadow: var(--ui-raised-shadow);
+}
+:root[data-ui-style='neumorphic'] .player-panel .transport > button:hover:not(:disabled) {
+  background: var(--ui-hover);
+  filter: none;
+}
+:root[data-ui-style='neumorphic'] .player-panel .transport > button:active:not(:disabled) {
+  box-shadow: var(--ui-pressed-shadow);
+}
+:root[data-ui-style='neumorphic'] .player-panel .transport > button:disabled {
+  box-shadow: none;
+}
+:root[data-ui-style='neumorphic'] .player-panel .audio-settings {
+  border-radius: var(--shell-control-radius);
+  background: var(--ui-field);
+  box-shadow: var(--ui-compact-pressed-shadow);
+}
 .player-panel .player-dock-feedback {
   min-height: 20px;
 }

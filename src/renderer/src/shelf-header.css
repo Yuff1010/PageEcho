@@ -99,6 +99,47 @@
   background: var(--ui-hover);
   border-radius: var(--shell-control-radius);
 }
+:root[data-ui-style='neumorphic'] .shelf-header .search-trigger,
+:root[data-ui-style='neumorphic'] .shelf-header .import-button-group {
+  border-radius: var(--shell-control-radius);
+  background: var(--ui-raised);
+  box-shadow: var(--ui-raised-shadow);
+}
+:root[data-ui-style='neumorphic'] .shelf-header .audio-import {
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-ui-style='neumorphic'] .shelf-header .library-search {
+  background: var(--ui-field);
+  box-shadow: var(--ui-compact-pressed-shadow);
+}
+:root[data-ui-style='neumorphic'] .shelf-controls .library-tabs button,
+:root[data-ui-style='neumorphic'] .shelf-controls .shelf-sort,
+:root[data-ui-style='neumorphic'] .shelf-controls .library-options > .popover > .icon-button {
+  border-radius: var(--shell-control-radius);
+  background: var(--ui-raised);
+  box-shadow: var(--ui-compact-shadow);
+}
+:root[data-ui-style='neumorphic'] .shelf-controls .library-tabs button.active,
+:root[data-ui-style='neumorphic'] .shelf-controls .shelf-sort:has(select:active),
+:root[data-ui-style='neumorphic']
+  .shelf-controls
+  .library-options
+  > .popover
+  > .icon-button[aria-expanded='true'] {
+  background: var(--ui-accent-soft);
+  box-shadow: var(--ui-compact-pressed-shadow);
+}
+:root[data-ui-style='neumorphic']
+  .shelf-header
+  :is(.search-trigger, .audio-import):active:not(:disabled),
+:root[data-ui-style='neumorphic']
+  .shelf-header
+  .import-options
+  > .icon-button[aria-expanded='true'] {
+  background: var(--ui-accent-soft);
+  box-shadow: var(--ui-pressed-shadow);
+}
 .shelf-sort:has(select:focus-visible) > .icon {
   color: var(--ui-text);
 }

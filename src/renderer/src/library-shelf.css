@@ -148,3 +148,21 @@
   flex: 1;
   padding: 0;
 }
+:root[data-ui-style='neumorphic'] .bookshelf .shelf-card :is(.card-play, .shelf-cross-action) {
+  color: var(--ui-accent);
+  background: var(--ui-raised);
+  box-shadow: var(--ui-on-cover-shadow);
+}
+:root[data-ui-style='neumorphic']
+  .bookshelf
+  .shelf-card
+  :is(.card-play, .shelf-cross-action):active:not(:disabled) {
+  background: var(--ui-accent-soft);
+  box-shadow: var(--ui-compact-pressed-shadow);
+}
+:root[data-ui-style='neumorphic']
+  .bookshelf
+  .shelf-card
+  :is(.card-play, .shelf-cross-action):disabled {
+  box-shadow: none;
+}

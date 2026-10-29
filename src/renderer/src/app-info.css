@@ -42,3 +42,11 @@
 .app-info-dialog .app-info-error p {
   overflow-wrap: anywhere;
 }
+.app-info-dialog--appearance .app-theme-setting + .app-theme-setting {
+  margin-top: var(--app-info-gap);
+}
+:root[data-ui-style='neumorphic'] .app-info-dialog--appearance .app-theme-setting {
+  background: var(--ui-panel);
+  border-color: transparent;
+  box-shadow: var(--ui-pressed-shadow);
+}

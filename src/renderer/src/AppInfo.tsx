@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppState } from '../../shared/contracts'
 import { Icon } from './Icons'
-import { useAppAppearance, type AppTheme } from './app-appearance'
+import { useAppAppearance, type AppTheme, type AppVisualStyle } from './app-appearance'
 import { Tooltip } from './Tooltip'
 import './app-info.css'
 
@@ -34,8 +34,9 @@ export function AppInfo({
   onClose: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const { theme, setTheme } = useAppAppearance()
+  const { theme, setTheme, visualStyle, setVisualStyle } = useAppAppearance()
   const [themeError, setThemeError] = useState('')
+  const [styleError, setStyleError] = useState('')
   const appearance = panel === 'appearance'
   const title = appearance ? '外观设置' : '应用信息'
   useEffect(() => {
@@ -86,9 +87,33 @@ export function AppInfo({
               <option value="system">跟随系统</option>
             </select>
           </label>
+          <label className="app-theme-setting">
+            <span>
+              <strong>视觉风格</strong>
+            </span>
+            <select
+              aria-label="应用视觉风格"
+              value={visualStyle}
+              onChange={(event) =>
+                setStyleError(
+                  setVisualStyle(event.target.value as AppVisualStyle)
+                    ? ''
+                    : '视觉风格保存失败，请重试。',
+                )
+              }
+            >
+              <option value="minimal">极简留白</option>
+              <option value="neumorphic">新拟态</option>
+            </select>
+          </label>
           {themeError && (
             <p className="error-message" role="alert">
               {themeError}
+            </p>
+          )}
+          {styleError && (
+            <p className="error-message" role="alert">
+              {styleError}
             </p>
           )}
         </>
