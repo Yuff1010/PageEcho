@@ -728,7 +728,7 @@ test('schema14→15 migrates history, old offline plan, originals, player and se
     connection.exec('DROP TABLE subtitle_import_commands')
     connection.close()
   })
-  assert.equal(db(f.store).prepare('PRAGMA user_version').get()!.user_version, 16)
+  assert.equal(db(f.store).prepare('PRAGMA user_version').get()!.user_version, 17)
   assert.deepEqual(state(), prior)
   f.reopen()
   assert.deepEqual(state(), prior)

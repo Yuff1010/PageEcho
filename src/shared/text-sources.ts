@@ -28,7 +28,7 @@ export interface RemoteLibraryInfo {
 export interface TextSourceInfo {
   id: string
   name: string
-  kind: 'wikisource' | RemoteLibraryKind
+  kind: 'wikisource' | 'plugin' | RemoteLibraryKind
   baseUrl: string
   description: string
 }

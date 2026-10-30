@@ -2,10 +2,21 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { CHANNELS, type DesktopApi } from '../shared/contracts'
 import { SPEECH_CHANNELS } from '../shared/ebook-speech'
 import { TEXT_SOURCE_CHANNELS } from '../shared/text-source-api'
+import { PLUGIN_CHANNELS } from '../shared/plugins'
 import type { TranscriptionChange } from '../shared/transcription'
 import type { OriginalTarget } from '../shared/original'
 
 const api: DesktopApi = {
+  pluginList: () => ipcRenderer.invoke(PLUGIN_CHANNELS.list),
+  pluginChoose: () => ipcRenderer.invoke(PLUGIN_CHANNELS.choose),
+  pluginPreviewUrl: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.previewUrl, request),
+  pluginInstall: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.install, request),
+  pluginCancel: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.cancel, request),
+  pluginToggle: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.toggle, request),
+  pluginRemove: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.remove, request),
+  pluginRollback: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.rollback, request),
+  pluginTest: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.test, request),
+  pluginSourceCatalog: () => ipcRenderer.invoke(PLUGIN_CHANNELS.sourceCatalog),
   textSources: () => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.state),
   textBrowse: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.browse, request),
   textDetail: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.detail, request),

@@ -1,5 +1,5 @@
 import { TEXT_SOURCE_CHANNELS } from '../../shared/text-source-api'
-import { SourceError } from '../../shared/sources'
+import { SourceError, isPluginSourceId } from '../../shared/sources'
 import { validateRemoteLibrary } from './text-service'
 
 const invalid = (): never => {
@@ -55,7 +55,11 @@ export function validateTextSourceArgs(channel: string, args: unknown[]): void {
     if (Object.keys(request).length !== 1) invalid()
     return
   }
-  if (!string(request.sourceId, 100) || !/^[\w-]+$/.test(String(request.sourceId))) invalid()
+  if (
+    !isPluginSourceId(request.sourceId) &&
+    (!string(request.sourceId, 100) || !/^[\w-]+$/.test(String(request.sourceId)))
+  )
+    invalid()
   let allowed = ['requestId', 'sourceId']
   if (channel === channels.browse) {
     allowed = [...allowed, 'query', 'cursor']

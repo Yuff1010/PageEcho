@@ -83,7 +83,7 @@ export interface FileMetadata {
   modifiedAt: number
 }
 
-const SCHEMA_VERSION = 16
+const SCHEMA_VERSION = 17
 
 export interface StoredTranscriptionJob extends TranscriptionJob {
   configurationHash: string | null
@@ -321,6 +321,23 @@ export class LibraryStore {
           DROP TABLE online_books;
           ALTER TABLE online_books_multi RENAME TO online_books;
           PRAGMA user_version=16;
+          COMMIT;
+        `)
+      if (version < 17)
+        this.db.exec(`
+          BEGIN IMMEDIATE;
+          CREATE TABLE online_books_plugins (
+            book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+            source_id TEXT NOT NULL CHECK(source_id IN ('ting13','librivox') OR source_id GLOB 'plugin:*:*'),
+            source_book_id TEXT NOT NULL, metadata_json TEXT NOT NULL,
+            catalog_complete INTEGER NOT NULL DEFAULT 0, preparation_json TEXT,
+            UNIQUE(source_id, source_book_id)
+          ) STRICT;
+          INSERT INTO online_books_plugins SELECT book_id,source_id,source_book_id,metadata_json,
+            catalog_complete,preparation_json FROM online_books;
+          DROP TABLE online_books;
+          ALTER TABLE online_books_plugins RENAME TO online_books;
+          PRAGMA user_version=17;
           COMMIT;
         `)
       this.offline = new OfflineStore(this.db, {

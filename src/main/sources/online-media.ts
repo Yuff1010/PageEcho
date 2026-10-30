@@ -5,7 +5,12 @@ import { join } from 'node:path'
 import type { LibraryStore, StoredAudio } from '../database'
 import { checkAudio } from '../media'
 import { AppError } from '../../shared/validation'
-import { SourceError, type SourceAdapter, type SourceId } from '../../shared/sources'
+import {
+  isPluginSourceId,
+  SourceError,
+  type SourceAdapter,
+  type SourceId,
+} from '../../shared/sources'
 import type { Episode } from '../../shared/contracts'
 import type { SourceCache } from './source-cache'
 import type { OfflineSelection } from '../../shared/offline'
@@ -284,8 +289,9 @@ export class OnlineMedia {
     try {
       signal.throwIfAborted()
       await mkdir(this.directory, { recursive: true })
+      const adapter = this.adapter(episode.online.sourceId)
       for (let attempt = 0; attempt < 2; attempt++) {
-        const resolved = await this.adapter(episode.online.sourceId).resolveAudio(
+        const resolved = await adapter.resolveAudio(
           episode.online.bookId,
           episode.online.episodeId,
           signal,
@@ -295,14 +301,35 @@ export class OnlineMedia {
           resolved.episodeId !== episode.online.episodeId
         )
           throw new SourceError('SOURCE_CHANGED', '音频解析返回了其他来源或分集。')
-        let url = audioSourceMediaUrl(episode.online.sourceId, resolved.url)
-        const referer = audioSourcePageUrl(episode.online.sourceId, resolved.pageUrl).href
+        let url = audioSourceMediaUrl(
+          episode.online.sourceId,
+          resolved.url,
+          undefined,
+          adapter.urlPolicy,
+        )
+        const referer = audioSourcePageUrl(
+          episode.online.sourceId,
+          isPluginSourceId(episode.online.sourceId) ? resolved.headers.Referer : resolved.pageUrl,
+          adapter.urlPolicy,
+        ).href
+        const headers: Record<string, string> = { Referer: referer, 'Accept-Encoding': 'identity' }
+        if (isPluginSourceId(episode.online.sourceId)) {
+          for (const [name, value] of Object.entries(resolved.headers)) {
+            if (
+              !['referer', 'user-agent', 'origin', 'accept'].includes(name.toLowerCase()) ||
+              value.length > 2048 ||
+              /\p{Cc}/u.test(value)
+            )
+              throw new SourceError('SOURCE_MEDIA_UNAVAILABLE', '插件返回了不允许的媒体请求头。')
+            if (name.toLowerCase() !== 'referer') headers[name] = value
+          }
+        }
         let response: Response | undefined
         for (let redirect = 0; redirect <= 4; redirect++) {
           response = await this.request(url, {
             signal,
             redirect: 'manual',
-            headers: { Referer: referer, 'Accept-Encoding': 'identity' },
+            headers,
           })
           if (![301, 302, 303, 307, 308].includes(response.status)) break
           const location = response.headers.get('location')
@@ -313,6 +340,7 @@ export class OnlineMedia {
             episode.online.sourceId,
             new URL(location, url).href,
             resolved.url,
+            adapter.urlPolicy,
           )
         }
         if (!response) throw new SourceError('SOURCE_MEDIA_UNAVAILABLE', '未收到音频响应。')
@@ -325,6 +353,7 @@ export class OnlineMedia {
         const expected = length === null ? null : Number(length)
         if (
           response.status !== 200 ||
+          response.headers.has('content-range') ||
           type !== 'audio/mpeg' ||
           !response.body ||
           (expected !== null &&

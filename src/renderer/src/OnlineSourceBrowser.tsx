@@ -1,23 +1,24 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { AppState, Result } from '../../shared/contracts'
 import {
-  SOURCE_METADATA,
-  SOURCE_QUERY_LIMITS,
   type SourceBook,
   type SourceBookDetail,
   type SourceId,
   type SourcePage,
 } from '../../shared/sources'
+import type { AudioSourceInfo } from '../../shared/plugins'
 import { Icon } from './Icons'
 import { player } from './player'
 import { SourceCenterAction, SourceCenterEmpty } from './SourceCenterUI'
 import { SourceCenterText } from './SourceCenterText'
+import { SourcePluginManager } from './SourcePluginManager'
 import './source-center.css'
 
 const categories = [
   { id: 'audio', label: '有声书', icon: 'headphones' },
   { id: 'text', label: '电子书', icon: 'book' },
   { id: 'personal', label: '我的书库', icon: 'folder' },
+  { id: 'plugins', label: '插件', icon: 'plugin' },
 ] as const
 
 type Category = (typeof categories)[number]['id']
@@ -82,6 +83,8 @@ export function OnlineSourceBrowser({
       <div role="tabpanel" id={`${prefix}-panel`} aria-labelledby={`${prefix}-${category}`}>
         {category === 'audio' ? (
           <AudioSourcePanel state={state} onLibrary={onLibrary} />
+        ) : category === 'plugins' ? (
+          <SourcePluginManager />
         ) : (
           <SourceCenterText
             key={category}
@@ -102,6 +105,7 @@ function AudioSourcePanel({
   onLibrary: (state: AppState) => void
 }) {
   const [sourceId, setSourceId] = useState<SourceId>('ting13')
+  const [sourceCatalog, setSourceCatalog] = useState<AudioSourceInfo[]>([])
   const [views, setViews] = useState<Partial<Record<SourceId, AudioView>>>({})
   const view = views[sourceId] ?? emptyView()
   const { query, resultsFor, results, detail } = view
@@ -116,6 +120,22 @@ function AudioSourcePanel({
   const active = useRef<string | null>(null)
   const openingEpisode = useRef<string | null>(null)
   const retry = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    let live = true
+    void window.desktop
+      .pluginSourceCatalog()
+      .then((result) => {
+        if (!live) return
+        if (result.ok) setSourceCatalog(result.value)
+        else setError(result.error.message)
+      })
+      .catch(() => {
+        if (live) setError('无法读取有声书来源，请重新进入来源中心。')
+      })
+    return () => {
+      live = false
+    }
+  }, [])
   useEffect(
     () => () => {
       const id = active.current
@@ -275,7 +295,7 @@ function AudioSourcePanel({
       (book) =>
         book.online?.sourceId === detail.book.sourceId && book.online.bookId === detail.book.id,
     )
-  const source = SOURCE_METADATA.find((item) => item.id === sourceId)
+  const source = sourceCatalog.find((item) => item.id === sourceId)
   return (
     <div className="source-center-panel" aria-busy={busy}>
       <form
@@ -295,7 +315,7 @@ function AudioSourcePanel({
             setSourceId(event.target.value as SourceId)
           }}
         >
-          {SOURCE_METADATA.map((item) => (
+          {sourceCatalog.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
             </option>
@@ -305,7 +325,7 @@ function AudioSourcePanel({
           aria-label="搜索书籍"
           type="search"
           value={query}
-          maxLength={SOURCE_QUERY_LIMITS[sourceId]}
+          maxLength={source?.maxQueryLength ?? 200}
           placeholder="书名、演播或作者"
           onChange={(event) => update({ query: event.target.value })}
         />

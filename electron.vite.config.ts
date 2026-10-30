@@ -9,6 +9,7 @@ export default defineConfig({
         input: {
           index: resolve('src/main/index.ts'),
           'original-worker': resolve('src/main/original/worker.ts'),
+          'plugin-worker': resolve('src/main/plugins/worker.ts'),
         },
       },
     },

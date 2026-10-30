@@ -1,6 +1,7 @@
 import type { TranscriptRequest, TranscriptState } from './transcript'
 import type { EbookSpeechApi } from './ebook-speech'
 import type { TextSourceApi } from './text-source-api'
+import type { PluginApi } from './plugins'
 import type {
   ApplySubtitleImport,
   SubtitleImportPageRequest,
@@ -330,7 +331,7 @@ export type Result<T> =
   { ok: true; value: T } | { ok: false; error: { code: ErrorCode; message: string } }
 export type AudioSelection = { canceled: true } | { canceled: false; state: AppState }
 
-export interface DesktopApi extends EbookSpeechApi, TextSourceApi {
+export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi {
   getTranscriptEditingState(request: TranscriptRequest): Promise<Result<TranscriptEditingState>>
   changeTranscript(request: TranscriptEditRequest): Promise<Result<TranscriptEditResult>>
   undoTranscriptEdit(request: TranscriptHistoryRequest): Promise<Result<TranscriptEditResult>>

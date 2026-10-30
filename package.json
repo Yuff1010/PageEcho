@@ -41,6 +41,7 @@
     "test:audiobook:audit": "tsx scripts/audit-long-playback.ts",
     "test:source": "tsx tests/model/source-ting13.ts",
     "test:source:wikisource": "tsx tests/model/source-wikisource.ts",
+    "plugin:pack": "tsx scripts/pack-source-plugin.ts",
     "test:source:app": "tsx tests/model/source-app.ts",
     "test:source:playback": "tsx tests/model/source-playback.ts",
     "test:source:preparation": "tsx tests/model/source-preparation.ts",
@@ -64,7 +65,9 @@
   },
   "dependencies": {
     "@xmldom/xmldom": "0.8.15",
+    "cheerio": "1.2.0",
     "opencc-js": "1.4.2",
+    "quickjs-emscripten": "0.32.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "unzipper": "0.12.5"

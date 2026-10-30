@@ -158,7 +158,7 @@ test('source center uses exclusive keyboard tabs, accessible icon actions and wr
     await expect(page.getByRole('tab', { name: '电子书', exact: true })).toBeFocused()
     await expect(panel.getByRole('combobox', { name: '电子书来源' })).toHaveCount(1)
     await expect(panel.getByRole('combobox', { name: '有声书来源' })).toHaveCount(0)
-    await page.getByRole('tab', { name: '电子书', exact: true }).press('End')
+    await page.getByRole('tab', { name: '电子书', exact: true }).press('ArrowRight')
     await expect(page.getByRole('tab', { name: '我的书库', exact: true })).toBeFocused()
     await expect(panel.getByRole('combobox', { name: '个人书库' })).toHaveCount(1)
     await expect(panel.getByRole('combobox', { name: '电子书来源' })).toHaveCount(0)

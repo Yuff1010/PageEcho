@@ -60,7 +60,7 @@ export function SourceCenterText({
         enabled: library.enabled,
       })) ?? [])
     : (sources?.sources
-        .filter((source) => source.kind === 'wikisource')
+        .filter((source) => source.kind === 'wikisource' || source.kind === 'plugin')
         .map((source) => ({ id: source.id, name: source.name, enabled: true })) ?? [])
   const sourceId = choices.some((source) => source.id === selectedId)
     ? selectedId

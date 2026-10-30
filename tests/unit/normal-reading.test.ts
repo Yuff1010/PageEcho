@@ -123,7 +123,7 @@ test('schema 9 upgrades in place while retaining audio and the companion origina
   assert.equal(store.reading.import(novel()).id, before.info!.id)
   store.close()
   const db = new DatabaseSync(file)
-  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 16)
+  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 17)
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), [])
   db.close()
 })

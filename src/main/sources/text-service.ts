@@ -17,7 +17,12 @@ import type {
 } from '../../shared/text-sources'
 import { sourceUrl, TextHttpClient } from './text-http'
 import { OpdsTextConnector } from './text-opds'
-import type { StoredRemoteLibrary, TextLibraryConnector, TextLibraryContext } from './text-provider'
+import type {
+  StoredRemoteLibrary,
+  TextLibraryConnector,
+  TextLibraryContext,
+  PluginTextSources,
+} from './text-provider'
 import { WikisourceTextSource, WIKISOURCE_URL } from './text-wikisource'
 
 export interface TextSourceOptions {
@@ -32,6 +37,7 @@ export interface TextSourceOptions {
   secretCodec?: { encrypt(value: string): string; decrypt(value: string): string }
   /** Controlled fixtures only; production leaves this unset. */
   wikisource?: WikisourceTextSource
+  plugins?: PluginTextSources
 }
 interface DiskLibrary extends Omit<RemoteLibraryInfo, 'hasCredentials'> {
   secret?: string
@@ -209,6 +215,7 @@ export class TextSourceService {
           baseUrl: WIKISOURCE_URL,
           description: '官方 API · 先选章节，再导入正文',
         },
+        ...(this.options.plugins?.sources() ?? []),
         ...this.disk.libraries
           .filter((item) => item.enabled && this.connectors[item.kind])
           .map((item) => ({
@@ -269,6 +276,16 @@ export class TextSourceService {
     this.persist()
   }
 
+  private pluginSource(id: string) {
+    const source = this.options.plugins?.sources().find((item) => item.id === id)
+    if (!source)
+      throw new SourceError(
+        'SOURCE_UNAVAILABLE',
+        '此正文插件已停用或移除，已导入的电子书仍可阅读。',
+      )
+    return source
+  }
+
   private context(
     sourceId: string,
     signal: AbortSignal,
@@ -326,6 +343,10 @@ export class TextSourceService {
   browse(request: TextBrowseRequest) {
     return this.run(request.requestId, async (signal) => {
       if (request.sourceId === 'wikisource') return this.wiki.browse(request, signal)
+      if (request.sourceId.startsWith('plugin:')) {
+        this.pluginSource(request.sourceId)
+        return this.options.plugins!.browse(request, signal)
+      }
       const { connector, context } = this.context(request.sourceId, signal)
       return connector.browse(context, request)
     })
@@ -334,6 +355,10 @@ export class TextSourceService {
   detail(request: TextDetailRequest) {
     return this.run(request.requestId, async (signal) => {
       if (request.sourceId === 'wikisource') return this.wiki.detail(request.workId, signal)
+      if (request.sourceId.startsWith('plugin:')) {
+        this.pluginSource(request.sourceId)
+        return this.options.plugins!.detail(request, signal)
+      }
       const { connector, context } = this.context(request.sourceId, signal)
       return connector.detail(context, request.workId)
     })
@@ -341,13 +366,18 @@ export class TextSourceService {
 
   import(request: TextImportRequest): Promise<TextImportResult> {
     return this.run(request.requestId, async (signal) => {
+      const plugin = request.sourceId.startsWith('plugin:')
+        ? this.pluginSource(request.sourceId)
+        : null
       const remote =
-        request.sourceId === 'wikisource' ? null : this.context(request.sourceId, signal)
+        request.sourceId === 'wikisource' || plugin ? null : this.context(request.sourceId, signal)
       const endpoint = remote
         ? [remote.context.connection.kind, remote.context.connection.baseUrl]
-        : ['wikisource', WIKISOURCE_URL]
+        : plugin
+          ? ['plugin', plugin.baseUrl]
+          : ['wikisource', WIKISOURCE_URL]
       const selection =
-        request.sourceId === 'wikisource'
+        request.sourceId === 'wikisource' || plugin
           ? [...(request.chapterIds ?? [])].sort()
           : (request.acquisitionId ?? '')
       if (!selection.length) return invalid('请先选择本次导入范围或获取格式。')
@@ -366,7 +396,9 @@ export class TextSourceService {
         const download =
           request.sourceId === 'wikisource'
             ? await this.wiki.download(request, signal)
-            : await remote!.connector.download(remote!.context, request)
+            : plugin
+              ? await this.options.plugins!.download(request, signal)
+              : await remote!.connector.download(remote!.context, request)
         // Last cancellation point precedes the immutable reading import transaction.
         signal.throwIfAborted()
         const book = await this.options.importBook(download.bytes, download.filename, signal)

@@ -32,6 +32,9 @@ export class SourceOperations {
   cancel(id: string) {
     if (this.active?.id === id) this.active.controller.abort()
   }
+  async whenIdle() {
+    await this.active?.done.catch(() => undefined)
+  }
   async close() {
     if (this.closed) {
       await this.active?.done.catch(() => undefined)

@@ -779,7 +779,7 @@ test('schema 13 migration preserves offline plans, bookmarks, manual original po
       },
       prior,
     )
-    assert.equal(sql(f.store).prepare('PRAGMA user_version').get()!.user_version, 16)
+    assert.equal(sql(f.store).prepare('PRAGMA user_version').get()!.user_version, 17)
     assert.equal(f.store.transcriptEditingState(target).historyCount, 0)
   }
   verify()

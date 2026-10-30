@@ -37,8 +37,22 @@ export type IconName =
   | 'stop'
   | 'sort'
   | 'upload'
+  | 'plugin'
+  | 'refresh'
+  | 'undo'
+  | 'trash'
 
 const paths: Record<IconName, ReactNode> = {
+  trash: <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />,
+  refresh: (
+    <path d="M20 7v5h-5M4 17v-5h5M5.6 7a7 7 0 0 1 11.7-2L20 8M4 16l2.7 3a7 7 0 0 0 11.7-2" />
+  ),
+  undo: <path d="m9 4-5 5 5 5M4 9h9a7 7 0 0 1 0 14" />,
+  plugin: (
+    <>
+      <path d="M8 3v5M16 3v5M5 8h14v3a7 7 0 0 1-7 7 7 7 0 0 1-7-7V8ZM12 18v4" />
+    </>
+  ),
   transcript: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />

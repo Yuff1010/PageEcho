@@ -4,6 +4,8 @@ import type {
   TextBrowsePage,
   TextBrowseRequest,
   TextImportRequest,
+  TextDetailRequest,
+  TextSourceInfo,
 } from '../../shared/text-sources'
 import type { TextHttpClient } from './text-http'
 
@@ -29,4 +31,11 @@ export interface TextLibraryConnector {
   browse(context: TextLibraryContext, request: TextBrowseRequest): Promise<TextBrowsePage>
   detail(context: TextLibraryContext, workId: string): Promise<TextBookDetail>
   download(context: TextLibraryContext, request: TextImportRequest): Promise<TextDownload>
+}
+
+export interface PluginTextSources {
+  sources(): TextSourceInfo[]
+  browse(request: TextBrowseRequest, signal: AbortSignal): Promise<TextBrowsePage>
+  detail(request: TextDetailRequest, signal: AbortSignal): Promise<TextBookDetail>
+  download(request: TextImportRequest, signal: AbortSignal): Promise<TextDownload>
 }

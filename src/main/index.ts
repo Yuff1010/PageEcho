@@ -55,6 +55,10 @@ import { TextBookImporter } from './sources/text-book-importer'
 import { WebdavLibraryConnector } from './sources/webdav-library'
 import { AudiobookshelfLibraryConnector } from './sources/audiobookshelf-library'
 import { registerTextSourceIpc } from './sources/text-source-ipc'
+import { PluginRuntime } from './plugins/runtime'
+import { PluginService } from './plugins/service'
+import { registerPluginIpc } from './plugins/ipc'
+import { SOURCE_METADATA, sourceQueryLimit } from '../shared/sources'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -92,6 +96,8 @@ let subtitleImports: SubtitleImportService | undefined
 let ebookSpeech: EbookSpeech | undefined
 let textSources: TextSourceService | undefined
 let textImporter: TextBookImporter | undefined
+let plugins: PluginService | undefined
+let pluginRuntime: PluginRuntime | undefined
 const originals = new OriginalService()
 
 // A small code-drawn book icon; no external assets or network dependency.
@@ -145,6 +151,8 @@ function finishQuit() {
     const stoppingImports = subtitleImports?.close().catch(logError)
     ebookSpeech?.close()
     textSources?.close()
+    plugins?.close()
+    const stoppingPluginRuntime = pluginRuntime?.close().catch(logError)
     const stoppingTextImporter = textImporter?.close().catch(logError)
     const stoppingTranscription = transcription?.close().catch(logError)
     const stoppingComponents = componentSetup?.close()
@@ -168,6 +176,7 @@ function finishQuit() {
       await stoppingEditing
       await stoppingImports
       await stoppingTextImporter
+      await stoppingPluginRuntime
       await stoppingComponents
     } catch (error) {
       logError(error)
@@ -343,11 +352,30 @@ async function start() {
       },
     },
   )
-  const sourceSession = new Ting13Session()
-  sources = new AudioSourceRegistry([
-    { adapter: new Ting13Adapter(sourceSession), close: () => sourceSession.close() },
-    { adapter: new LibriVoxAdapter(), close: () => {} },
+  pluginRuntime = new PluginRuntime()
+  plugins = new PluginService({
+    directory: join(paths.data, 'source-plugins'),
+    runtime: pluginRuntime,
+    onChanged: () => {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed())
+        window.webContents.send(CHANNELS.sourceChanged)
+    },
+  })
+  registerPluginIpc(window, rendererUrl, plugins, () => [
+    ...SOURCE_METADATA.map((source) => ({
+      ...source,
+      maxQueryLength: sourceQueryLimit(source.id),
+    })),
+    ...plugins!.audioSources(),
   ])
+  const sourceSession = new Ting13Session()
+  sources = new AudioSourceRegistry(
+    [
+      { adapter: new Ting13Adapter(sourceSession), close: () => sourceSession.close() },
+      { adapter: new LibriVoxAdapter(), close: () => {} },
+    ],
+    (id) => plugins!.audioAdapter(id),
+  )
   const mediaSession = new Ting13Session()
   const sourceCache = new SourceCache(
     store,
@@ -363,10 +391,13 @@ async function start() {
   )
   onlineMedia = new OnlineMedia(
     store,
-    new AudioSourceRegistry([
-      { adapter: new Ting13Adapter(mediaSession), close: () => mediaSession.close() },
-      { adapter: new LibriVoxAdapter(), close: () => {} },
-    ]),
+    new AudioSourceRegistry(
+      [
+        { adapter: new Ting13Adapter(mediaSession), close: () => mediaSession.close() },
+        { adapter: new LibriVoxAdapter(), close: () => {} },
+      ],
+      (id) => plugins!.audioAdapter(id),
+    ),
     join(paths.cache, 'source-media'),
     () => {},
     undefined,
@@ -440,6 +471,12 @@ async function start() {
   textImporter = new TextBookImporter(store, paths.cache)
   textSources = new TextSourceService({
     directory: paths.data,
+    plugins: {
+      sources: () => plugins!.textSources(),
+      browse: (request, signal) => plugins!.textBrowse(request, signal),
+      detail: (request, signal) => plugins!.textDetail(request, signal),
+      download: (request, signal) => plugins!.textDownload(request, signal),
+    },
     importBook: (bytes, filename, signal) => textImporter!.import(bytes, filename, signal),
     getReadingBook: (id) => {
       try {

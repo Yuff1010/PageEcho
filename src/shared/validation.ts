@@ -1,5 +1,11 @@
 import type { ErrorCode } from './contracts'
-import { SOURCE_QUERY_LIMITS } from './sources'
+import {
+  isPluginSourceId,
+  isSourceId,
+  isSourceItemId,
+  sourceQueryLimit,
+  type SourceId,
+} from './sources'
 import { LISTENING_REVIEW_TEXT_LIMITS } from './listening-review'
 import { MAX_OFFLINE_ITEMS, MAX_OFFLINE_AUDIO_BUDGET_BYTES } from './offline'
 import {
@@ -15,6 +21,12 @@ export class AppError extends Error {
   ) {
     super(message)
   }
+}
+
+function isSourceRequest(
+  value: unknown,
+): value is Record<string, unknown> & { sourceId: SourceId } {
+  return typeof value === 'object' && value !== null && isSourceId(Reflect.get(value, 'sourceId'))
 }
 
 function isExactObject(value: unknown, ...keys: string[]): value is Record<string, unknown> {
@@ -866,26 +878,37 @@ export function validateRequest(channel: string, args: unknown[]): void {
     return
   if (
     args.length === 1 &&
+    isSourceRequest(request) &&
     ((channel === 'source:search' &&
       isExactObject(request, 'id', 'sourceId', 'query', 'cursor') &&
       typeof request.query === 'string' &&
       request.query.trim().length > 0 &&
-      request.query.trim().length <=
-        (request.sourceId === 'librivox'
-          ? SOURCE_QUERY_LIMITS.librivox
-          : SOURCE_QUERY_LIMITS.ting13) &&
-      (request.cursor === null || isId(request.cursor))) ||
+      request.query.trim().length <= sourceQueryLimit(request.sourceId) &&
+      (request.cursor === null ||
+        (isPluginSourceId(request.sourceId)
+          ? typeof request.cursor === 'string' &&
+            request.cursor.length <= 2048 &&
+            !/\p{Cc}/u.test(request.cursor)
+          : isId(request.cursor)))) ||
       (['source:book', 'source:add'].includes(channel) &&
         isExactObject(request, 'id', 'sourceId', 'bookId') &&
         typeof request.bookId === 'string' &&
-        /^[1-9]\d{0,8}$/.test(request.bookId)) ||
+        (isPluginSourceId(request.sourceId)
+          ? isSourceItemId(request.bookId)
+          : /^[1-9]\d{0,8}$/.test(request.bookId))) ||
       (channel === 'source:episodes' &&
         isExactObject(request, 'id', 'sourceId', 'bookId', 'cursor') &&
         typeof request.bookId === 'string' &&
-        /^[1-9]\d{0,8}$/.test(request.bookId) &&
-        (request.cursor === null || isId(request.cursor)))) &&
-    isId(request.id) &&
-    (request.sourceId === 'ting13' || request.sourceId === 'librivox')
+        (isPluginSourceId(request.sourceId)
+          ? isSourceItemId(request.bookId)
+          : /^[1-9]\d{0,8}$/.test(request.bookId)) &&
+        (request.cursor === null ||
+          (isPluginSourceId(request.sourceId)
+            ? typeof request.cursor === 'string' &&
+              request.cursor.length <= 2048 &&
+              !/\p{Cc}/u.test(request.cursor)
+            : isId(request.cursor))))) &&
+    isId(request.id)
   )
     return
   if (
