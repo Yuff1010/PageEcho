@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto'
 import { cpus, totalmem, release } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compareChapters, scanBook } from '../src/main/files'
-import { AUDIO_EXTENSIONS } from '../src/shared/contracts'
+import { compareChapters, scanBook } from '../../src/main/files'
+import { AUDIO_EXTENSIONS } from '../../src/shared/contracts'
 
 const execute = promisify(execFile)
 const [source, flag, probePath] = process.argv.slice(2)
@@ -17,7 +17,7 @@ const probe = await realpath(resolve(probePath))
 const ffmpeg = await realpath(
   join(dirname(probe), process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'),
 )
-const root = fileURLToPath(new URL('..', import.meta.url))
+const root = fileURLToPath(new URL('../..', import.meta.url))
 const output = join(root, 'cache', 'asr-evaluation')
 await mkdir(output, { recursive: true })
 const candidates = (await readdir(folder, { withFileTypes: true }))

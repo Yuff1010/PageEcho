@@ -1,7 +1,7 @@
 import { crc32, deflateRawSync } from 'node:zlib'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { parsePluginPackage } from '../src/main/plugins/package'
+import { parsePluginPackage } from '../../src/main/plugins/package'
 
 const args = process.argv.slice(2)
 if (args.length !== 4 || args[0] !== '--directory' || args[2] !== '--output')

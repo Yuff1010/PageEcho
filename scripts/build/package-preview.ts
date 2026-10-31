@@ -28,7 +28,7 @@ const directory = resolve('cache/package-previews', new Date().toISOString().rep
 const project = join(directory, 'project'),
   output = join(directory, 'output')
 await mkdir(project, { recursive: true })
-await copyFile(resolve('scripts/package-preview.ts'), join(directory, 'runner-started.ts'))
+await copyFile(resolve('scripts/build/package-preview.ts'), join(directory, 'runner-started.ts'))
 await cp(join(appRoot, 'out'), join(project, 'out'), { recursive: true })
 await cp(join(appRoot, 'python'), join(project, 'python'), { recursive: true })
 await copyFile(resolve('THIRD_PARTY_NOTICES.md'), join(project, 'THIRD_PARTY_NOTICES.md'))
