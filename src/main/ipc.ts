@@ -56,6 +56,7 @@ import type { OnlinePreparation } from './sources/online-preparation'
 import { AutomaticOriginals } from './original/automatic'
 import { AutomaticSubtitles } from './automatic-subtitles'
 import type { OriginalService } from './original/service'
+import type { SourceCoverPresenter } from './sources/source-cover-presenter'
 import type {
   OriginalCorrection,
   OriginalMatch,
@@ -81,6 +82,7 @@ export function registerIpc(
   originals: OriginalService,
   subtitleImports: SubtitleImportService,
   sharedComponentSetup?: ComponentSetup,
+  covers?: Pick<SourceCoverPresenter, 'audio'>,
 ): void {
   const state = (): AppState => ({
     version: app.getVersion(),
@@ -431,9 +433,10 @@ export function registerIpc(
   handle(CHANNELS.sourceSearch, (request) => {
     const input = request as SourceSearchRequest
     const source = sources.get(input.sourceId)
-    return source.run(input.id, (signal) =>
-      source.adapter.search(input.query, input.cursor ?? undefined, signal),
-    )
+    return source.run(input.id, async (signal) => {
+      const page = await source.adapter.search(input.query, input.cursor ?? undefined, signal)
+      return covers ? { ...page, items: page.items.map((book) => covers.audio(book)) } : page
+    })
   })
   handle(CHANNELS.sourceBook, (request) => {
     const input = request as SourceBookRequest
@@ -444,7 +447,7 @@ export function registerIpc(
         episodes: await source.adapter.getEpisodes(input.bookId, undefined, signal),
       }
       rememberCatalog(detail)
-      return detail
+      return covers ? { ...detail, book: covers.audio(detail.book) } : detail
     })
   })
   handle(CHANNELS.sourceEpisodes, (request) => {

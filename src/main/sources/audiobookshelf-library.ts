@@ -61,6 +61,10 @@ function summary(context: TextLibraryContext, value: unknown) {
       null,
     description: remoteText(metadata.description).replace(/<[^>]*>/g, '') || null,
     pageUrl: null,
+    coverUrl:
+      item.mediaType === 'book' && item.id && (media.coverPath || item.coverPath)
+        ? apiUrl(context, `items/${identifier(item.id)}/cover?width=300`)
+        : null,
   }
 }
 

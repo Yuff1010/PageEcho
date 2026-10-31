@@ -1,6 +1,6 @@
 # 自包含 Windows 目录版
 
-`0.33.0-dev.1` 提供带完整 Electron 运行时、主程序、生产依赖、原文处理 worker、插件运行 worker 和字幕组件接口的目录版。程序无需工作区、Node.js 或系统 Python 即可进行普通听书、TXT/EPUB 阅读及已有字幕导入。纯电子书朗读调用 Windows 已安装的本地声音，无需模型组件；AI 录音字幕仍需另行选择离线组件，模型没有嵌入主程序，也不会在启动时自动下载。播放行为见 [播放与朗读流程](PLAYBACK_FLOW.md)。
+`0.34.0-dev.1` 提供带完整 Electron 运行时、主程序、生产依赖、原文处理 worker、插件运行 worker 和字幕组件接口的目录版。程序无需工作区、Node.js 或系统 Python 即可进行普通听书、TXT/EPUB 阅读及已有字幕导入。纯电子书朗读调用 Windows 已安装的本地声音，无需模型组件；AI 录音字幕仍需另行选择离线组件，模型没有嵌入主程序，也不会在启动时自动下载。播放行为见 [播放与朗读流程](PLAYBACK_FLOW.md)。
 
 保留 `0.25.0-dev.8` 对书架头部尺寸漂移的修正，使用同一个头部组件和设计参数；卡片去除重复阅读／收听文字按钮，已关联资源只保留准确的小图标，完整能力仍在更多菜单。阅读方面把来源、生成进度、取消、跟随及分页合入单一底部播放器，保留正文空间；伴读与电子书共用正文测量、锚点与动画基础，按实际屏幕排版翻页，数据加载窗口不冒充整书页数。阅读设置改为紧凑的三个真实分类，可选解释移入可访问的帮助提示，高级配色按需展开，错误继续直接显示。共用参数与组件所有权见 [设计规范](DESIGN_SYSTEM.md)，后续维护入口为根目录 [AGENTS.md](../AGENTS.md)。
 
@@ -10,9 +10,9 @@
 
 ## 启动与现有数据
 
-最新 `0.33.0-dev.1` 支持 SDK v1 来源插件的 ZIP 导入、权限预览、启停、更新、回滚与测试。QuickJS/WASM、HTML 解析器及插件 worker 随目录分发；实际插件安装、音频缓存播放、正文导入和卸载后数据保留已在复制后的发行程序中验证。用法见 [来源插件](SOURCE_PLUGINS.md)。
+最新 `0.34.0-dev.1` 在来源搜索和详情显示原封面，并提供 bqg631 网站示例插件。封面失效使用默认书封，图片代理不借用账户凭据。保留 SDK v1 的 ZIP 导入、权限预览、启停、更新、回滚与测试，QuickJS/WASM、HTML 解析器及插件 worker 随目录分发。用法见 [来源插件](SOURCE_PLUGINS.md) 与 [制作教程](MAKE_SOURCE_PLUGIN.md)。
 
-最新目录及同名 ZIP 为 `release/ReadAndListenBook-0.33.0-dev.1-2026-10-30T02-47-39.125Z-win-x64`，ZIP SHA-256 为 `25f06caeae295108b2c044ab50c200ee3e6c9f5150d45c06ee01b53185197316`。构建位于 `cache/preview-builds/2026-10-30T02-47-33.741Z/app`；89 个目录文件和 90 个 ZIP 条目核验通过。示例插件单独位于 `release/SourcePlugin-Wikisource-1.0.0.zip`。运行验证及复现命令见 [本版说明](releases/0.33.0-dev.1.md)。
+最新目录及同名 ZIP 为 `release/ReadAndListenBook-0.34.0-dev.1-2026-10-31T01-36-10.952Z-win-x64`，ZIP SHA-256 为 `cdfc55bf09dbbcbe72c590f77dded7e6b7e092b7454a48ce4bd75573c25659a9`。构建位于 `cache/preview-builds/2026-10-31T01-35-51.159Z/app`；89 个目录文件和 90 个 ZIP 条目核验通过。新示例插件为 `release/SourcePlugin-Bqg631-1.0.0.zip`，也保留 `release/SourcePlugin-Wikisource-1.0.0.zip`。运行验证及复现命令见 [本版说明](releases/0.34.0-dev.1.md)。
 
 历史 `0.32.0-dev.1` 新增统一来源中心、LibriVox、中文维基文库正文，以及 OPDS／WebDAV／Audiobookshelf 主电子书连接。现有连接与用户数据保留，见 [来源中心](SOURCE_CENTER.md)。
 

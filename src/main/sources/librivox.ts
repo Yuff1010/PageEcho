@@ -188,6 +188,12 @@ export class LibriVoxAdapter implements SourceAdapter {
       narrators: [],
       description: plain(text(value.description ?? '', 100000)).slice(0, 2000),
       pageUrl: librivoxPageUrl(text(value.url_librivox, 4000, true)).href,
+      coverUrl:
+        typeof value.coverart_thumbnail === 'string'
+          ? value.coverart_thumbnail
+          : typeof value.coverart_jpg === 'string'
+            ? value.coverart_jpg
+            : null,
     }
   }
   async search(
@@ -210,7 +216,13 @@ export class LibriVoxAdapter implements SourceAdapter {
       offset = remembered.offset
     }
     const books = await this.read(
-      { title: query, limit: String(PAGE_SIZE), offset: String(offset), sort_order: 'asc' },
+      {
+        title: query,
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+        sort_order: 'asc',
+        coverart: '1',
+      },
       signal,
       true,
     )
@@ -230,7 +242,7 @@ export class LibriVoxAdapter implements SourceAdapter {
       signal?.throwIfAborted()
       return cached
     }
-    const records = await this.read({ id, extended: '1', limit: '1' }, signal)
+    const records = await this.read({ id, extended: '1', limit: '1', coverart: '1' }, signal)
     if (records.length !== 1 || records[0]!.id !== id)
       throw new SourceError('SOURCE_CHANGED', 'LibriVox 书籍身份已变化。')
     const value = records[0]!,

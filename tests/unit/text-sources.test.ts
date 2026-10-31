@@ -18,7 +18,7 @@ import { syntheticCredentials, syntheticToken } from '../helpers/synthetic-auth'
 
 const atom = (content: string) =>
   `<feed xmlns="http://www.w3.org/2005/Atom"><id>urn:fixture</id><title>书库</title>${content}</feed>`
-const free = `<entry><id>urn:book:one</id><title>测试小说</title><author><name>作者</name></author><summary>正文简介</summary><link rel="http://opds-spec.org/acquisition/open-access" href="/book.txt" type="text/plain"/></entry>`
+const free = `<entry><id>urn:book:one</id><title>测试小说</title><author><name>作者</name></author><summary>正文简介</summary><link rel="http://opds-spec.org/acquisition/open-access" href="/book.txt" type="text/plain"/><link rel="http://opds-spec.org/image/thumbnail" href="/cover.png" type="image/png"/></entry>`
 const secretCodec = {
   encrypt: (value: string) => Buffer.from(value).toString('base64'),
   decrypt: (value: string) => Buffer.from(value, 'base64').toString('utf8'),
@@ -120,6 +120,7 @@ test('personal OPDS search, navigation, next page and open-access TXT import use
   )
   const page = await service.browse({ requestId: 'browse', sourceId: saved.id })
   assert.equal(page.books.length, 2)
+  assert.equal(page.books[0]!.coverUrl, `${origin}/cover.png`)
   assert.equal(page.navigation[0]?.title, '分类')
   assert.equal(page.searchable, true)
   assert.ok(page.nextCursor)

@@ -61,6 +61,7 @@ test('source search keeps metadata and uses owned query-bound pagination', async
         authors: ['作者'],
         narrators: ['甲', '甲'],
         description: '简介',
+        coverUrl: 'https://image.itingshu.net/cover/yousheng/synthetic.gif',
       },
     ],
     pages: [{ url: '/search/encoded/lastupdate/2.html', text: '2', title: '第2页' }],
@@ -72,6 +73,7 @@ test('source search keeps metadata and uses owned query-bound pagination', async
   const page = await adapter.search(' 测试 ')
   assert.deepEqual(page.items[0]?.narrators, ['甲'])
   assert.equal(page.items[0]?.pageUrl, `${origin}/youshengxiaoshuo/39941/`)
+  assert.equal(page.items[0]?.coverUrl, 'https://image.itingshu.net/cover/yousheng/synthetic.gif')
   assert.ok(page.nextCursor)
   await assert.rejects(adapter.search('别的书', page.nextCursor), {
     code: 'INVALID_SOURCE_REQUEST',

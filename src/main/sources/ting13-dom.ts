@@ -16,6 +16,7 @@ export interface Ting13Document {
     authors: string[]
     narrators: string[]
     description: string
+    coverUrl?: string | null
   }[]
   book: {
     title: string
@@ -23,6 +24,7 @@ export interface Ting13Document {
     narrators: string[]
     description: string
     directory: string
+    coverUrl?: string | null
   }
   episodes: SourceLink[]
   pages: SourceLink[]
@@ -58,6 +60,10 @@ export function readTing13Document(): Ting13Document {
         authors: names(card, '.book-author a'),
         narrators: names(card, '.book-boyin a'),
         description: text(card.querySelector('.list-book-des')),
+        coverUrl:
+          card.querySelector('img')?.getAttribute('data-original') ||
+          card.querySelector('img')?.getAttribute('src') ||
+          null,
       })),
     book: {
       title: text(info?.querySelector('.book-title') ?? null, 300).replace(/有声小说$/, ''),
@@ -69,6 +75,15 @@ export function readTing13Document(): Ting13Document {
           ?.getAttribute('content')
           ?.slice(0, 2000) ?? '',
       directory: document.querySelector('a.dirurl')?.getAttribute('href') ?? '',
+      coverUrl:
+        document
+          .querySelector('.book-img img, .book-cover img, .book-pic img, a.thumb img')
+          ?.getAttribute('data-original') ||
+        document
+          .querySelector('.book-img img, .book-cover img, .book-pic img, a.thumb img')
+          ?.getAttribute('src') ||
+        document.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
+        null,
     },
     episodes: Array.from(document.querySelectorAll('#playlist a[href^="/play/"]'), link).slice(
       0,

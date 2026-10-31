@@ -11,17 +11,25 @@ import { AppError, isTrustedRenderer } from '../../shared/validation'
 import { SourceError } from '../../shared/sources'
 import type { TextSourceService } from './text-service'
 import { validateTextSourceArgs } from './text-validation'
+import type { SourceCoverPresenter } from './source-cover-presenter'
 
 export function registerTextSourceIpc(
   window: BrowserWindow,
   rendererUrl: string,
   service: TextSourceService,
+  covers?: SourceCoverPresenter,
 ): () => void {
   const channels = TEXT_SOURCE_CHANNELS
   const actions: Record<string, (request: unknown) => unknown> = {
     [channels.state]: () => service.state(),
-    [channels.browse]: (request) => service.browse(request as TextBrowseRequest),
-    [channels.detail]: (request) => service.detail(request as TextDetailRequest),
+    [channels.browse]: async (request) => {
+      const page = await service.browse(request as TextBrowseRequest)
+      return covers ? { ...page, books: page.books.map((book) => covers.ebook(book)) } : page
+    },
+    [channels.detail]: async (request) => {
+      const detail = await service.detail(request as TextDetailRequest)
+      return covers ? { ...detail, ...covers.ebook(detail) } : detail
+    },
     [channels.import]: (request) => service.import(request as TextImportRequest),
     [channels.cancel]: (request) => service.cancel((request as { requestId: string }).requestId),
     [channels.save]: (request) => service.save(request as RemoteLibraryConfig),

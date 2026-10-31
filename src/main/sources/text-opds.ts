@@ -101,6 +101,7 @@ export class OpdsTextConnector implements TextLibraryConnector {
       let navigation: string | null = null
       let detailUrl: string | undefined
       let pageUrl: string | null = null
+      let coverUrl: string | null = null
       let restricted = false
       for (const link of childElements(entry, 'link')) {
         const rel = link.getAttribute('rel') ?? 'alternate'
@@ -108,6 +109,17 @@ export class OpdsTextConnector implements TextLibraryConnector {
         const type = mime(rawType)
         const href = resolveOptional(context, link.getAttribute('href') ?? '', base)
         if (!href) continue
+        if (
+          [
+            'http://opds-spec.org/image/thumbnail',
+            'http://opds-spec.org/image',
+            'http://opds-spec.org/thumbnail',
+            'http://opds-spec.org/cover',
+          ].includes(rel) &&
+          ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type)
+        ) {
+          if (!coverUrl || rel.endsWith('/thumbnail')) coverUrl = href
+        }
         const format = FORMATS[type]
         if ((rel === ACQUIRE || rel === `${ACQUIRE}/open-access`) && format) {
           const id = digest(`${format}\0${href}`)
@@ -141,6 +153,7 @@ export class OpdsTextConnector implements TextLibraryConnector {
             .join('、') || null,
         description: childText(entry, 'summary') || childText(entry, 'content') || null,
         pageUrl,
+        coverUrl,
         chapters: [],
         acquisitions,
         notice: restricted && !acquisitions.length ? '此条目需要购买或借阅，无法直接导入。' : null,

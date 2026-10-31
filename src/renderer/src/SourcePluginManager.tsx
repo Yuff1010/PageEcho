@@ -300,6 +300,7 @@ export function SourcePluginManager() {
                   preview.sources.flatMap((source) => [
                     ...source.allowedOrigins,
                     ...source.mediaOrigins,
+                    ...(source.coverOrigins ?? source.allowedOrigins),
                   ]),
                 ),
               ].map((origin) => (

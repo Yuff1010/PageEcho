@@ -11,6 +11,7 @@ export interface PluginSourceManifest {
   description?: string
   allowedOrigins: string[]
   mediaOrigins?: string[]
+  coverOrigins?: string[]
 }
 
 export interface PluginManifest {
@@ -33,6 +34,7 @@ export interface PluginSourceInfo {
   description: string
   allowedOrigins: string[]
   mediaOrigins: string[]
+  coverOrigins?: string[]
 }
 
 export interface AudioSourceInfo {

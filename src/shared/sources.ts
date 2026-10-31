@@ -91,6 +91,7 @@ export interface SourceBook {
   narrators: string[]
   description: string
   pageUrl: string
+  coverUrl?: string | null
 }
 export interface SourceEpisode {
   sourceId: SourceId

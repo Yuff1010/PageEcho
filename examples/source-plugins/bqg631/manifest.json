@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": 1,
+  "id": "ralb.example-bqg631",
+  "name": "笔趣阁 bqg631 示例插件",
+  "version": "1.0.0",
+  "scripts": ["crypto-js.js", "main.js"],
+  "sources": [
+    {
+      "id": "text",
+      "name": "笔趣阁 bqg631",
+      "kind": "text",
+      "baseUrl": "https://www.bqg631.xyz/",
+      "description": "按网站公开客户端接口读取搜索、目录与所选正文；只使用经验证的接口域。",
+      "allowedOrigins": ["https://www.bqg631.xyz", "https://apibi.cc"],
+      "coverOrigins": ["https://www.bqg631.xyz"]
+    }
+  ]
+}

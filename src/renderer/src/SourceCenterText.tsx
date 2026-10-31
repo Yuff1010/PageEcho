@@ -11,6 +11,7 @@ import type {
 } from '../../shared/text-sources'
 import { HelpTip } from './HelpTip'
 import { SourceCenterAction, SourceCenterEmpty } from './SourceCenterUI'
+import { SourceBookImage, SourceBookResult } from './SourceBookResult'
 
 const libraryKinds = [
   { id: 'opds', name: 'OPDS' },
@@ -400,7 +401,7 @@ export function SourceCenterText({
         {!personal && (
           <SourceCenterAction
             label="刷新来源列表"
-            icon="forward"
+            icon="refresh"
             disabled={busy}
             onClick={refresh}
           />
@@ -461,7 +462,7 @@ export function SourceCenterText({
           />
           <SourceCenterAction
             label="刷新来源列表"
-            icon="forward"
+            icon="refresh"
             disabled={busy}
             onClick={refresh}
           />
@@ -478,7 +479,7 @@ export function SourceCenterText({
           <p>{error}</p>
           <SourceCenterAction
             label="重试来源请求"
-            icon="forward"
+            icon="refresh"
             onClick={() => (retry.current ? retry.current() : refresh())}
           />
         </div>
@@ -592,6 +593,11 @@ export function SourceCenterText({
                 setError('')
               }}
             />
+            <SourceBookImage
+              id={identity(detail)}
+              title={detail.title}
+              coverUrl={detail.coverUrl}
+            />
             <div>
               <h2>{detail.title}</h2>
               <p className="source-credit">
@@ -693,19 +699,17 @@ export function SourceCenterText({
           {page.books.length ? (
             <ul className="source-book-grid">
               {page.books.map((book) => (
-                <li key={identity(book)}>
-                  <div className="source-center-result-heading">
-                    <h3>{book.title}</h3>
-                    <SourceCenterAction
-                      label={`查看 ${book.title} 的电子书详情`}
-                      icon="arrow"
-                      disabled={busy}
-                      onClick={() => open(book)}
-                    />
-                  </div>
-                  {!!book.author && <p className="source-credit">{book.author}</p>}
-                  {!!book.description && <p className="source-description">{book.description}</p>}
-                </li>
+                <SourceBookResult
+                  key={identity(book)}
+                  id={identity(book)}
+                  title={book.title}
+                  coverUrl={book.coverUrl}
+                  credit={book.author}
+                  description={book.description}
+                  label={`查看 ${book.title} 的电子书详情`}
+                  disabled={busy}
+                  onOpen={() => open(book)}
+                />
               ))}
             </ul>
           ) : (

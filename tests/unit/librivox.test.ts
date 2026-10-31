@@ -13,6 +13,7 @@ function catalog() {
         authors: [{ first_name: 'A.', last_name: 'Writer' }],
         num_sections: '2',
         url_librivox: 'https://librivox.org/example-letters/',
+        coverart_thumbnail: 'https://www.archive.org/download/example_covers/letters_thumb.jpg',
         sections: [
           {
             id: '121136',
@@ -43,6 +44,7 @@ test('LibriVox resolves stable catalog identities through the official JSON API'
     assert.equal(url.origin, 'https://librivox.org')
     assert.equal(url.pathname, '/api/feed/audiobooks/')
     assert.equal(url.searchParams.get('format'), 'json')
+    assert.equal(url.searchParams.get('coverart'), '1')
     assert.equal(init!.redirect, 'manual')
     return json(catalog())
   })
@@ -52,6 +54,7 @@ test('LibriVox resolves stable catalog identities through the official JSON API'
   assert.equal(book.sourceId, 'librivox')
   assert.equal(book.title, 'Example & Letters')
   assert.equal(book.description, 'A public domain example.')
+  assert.equal(book.coverUrl, 'https://www.archive.org/download/example_covers/letters_thumb.jpg')
   assert.deepEqual(book.authors, ['A. Writer'])
   assert.deepEqual(book.narrators, ['Reader A', 'Reader B'])
   assert.deepEqual(

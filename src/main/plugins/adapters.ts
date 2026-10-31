@@ -57,6 +57,16 @@ export function pluginMediaUrl(source: PluginSourceInfo, value: unknown): string
   return url.href
 }
 
+export function pluginCoverUrl(source: PluginSourceInfo, value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null
+  try {
+    const url = pluginUrl(value, true)
+    return (source.coverOrigins ?? source.allowedOrigins).includes(url.origin) ? url.href : null
+  } catch {
+    return null
+  }
+}
+
 export function pluginBook(
   source: PluginSourceInfo,
   value: unknown,
@@ -74,6 +84,7 @@ export function pluginBook(
     narrators: labels(book.narrators),
     description: plain(book.description ?? '', 20_000, true),
     pageUrl: pluginPageUrl(source, book.pageUrl ?? source.baseUrl).href,
+    coverUrl: pluginCoverUrl(source, book.coverUrl),
   }
 }
 
@@ -149,6 +160,7 @@ export function pluginTextSummary(
     author: book.authors.join('、') || null,
     description: book.description || null,
     pageUrl: book.pageUrl,
+    coverUrl: book.coverUrl,
   }
 }
 

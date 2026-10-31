@@ -136,6 +136,14 @@
 
 `tests/desktop/reader-settings-compact.spec.ts` 覆盖 1200px／720px 宽度、浅色／深色、面板高度与滚动、三个设置分类、键盘／悬停／触屏帮助提示、Escape 焦点、范围短选项、配色草稿及常显错误。既有 `reader-preferences.spec.ts` 和 `reader-blending.spec.ts` 仍验证配色持久化、透明度和真实绘制对比度；高级控件改为先展开后操作。此处列出验收范围，最终桌面结果由主任务统一运行记录。
 
+## 来源搜索封面
+
+`SourceBookResult` 和 `SourceBookImage` 负责音频／正文来源搜索及详情中的相同封面结构，局部尺寸属于 `source-book-result.css`，不改变 `ShelfBookCard`、书架标题或阅读 chrome。保留书名、作者与简介，封面按钮直接打开书籍；可访问名称和提示共用原动作，不另加重复箭头。结果封面为 78×111px，详情为 58×83px，窄窗口结果宽 70px；图片使用 `object-fit: cover`。
+
+来源适配器只提供可选的原始 `coverUrl`。`SourceCoverPresenter` 在主进程 IPC 返回时注册候选地址，不修改来源缓存和数据库。`SourceCoverService` 按来源权限代理有界栅格图片，渲染端仅接受 `readlisten://app/covers/` 的不透明地址；图片缺失或失败使用既有 `BookCover`。本版封面属于搜索与详情展示，不代表已持久保存到书架；认证图片不借用个人书库密码。
+
+`source-covers.spec.ts` 在实际 Electron 中验证原图解码、破损／越权图片回退、窄宽与明暗场景，并在正文搜索期间核对正在播放的音频元素、来源和进度保持连续。代理权限、重定向、尺寸、响应类型、预算与缓存由对应逻辑回归覆盖。
+
 ## 应用外观与信息
 
 `AppInfo` 的 `appearance`／`about` 面板互斥，`App` 分别保存打开意图。外观设置提供应用主题和视觉风格，不混入版本、数据目录和旧导入；应用信息显示从主进程读取的实际版本、实际 Electron／Chromium 运行环境，以及按需展开的数据目录和旧音频记录，不放主题或风格选择框。两项选择各自持久化，保存失败各自直接显示，不能覆盖已保存值。阅读纸色继续由阅读设置负责。

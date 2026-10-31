@@ -20,6 +20,8 @@
 
 源码位于 `examples/source-plugins/wikisource/`。它通过中文维基文库公开 API 搜索、读取目录、取得所选章节正文，不需要账户。安装后选择“中文维基文库（插件）”，搜索“呐喊”，打开《吶喊》，选择《狂人日记》等具体章节再导入。
 
+`0.34.0-dev.1` 另提供用户指定网站的 [bqg631 示例与说明](../examples/source-plugins/bqg631/README.md)，支持原封面、搜索、目录及所选正文；本机导入包为 `release/SourcePlugin-Bqg631-1.0.0.zip`。网站制作流程见 [制作来源插件](MAKE_SOURCE_PLUGIN.md)。示例只验证过一部作品的一章，网站接口变化后需要更新解析规则。
+
 ```powershell
 npm ci
 npm.cmd run plugin:pack -- --directory examples/source-plugins/wikisource --output cache/plugin-examples/wikisource-1.0.0.zip
@@ -60,7 +62,8 @@ my-source.zip
       "kind": "audio",
       "baseUrl": "https://books.example/",
       "allowedOrigins": ["https://books.example"],
-      "mediaOrigins": ["https://media.example"]
+      "mediaOrigins": ["https://media.example"],
+      "coverOrigins": ["https://images.example"]
     }
   ]
 }
@@ -68,7 +71,7 @@ my-source.zip
 
 `main` 与 `scripts` 二选一。多个脚本用 `"scripts": ["common.js", "main.js"]`，按顺序加载。版本是 `主版本.次版本.补丁` 三段数字；插件和本地来源 ID 使用小写字母、数字、点、短横线或下划线，以字母或数字开头，最长 80 字符，发布后保持稳定。完整来源身份由主程序生成：`plugin:my.reader:audio`。
 
-`kind` 为 `audio` 或 `text`。每个来源必须声明 `allowedOrigins`；音频可另声明 `mediaOrigins`，缺省沿用页面来源域。权限使用精确 origin，包括协议与非默认端口，不接受通配符。例如 `https://books.example` 与 `http://books.example` 是不同授权。
+`kind` 为 `audio` 或 `text`。每个来源必须声明 `allowedOrigins`；音频可另声明 `mediaOrigins`，封面可另声明 `coverOrigins`，两者缺省分别沿用 `allowedOrigins`。三组权限独立，播放域不会自动获准加载图片。权限使用精确 origin，包括协议与非默认端口，不接受通配符。例如 `https://books.example` 与 `http://books.example` 是不同授权。
 
 ## 注册与返回值
 
@@ -92,18 +95,20 @@ registerSource({
 
 以上域名和 API 仅展示接口，实际网站返回结构需要插件转换。所有方法同步返回 JSON 数据，网络等待由宿主桥接处理；不要使用 `async`／Promise 返回值。每次调用使用新的运行环境，不能依赖上次调用留下的全局变量。
 
-| 方法                                | 需要返回的内容                                                                                                               |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `search(query, cursor)`             | `{items: 书籍数组, nextCursor: 字符串或null}`；每本书含 `id`、`title`，可含 `authors`、`narrators`、`description`、`pageUrl` |
-| `getBook(bookId)`                   | 同上单本书籍对象，ID 必须与请求一致                                                                                          |
-| `getEpisodes(bookId, cursor)`       | 音频必需：`{items:[{id,title,order,pageUrl?}],nextCursor}`；order 为正整数、按顺序递增                                       |
-| `resolveAudio(bookId, episodeId)`   | 音频必需：URL 字符串，或 `{url,pageUrl?,headers?,expiresAt?}`；本版播放完整 MP3                                              |
-| `getChapters(bookId, cursor)`       | 正文必需：`{items:[{id,title}],nextCursor}`                                                                                  |
-| `getChapterText(bookId, chapterId)` | 正文必需：纯文本字符串                                                                                                       |
+| 方法                                | 需要返回的内容                                                                                                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `search(query, cursor)`             | `{items: 书籍数组, nextCursor: 字符串或null}`；每本书含 `id`、`title`，可含 `authors`、`narrators`、`description`、`pageUrl`、`coverUrl` |
+| `getBook(bookId)`                   | 同上单本书籍对象，ID 必须与请求一致                                                                                                      |
+| `getEpisodes(bookId, cursor)`       | 音频必需：`{items:[{id,title,order,pageUrl?}],nextCursor}`；order 为 0–100000 的整数，页内严格递增                                       |
+| `resolveAudio(bookId, episodeId)`   | 音频必需：URL 字符串，或 `{url,pageUrl?,headers?,expiresAt?}`；本版播放完整 MP3                                                          |
+| `getChapters(bookId, cursor)`       | 正文必需：`{items:[{id,title}],nextCursor}`                                                                                              |
+| `getChapterText(bookId, chapterId)` | 正文必需：纯文本字符串                                                                                                                   |
 
 正文与音频来源各自必须实现 `search`、`getBook` 以及对应的后两项方法。书籍／章节 ID 最长 512 字符，分页标识最长 2048 字符；单页最多 1000 项，目录 ID 不得重复。正文界面最多读取 10 页／1000 项目录，每次明确选择 1–20 项导入；这不代表整本作品已经完整下载。
 
 音频返回地址和每次重定向都必须处于 `mediaOrigins`。允许站点返回带临时签名参数的媒体地址；不将该地址当成稳定章节 ID。附加请求头只接受 `Referer`、`User-Agent`、`Origin`、`Accept`，其中页面来源仍受批准域限制。不接受 Cookie／Authorization 等凭据头，也不把用户已有书库密码交给插件。
+
+`coverUrl` 为可选 HTTP(S) 图片绝对地址。搜索和详情都应返回它；没有封面时省略或返回 `null`。主程序按 `coverOrigins` 逐跳检查并代理 PNG、JPEG、GIF、WebP，限制大小、尺寸、并发及内存缓存；不接受 SVG、HTML、凭据网址或授权域以外的跳转。渲染进程只接收不透明的本地图片地址，不直接请求网站。图片失败会显示默认书封，书目信息和阅读／播放仍可用。需要账户认证的图片目前回退默认封面；搜索封面尚不持久保存到书架。
 
 ## 宿主能力
 
@@ -129,4 +134,4 @@ registerSource({
 - `AudioSourceRegistry` 与正文服务：插件与内置来源共享既有播放、书架及阅读链路。数据库 schema 17 保留旧来源身份并允许插件命名空间。
 - `tests/unit/plugin-*.test.ts`、`tests/desktop/plugins.spec.ts`：实际 QuickJS、HTTP 合成站点、音频、正文、更新／取消与数据保留回归。
 
-依赖版本与许可证见锁文件及 `THIRD_PARTY_NOTICES.md`。当前发行证据见 [0.33.0-dev.1](releases/0.33.0-dev.1.md)。
+依赖版本与许可证见锁文件及 `THIRD_PARTY_NOTICES.md`。当前发行证据见 [0.34.0-dev.1](releases/0.34.0-dev.1.md)，插件引擎首次交付见 [0.33.0-dev.1](releases/0.33.0-dev.1.md)。

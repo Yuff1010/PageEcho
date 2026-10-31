@@ -17,3 +17,9 @@ Source plugins execute in an isolated QuickJS WebAssembly instance with host-con
 ## cheerio 1.2.0
 
 The source-plugin host uses Cheerio to parse HTML and select text/attributes without executing webpage scripts. Project: [cheeriojs/cheerio](https://github.com/cheeriojs/cheerio). Cheerio declares MIT; its package license and transitive dependency notices remain in the production dependency tree. It is a parser, not an embedded browser.
+
+## CryptoJS 4.2.0 (bqg631 example plugin only)
+
+The optional `examples/source-plugins/bqg631/` package vendors the official CryptoJS 4.2.0 browser bundle, with formatting and source/lint comments only. Project: [brix/crypto-js](https://github.com/brix/crypto-js). The MIT license is retained as `LICENSE.txt` inside that example and its generated ZIP; original npm archive integrity and file hash are recorded in the example README.
+
+This library is not a host application dependency. It runs within the existing restricted plugin environment solely to reproduce the website's public client request encoding. It does not handle user credentials or grant account access, and the website's legacy protocol is not a design recommendation for new cryptographic systems. CryptoJS is no longer maintained.

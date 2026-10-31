@@ -139,6 +139,7 @@ export function parsePluginManifest(value: unknown): PluginManifest {
       'description',
       'allowedOrigins',
       'mediaOrigins',
+      'coverOrigins',
     ])
     if (!['audio', 'text'].includes(String(source.kind)))
       return invalidPlugin('插件来源类型必须为 audio 或 text。')
@@ -148,6 +149,8 @@ export function parsePluginManifest(value: unknown): PluginManifest {
       return invalidPlugin('插件首页不在已声明的网络权限内。')
     const mediaOrigins =
       source.mediaOrigins === undefined ? undefined : pluginOrigins(source.mediaOrigins)
+    const coverOrigins =
+      source.coverOrigins === undefined ? undefined : pluginOrigins(source.coverOrigins)
     if (source.kind === 'text' && mediaOrigins)
       return invalidPlugin('正文来源不能声明音频媒体权限。')
     return {
@@ -160,6 +163,7 @@ export function parsePluginManifest(value: unknown): PluginManifest {
         ? {}
         : { description: pluginString(source.description, 1000, true) }),
       ...(mediaOrigins ? { mediaOrigins } : {}),
+      ...(coverOrigins ? { coverOrigins } : {}),
     }
   })
   if (new Set(sources.map((source) => source.id)).size !== sources.length)
@@ -186,5 +190,6 @@ export function pluginSourceInfo(manifest: PluginManifest): PluginSourceInfo[] {
     description: source.description ?? '',
     allowedOrigins: [...source.allowedOrigins],
     mediaOrigins: [...(source.mediaOrigins ?? source.allowedOrigins)],
+    coverOrigins: [...(source.coverOrigins ?? source.allowedOrigins)],
   }))
 }

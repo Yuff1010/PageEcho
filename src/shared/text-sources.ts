@@ -45,6 +45,7 @@ export interface TextBookSummary {
   author: string | null
   description: string | null
   pageUrl: string | null
+  coverUrl?: string | null
 }
 
 export interface TextNavigationLink {

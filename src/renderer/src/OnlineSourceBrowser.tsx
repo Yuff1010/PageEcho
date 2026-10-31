@@ -12,6 +12,7 @@ import { player } from './player'
 import { SourceCenterAction, SourceCenterEmpty } from './SourceCenterUI'
 import { SourceCenterText } from './SourceCenterText'
 import { SourcePluginManager } from './SourcePluginManager'
+import { SourceBookImage, SourceBookResult } from './SourceBookResult'
 import './source-center.css'
 
 const categories = [
@@ -348,7 +349,7 @@ function AudioSourcePanel({
           <p>{error}</p>
           <SourceCenterAction
             label="重试当前来源"
-            icon="forward"
+            icon="refresh"
             onClick={() => retry.current?.()}
           />
         </div>
@@ -365,6 +366,11 @@ function AudioSourcePanel({
                 update({ detail: null })
                 setError('')
               }}
+            />
+            <SourceBookImage
+              id={bookKey(detail.book)}
+              title={detail.book.title}
+              coverUrl={detail.book.coverUrl}
             />
             <div>
               <h2>{detail.book.title}</h2>
@@ -425,23 +431,21 @@ function AudioSourcePanel({
           {results.items.length ? (
             <ul className="source-book-grid">
               {results.items.map((book) => (
-                <li key={bookKey(book)}>
-                  <div className="source-center-result-heading">
-                    <h3>{book.title}</h3>
-                    <SourceCenterAction
-                      label={`查看 ${book.title} 的详情`}
-                      icon="arrow"
-                      disabled={busy}
-                      onClick={() => open(book)}
-                    />
-                  </div>
-                  <p className="source-credit">
-                    {[book.narrators.join('、'), book.authors.join('、')]
+                <SourceBookResult
+                  key={bookKey(book)}
+                  id={bookKey(book)}
+                  title={book.title}
+                  coverUrl={book.coverUrl}
+                  credit={
+                    [book.narrators.join('、'), book.authors.join('、')]
                       .filter(Boolean)
-                      .join(' · ') || source?.name}
-                  </p>
-                  {!!book.description && <p className="source-description">{book.description}</p>}
-                </li>
+                      .join(' · ') || source?.name
+                  }
+                  description={book.description}
+                  label={`查看 ${book.title} 的详情`}
+                  disabled={busy}
+                  onOpen={() => open(book)}
+                />
               ))}
             </ul>
           ) : (

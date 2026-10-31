@@ -59,6 +59,9 @@ import { PluginRuntime } from './plugins/runtime'
 import { PluginService } from './plugins/service'
 import { registerPluginIpc } from './plugins/ipc'
 import { SOURCE_METADATA, sourceQueryLimit } from '../shared/sources'
+import { SourceCoverService } from './sources/source-covers'
+import { SOURCE_COVER_PREFIX } from '../shared/source-covers'
+import { SourceCoverPresenter } from './sources/source-cover-presenter'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -98,6 +101,7 @@ let textSources: TextSourceService | undefined
 let textImporter: TextBookImporter | undefined
 let plugins: PluginService | undefined
 let pluginRuntime: PluginRuntime | undefined
+let sourceCovers: SourceCoverService | undefined
 const originals = new OriginalService()
 
 // A small code-drawn book icon; no external assets or network dependency.
@@ -152,6 +156,7 @@ function finishQuit() {
     ebookSpeech?.close()
     textSources?.close()
     plugins?.close()
+    sourceCovers?.close()
     const stoppingPluginRuntime = pluginRuntime?.close().catch(logError)
     const stoppingTextImporter = textImporter?.close().catch(logError)
     const stoppingTranscription = transcription?.close().catch(logError)
@@ -260,6 +265,8 @@ async function start() {
     allowFullscreen(contents, permission, details),
   )
   protocol.handle('readlisten', async (request) => {
+    if (request.url.startsWith(SOURCE_COVER_PREFIX))
+      return sourceCovers ? sourceCovers.serve(request) : new Response('Not found', { status: 404 })
     if (request.url.startsWith(SPEECH_MEDIA_PREFIX))
       return ebookSpeech!.serve(
         request,
@@ -290,7 +297,7 @@ async function start() {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src 'self' readlisten:; connect-src 'self' ${origin.replace('http:', 'ws:')}; object-src 'none'; base-uri 'none'; frame-src 'none'`,
+            `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: readlisten://app; media-src 'self' readlisten:; connect-src 'self' ${origin.replace('http:', 'ws:')}; object-src 'none'; base-uri 'none'; frame-src 'none'`,
           ],
         },
       })
@@ -444,6 +451,11 @@ async function start() {
     store,
     notify: (target) => transcription!.changed(target),
   })
+  const coverPresenter = () => new SourceCoverPresenter(sourceCovers!, plugins!, textSources!)
+  const presentSource = {
+    audio: (book: Parameters<SourceCoverPresenter['audio']>[0]) =>
+      sourceCovers && textSources ? coverPresenter().audio(book) : book,
+  }
   registerIpc(
     window,
     rendererUrl,
@@ -465,6 +477,7 @@ async function start() {
     originals,
     subtitleImports,
     componentSetup,
+    presentSource,
   )
   registerListeningReviewIpc(window, rendererUrl, listeningReviews, logError)
   registerEbookSpeechIpc(window, rendererUrl, ebookSpeech)
@@ -498,7 +511,10 @@ async function start() {
       decrypt: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
     },
   })
-  registerTextSourceIpc(window, rendererUrl, textSources)
+  sourceCovers = new SourceCoverService({
+    trustedRendererOrigin: developmentUrl ? new URL(developmentUrl).origin : undefined,
+  })
+  registerTextSourceIpc(window, rendererUrl, textSources, coverPresenter())
   acoustic = new OriginalAcousticService(
     store,
     component,

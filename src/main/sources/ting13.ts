@@ -85,6 +85,20 @@ function metadata(id: string, value: Omit<SourceBook, 'sourceId' | 'id' | 'pageU
     narrators: [...new Set(value.narrators)],
     description: value.description,
     pageUrl: `${TING13_ORIGIN}/youshengxiaoshuo/${id}/`,
+    coverUrl: (() => {
+      try {
+        const url = value.coverUrl ? new URL(value.coverUrl, TING13_ORIGIN) : null
+        return url &&
+          ['https://www.ting13.cc', 'https://image.itingshu.net'].includes(url.origin) &&
+          !url.username &&
+          !url.password &&
+          !url.hash
+          ? url.href
+          : null
+      } catch {
+        return null
+      }
+    })(),
   }
 }
 
