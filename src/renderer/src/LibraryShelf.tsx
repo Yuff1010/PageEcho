@@ -16,6 +16,7 @@ interface ShelfAction {
 export function ShelfBookCard({
   id,
   title,
+  coverUrl,
   kind,
   metadata,
   source,
@@ -30,6 +31,7 @@ export function ShelfBookCard({
 }: {
   id: string
   title: string
+  coverUrl?: string | null
   kind: 'audio' | 'ebook'
   metadata: string
   source?: { label: string; icon: IconName }
@@ -47,7 +49,7 @@ export function ShelfBookCard({
       <div className="cover-container">
         <Tooltip content={openLabel}>
           <button className="book-cover-button" aria-label={openLabel} onClick={onOpen}>
-            <BookCover title={title} id={id} />
+            <BookCover title={title} id={id} coverUrl={coverUrl} />
           </button>
         </Tooltip>
         {secondary ? (

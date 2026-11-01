@@ -147,7 +147,7 @@ export class AutomaticOriginals {
       try {
         const plan = this.store.prepareIncremental(target)
         if (!plan) continue
-        stamp = `${plan.originalId}:${plan.transcriptId}:${plan.transcriptRevision}:${plan.alignmentRevision}`
+        stamp = `${plan.originalId}:${plan.originalHash}:${plan.transcriptId}:${plan.transcriptRevision}:${plan.alignmentRevision}`
         if (this.blocked.get(key) === stamp) continue
         const matches = plan.batches.length
           ? await this.runner.runAutomatic(

@@ -3,10 +3,20 @@ import { CHANNELS, type DesktopApi } from '../shared/contracts'
 import { SPEECH_CHANNELS } from '../shared/ebook-speech'
 import { TEXT_SOURCE_CHANNELS } from '../shared/text-source-api'
 import { PLUGIN_CHANNELS } from '../shared/plugins'
+import { BACKUP_STORAGE_CHANNELS as BACKUP } from '../shared/backup-storage'
 import type { TranscriptionChange } from '../shared/transcription'
 import type { OriginalTarget } from '../shared/original'
 
 const api: DesktopApi = {
+  exportLibraryBackup: (request) => ipcRenderer.invoke(BACKUP.export, request),
+  chooseLibraryBackup: () => ipcRenderer.invoke(BACKUP.choose),
+  restoreLibraryBackup: (request) => ipcRenderer.invoke(BACKUP.restore, request),
+  getRestoredPreferences: () => ipcRenderer.invoke(BACKUP.restored),
+  acknowledgeRestoredPreferences: () => ipcRenderer.invoke(BACKUP.acknowledge),
+  getGeneratedStorage: () => ipcRenderer.invoke(BACKUP.storageState),
+  saveGeneratedStoragePolicy: (request) => ipcRenderer.invoke(BACKUP.storagePolicy, request),
+  previewGeneratedStorageClear: () => ipcRenderer.invoke(BACKUP.storagePreview),
+  clearGeneratedStorage: (request) => ipcRenderer.invoke(BACKUP.storageClear, request),
   pluginList: () => ipcRenderer.invoke(PLUGIN_CHANNELS.list),
   pluginChoose: () => ipcRenderer.invoke(PLUGIN_CHANNELS.choose),
   pluginPreviewUrl: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.previewUrl, request),
@@ -16,11 +26,14 @@ const api: DesktopApi = {
   pluginRemove: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.remove, request),
   pluginRollback: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.rollback, request),
   pluginTest: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.test, request),
+  pluginSetUpdateUrl: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.setUpdateUrl, request),
+  pluginCheckUpdate: (request) => ipcRenderer.invoke(PLUGIN_CHANNELS.checkUpdate, request),
   pluginSourceCatalog: () => ipcRenderer.invoke(PLUGIN_CHANNELS.sourceCatalog),
   textSources: () => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.state),
   textBrowse: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.browse, request),
   textDetail: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.detail, request),
   textImport: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.import, request),
+  textContinue: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.continue, request),
   textCancel: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.cancel, request),
   remoteLibrarySave: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.save, request),
   remoteLibraryRemove: (request) => ipcRenderer.invoke(TEXT_SOURCE_CHANNELS.remove, request),

@@ -31,6 +31,11 @@ export function useEbookDocument(book: ReadingBook, settings: ReaderSettings) {
     moreBelow: false,
   })
   const cache = useRef(new Map<number, Promise<OriginalPage>>())
+  // Appending source chapters can extend the final cached chunk while retaining
+  // every existing text anchor. Refetch chunks using the new document hash.
+  useLayoutEffect(() => {
+    cache.current.clear()
+  }, [book.hash])
   const documentPages = useRef<OriginalPage[]>([])
   const anchor = useRef(location)
   const pending = useRef<ReaderAnchor | null>(location)

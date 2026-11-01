@@ -7,6 +7,22 @@
   --source-center-icon-size: 18px;
   padding: 0;
 }
+.source-center-aggregate {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+  color: var(--ui-muted);
+  font-size: 13px;
+}
+.source-center-aggregate details {
+  flex-basis: 100%;
+}
+.source-center-downloaded {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
 .source-center .source-center-tabs {
   display: flex;
   align-items: center;

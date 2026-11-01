@@ -1,6 +1,10 @@
 # 自包含 Windows 目录版
 
-源码维护版本 `0.34.0-dev.2` 整理生产脚本与文档入口，不改应用运行代码，现有可运行目录仍为下述 `0.34.0-dev.1`，无需更换程序。用户要求的测试／旧文件删除被执行审批拒绝，尚未执行；范围和当前验证见 [维护记录](releases/0.34.0-dev.2.md)。
+当前目录版为 `0.35.0-dev.1`，新增来源状态保留、原封面离线保存、分章续读、多源搜索、插件健康与更新、备份恢复及未来生成物保留策略。目录及同名 ZIP：`release/ReadAndListenBook-0.35.0-dev.1-2026-11-01T15-50-07.040Z-win-x64`；ZIP SHA-256 为 `f6a0879b2d22f64141adf41ffe93406fd9446e8ab5d2f7b58bc6d5326e8ecefe`。本版验证和限制见 [交付记录](releases/0.35.0-dev.1.md)，备份与策略见 [使用说明](BACKUP_STORAGE.md)。
+
+退出旧程序后，双击目录中的 `continue-preview.cmd` 沿用已有预览数据；`start.cmd` 使用独立数据。保留整个目录，不能只复制 `runtime/electron.exe`。根 `out/`、既有组件和用户数据不由构建覆盖。
+
+历史源码维护版本 `0.34.0-dev.2` 整理生产脚本与文档入口，没有替换当时的 `0.34.0-dev.1` 程序。用户要求的测试／旧文件删除被执行审批拒绝，尚未执行；范围和当时验证见 [维护记录](releases/0.34.0-dev.2.md)。以下旧版证据按原版本保留。
 
 `0.34.0-dev.1` 提供带完整 Electron 运行时、主程序、生产依赖、原文处理 worker、插件运行 worker 和字幕组件接口的目录版。程序无需工作区、Node.js 或系统 Python 即可进行普通听书、TXT/EPUB 阅读及已有字幕导入。纯电子书朗读调用 Windows 已安装的本地声音，无需模型组件；AI 录音字幕仍需另行选择离线组件，模型没有嵌入主程序，也不会在启动时自动下载。播放行为见 [播放与朗读流程](PLAYBACK_FLOW.md)。
 
@@ -12,9 +16,9 @@
 
 ## 启动与现有数据
 
-最新 `0.34.0-dev.1` 在来源搜索和详情显示原封面，并提供 bqg631 网站示例插件。封面失效使用默认书封，图片代理不借用账户凭据。保留 SDK v1 的 ZIP 导入、权限预览、启停、更新、回滚与测试，QuickJS/WASM、HTML 解析器及插件 worker 随目录分发。用法见 [来源插件](SOURCE_PLUGINS.md) 与 [制作教程](MAKE_SOURCE_PLUGIN.md)。
+历史 `0.34.0-dev.1` 在来源搜索和详情显示原封面，并提供 bqg631 网站示例插件。封面失效使用默认书封，图片代理不借用账户凭据。保留 SDK v1 的 ZIP 导入、权限预览、启停、更新、回滚与测试，QuickJS/WASM、HTML 解析器及插件 worker 随目录分发。用法见 [来源插件](SOURCE_PLUGINS.md) 与 [制作教程](MAKE_SOURCE_PLUGIN.md)。
 
-最新目录及同名 ZIP 为 `release/ReadAndListenBook-0.34.0-dev.1-2026-10-31T01-36-10.952Z-win-x64`，ZIP SHA-256 为 `cdfc55bf09dbbcbe72c590f77dded7e6b7e092b7454a48ce4bd75573c25659a9`。构建位于 `cache/preview-builds/2026-10-31T01-35-51.159Z/app`；89 个目录文件和 90 个 ZIP 条目核验通过。新示例插件为 `release/SourcePlugin-Bqg631-1.0.0.zip`，也保留 `release/SourcePlugin-Wikisource-1.0.0.zip`。运行验证及复现命令见 [本版说明](releases/0.34.0-dev.1.md)。
+当时目录及同名 ZIP 为 `release/ReadAndListenBook-0.34.0-dev.1-2026-10-31T01-36-10.952Z-win-x64`，ZIP SHA-256 为 `cdfc55bf09dbbcbe72c590f77dded7e6b7e092b7454a48ce4bd75573c25659a9`。构建位于 `cache/preview-builds/2026-10-31T01-35-51.159Z/app`；89 个目录文件和 90 个 ZIP 条目核验通过。新示例插件为 `release/SourcePlugin-Bqg631-1.0.0.zip`，也保留 `release/SourcePlugin-Wikisource-1.0.0.zip`。运行验证及复现命令见 [本版说明](releases/0.34.0-dev.1.md)。
 
 历史 `0.32.0-dev.1` 新增统一来源中心、LibriVox、中文维基文库正文，以及 OPDS／WebDAV／Audiobookshelf 主电子书连接。现有连接与用户数据保留，见 [来源中心](SOURCE_CENTER.md)。
 

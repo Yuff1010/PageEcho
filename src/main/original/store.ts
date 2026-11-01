@@ -83,7 +83,13 @@ export class OriginalStore {
     const state = this.state(target),
       transcript = this.transcript(target.episodeId, target.audioHash)
     return state.info && transcript.status === 'ready'
-      ? createIncrementalPlan(target, state.info.id, transcript.transcript, state.alignment)
+      ? createIncrementalPlan(
+          target,
+          state.info.id,
+          state.info.hash,
+          transcript.transcript,
+          state.alignment,
+        )
       : null
   }
   saveIncremental(plan: OriginalIncrementalPlan, matches: OriginalMatch[]): OriginalState {
@@ -91,6 +97,7 @@ export class OriginalStore {
       transcript = this.transcript(plan.target.episodeId, plan.target.audioHash)
     if (
       state.info?.id !== plan.originalId ||
+      state.info?.hash !== plan.originalHash ||
       (state.alignment?.revision ?? 0) !== plan.alignmentRevision ||
       transcript.status !== 'ready' ||
       transcript.transcript.id !== plan.transcriptId ||
@@ -190,7 +197,8 @@ export class OriginalStore {
     const info = this.infoForBook(this.asset(target).bookId)
     if (info?.id !== originalId)
       throw new AppError('CONFLICT', '本书原文版本已变化，请刷新后重试。')
-    if (this.cached?.id === originalId) return this.cached.value
+    if (this.cached?.id === originalId && this.cached.value.hash === info.hash)
+      return this.cached.value
     const row = this.db
       .prepare('SELECT document_json FROM original_documents WHERE id=?')
       .get(originalId)!

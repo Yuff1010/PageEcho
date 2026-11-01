@@ -7,8 +7,12 @@ import type { OriginalIncrementalBatch } from './incremental'
 export class OriginalService {
   private closed = false
   private active: { worker: Worker; cancel: () => void } | null = null
-  private automatic: { worker: Worker; originalId: string | null; cancel?: () => void } | null =
-    null
+  private automatic: {
+    worker: Worker
+    originalId: string | null
+    originalHash: string | null
+    cancel?: () => void
+  } | null = null
   private automaticClose?: () => Promise<void>
   attachAutomatic(close: () => Promise<void>) {
     this.automaticClose = close
@@ -26,6 +30,7 @@ export class OriginalService {
         resourceLimits: { maxOldGenerationSizeMb: 512 },
       }),
       originalId: null,
+      originalHash: null,
     })
     if (session.worker.listenerCount('error') === 0) {
       session.worker.on('error', () => {})
@@ -63,6 +68,7 @@ export class OriginalService {
           if (result.ok) {
             cleanup()
             session.originalId = originalId
+            session.originalHash = original.hash
             resolve(result.value)
           } else fail(new AppError(result.error.code, result.error.message))
         }
@@ -72,7 +78,9 @@ export class OriginalService {
         session.worker.once('exit', exit)
         session.worker.postMessage({
           originalId,
-          ...(session.originalId === originalId ? {} : { original }),
+          ...(session.originalId === originalId && session.originalHash === original.hash
+            ? {}
+            : { original }),
           batches,
         })
       })

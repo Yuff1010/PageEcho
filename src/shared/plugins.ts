@@ -57,12 +57,38 @@ export interface PluginInfo {
   sha256: string
   previousVersion: string | null
   sources: PluginSourceInfo[]
+  updateUrl?: string | null
+  health?: PluginHealth[]
+  updateCheck?: PluginUpdateStatus | null
+}
+
+export interface PluginHealth {
+  sourceId: string
+  version: string
+  checkedAt: string
+  passed: boolean
+  message: string
+}
+export interface PluginUpdateStatus {
+  checkedAt: string
+  currentVersion: string
+  availableVersion: string | null
+  status: 'current' | 'update' | 'failed'
+  message: string
+}
+export interface PluginPermissionChange {
+  sourceId: string
+  sourceName: string
+  kind: 'request' | 'audio' | 'cover'
+  origin: string
+  change: 'added' | 'removed'
 }
 
 export interface PluginState {
   plugins: PluginInfo[]
   /** Enabled installed sources only. Removed/disabled sources do not delete saved books. */
   sources: PluginSourceInfo[]
+  maintenanceNotice?: string
 }
 
 export interface PluginPreview {
@@ -76,6 +102,14 @@ export interface PluginPreview {
   sources: PluginSourceInfo[]
   bytes: number
   expiresAt: string
+  permissionChanges?: PluginPermissionChange[]
+  suggestedUpdateUrl?: string | null
+}
+
+export interface PluginUpdateCheck {
+  state: PluginState
+  preview: PluginPreview | null
+  status: PluginUpdateStatus
 }
 
 export interface PluginTestStep {
@@ -90,6 +124,7 @@ export interface PluginTestReport {
   version: string
   passed: boolean
   steps: PluginTestStep[]
+  checkedAt?: string
 }
 
 export const PLUGIN_CHANNELS = {
@@ -103,13 +138,20 @@ export const PLUGIN_CHANNELS = {
   rollback: 'plugins:rollback',
   test: 'plugins:test',
   sourceCatalog: 'plugins:source-catalog',
+  setUpdateUrl: 'plugins:set-update-url',
+  checkUpdate: 'plugins:check-update',
 } as const
 
 export interface PluginApi {
   pluginList(): Promise<Result<PluginState>>
   pluginChoose(): Promise<Result<{ canceled: true } | { canceled: false; preview: PluginPreview }>>
   pluginPreviewUrl(request: { requestId: string; url: string }): Promise<Result<PluginPreview>>
-  pluginInstall(request: { previewId: string }): Promise<Result<PluginState>>
+  pluginInstall(request: {
+    previewId: string
+    updateUrl?: string | null
+  }): Promise<Result<PluginState>>
+  pluginSetUpdateUrl(request: { id: string; url: string | null }): Promise<Result<PluginState>>
+  pluginCheckUpdate(request: { requestId: string; id: string }): Promise<Result<PluginUpdateCheck>>
   pluginCancel(request: { requestId: string }): Promise<Result<void>>
   pluginToggle(request: { id: string; enabled: boolean }): Promise<Result<PluginState>>
   pluginRemove(request: { id: string }): Promise<Result<PluginState>>

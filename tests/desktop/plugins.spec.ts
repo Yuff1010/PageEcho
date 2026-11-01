@@ -10,7 +10,8 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { pluginPackage } from '../fixtures/source-plugin'
+import { pluginFiles, pluginPackage } from '../fixtures/source-plugin'
+import { zip } from '../fixtures/original-epub'
 import { closeOwnedElectron } from '../model/electron-lifecycle'
 import { setVolume } from '../helpers/ui'
 
@@ -390,6 +391,76 @@ test('canceling a plugin URL preview cannot install or show a late package', asy
     await expect(page.getByRole('region', { name: '插件安装预览', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '取消插件预览', exact: true }).click()
     await expect(page.getByRole('region', { name: '插件安装预览', exact: true })).toHaveCount(0)
+    expect(errors).toEqual([])
+  } finally {
+    await closeOwnedElectron(app)
+    await source.close()
+  }
+})
+
+test('plugin health survives reload and manual update requires permission preview and confirmation', async ({}, info) => {
+  test.setTimeout(120_000)
+  const source = await fixture()
+  const { app, page, errors } = await launch()
+  try {
+    await install(app, page, source.path)
+    let card = page.getByRole('article', { name: '插件 合成来源插件', exact: true })
+    await card.getByRole('button', { name: '测试 合成来源插件', exact: true }).click()
+    await page.getByRole('textbox', { name: '插件测试关键词', exact: true }).fill('合成')
+    await page.getByRole('button', { name: '运行插件测试', exact: true }).click()
+    await expect(card.locator('.source-plugin-health').filter({ hasText: '检查通过' })).toHaveCount(
+      1,
+    )
+    await page.reload()
+    await page.getByRole('button', { name: '在线书源', exact: true }).click()
+    await page.getByRole('tab', { name: '插件', exact: true }).click()
+    card = page.getByRole('article', { name: '插件 合成来源插件', exact: true })
+    await expect(card.locator('.source-plugin-health').filter({ hasText: '检查通过' })).toHaveCount(
+      1,
+    )
+    await expect(card.locator('.source-plugin-health time')).toHaveCount(1)
+    await card.getByRole('button', { name: '设置 合成来源插件 更新地址', exact: true }).click()
+    const address = 'https://synthetic-update.example/source.zip'
+    const files = pluginFiles(source.origin, { version: '1.1.0' })
+    const manifest = JSON.parse(files['manifest.json'])
+    manifest.sources[1].allowedOrigins.push('https://extra.synthetic.example')
+    files['manifest.json'] = JSON.stringify(manifest)
+    await app.evaluate(
+      (_, value) => {
+        const original = globalThis.fetch
+        globalThis.fetch = (input, options) =>
+          String(input) === value.address
+            ? Promise.resolve(new Response(new Uint8Array(Buffer.from(value.bytes, 'base64'))))
+            : original(input, options)
+      },
+      { address, bytes: zip(files).toString('base64') },
+    )
+    await card
+      .getByRole('textbox', { name: '合成来源插件 更新 ZIP 地址', exact: true })
+      .fill(address)
+    await card.getByRole('button', { name: '保存 合成来源插件 更新地址', exact: true }).click()
+    await card.getByRole('button', { name: '检查 合成来源插件 更新', exact: true }).click()
+    const preview = page.getByRole('region', { name: '插件安装预览', exact: true })
+    await expect(preview.getByRole('region', { name: '更新权限变化', exact: true })).toContainText(
+      '新增',
+    )
+    await expect(preview.getByRole('region', { name: '更新权限变化', exact: true })).toContainText(
+      'https://extra.synthetic.example',
+    )
+    await expect(card.locator('header p')).toContainText('1.0.0')
+    const before = await page.evaluate(() => window.desktop.pluginList())
+    expect(before.ok && before.value.plugins[0]!.version).toBe('1.0.0')
+    await page.screenshot({
+      path: info.outputPath('plugin-update-permissions.png'),
+      animations: 'disabled',
+    })
+    await page.getByRole('button', { name: '确认更新插件', exact: true }).click()
+    await expect(card.locator('header p')).toContainText('1.1.0')
+    await expect(
+      card.locator('.source-plugin-health').filter({ hasText: '旧版 1.0.0 检查' }),
+    ).toHaveCount(1)
+    const installed = await page.evaluate(() => window.desktop.pluginList())
+    expect(installed.ok && installed.value.plugins[0]!.updateUrl).toBe(address)
     expect(errors).toEqual([])
   } finally {
     await closeOwnedElectron(app)

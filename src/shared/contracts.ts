@@ -2,6 +2,7 @@ import type { TranscriptRequest, TranscriptState } from './transcript'
 import type { EbookSpeechApi } from './ebook-speech'
 import type { TextSourceApi } from './text-source-api'
 import type { PluginApi } from './plugins'
+import type { BackupStorageApi } from './backup-storage'
 import type {
   ApplySubtitleImport,
   SubtitleImportPageRequest,
@@ -279,6 +280,8 @@ export interface Episode {
 export interface Book extends BookSkips {
   id: string
   title: string
+  /** Main-process-generated persistent local artwork URL; never a remote request. */
+  coverUrl?: string
   importedAt: string
   lastPlayedAt: string | null
   currentEpisodeId: string | null
@@ -331,7 +334,7 @@ export type Result<T> =
   { ok: true; value: T } | { ok: false; error: { code: ErrorCode; message: string } }
 export type AudioSelection = { canceled: true } | { canceled: false; state: AppState }
 
-export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi {
+export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi, BackupStorageApi {
   getTranscriptEditingState(request: TranscriptRequest): Promise<Result<TranscriptEditingState>>
   changeTranscript(request: TranscriptEditRequest): Promise<Result<TranscriptEditResult>>
   undoTranscriptEdit(request: TranscriptHistoryRequest): Promise<Result<TranscriptEditResult>>

@@ -174,10 +174,12 @@ export class WikisourceTextSource {
       author: null,
       description: null,
       pageUrl: `${WIKISOURCE_URL}wiki/${encodeURIComponent(parsed.title)}`,
-      chapters,
+      chapters: chapters.map((chapter, order) => ({ ...chapter, order })),
       acquisitions: [],
       notice:
         '目录仅列出当前页面中的章节链接，不代表全书完整目录。选择本次需要的章节（最多 20 项）；仅在导入时获取所选正文。来源署名及权利信息以维基文库原页面为准。',
+      nextCursor: null,
+      catalogComplete: false,
     }
     if (this.details.size >= 500) this.details.delete(this.details.keys().next().value!)
     this.details.set(workId, detail)
@@ -193,6 +195,7 @@ export class WikisourceTextSource {
     if (chapters.length !== selected.size)
       throw new SourceError('INVALID_SOURCE_REQUEST', '所选章节不在当前目录中，请重新选择。')
     const pieces: string[] = []
+    const contents: NonNullable<import('./text-provider').TextDownload['chapters']> = []
     for (const [index, chapter] of chapters.entries()) {
       signal.throwIfAborted()
       const parsed = await this.parse(
@@ -205,6 +208,7 @@ export class WikisourceTextSource {
       if (text.length < 10)
         throw new SourceError('SOURCE_CHANGED', `章节“${chapter.title}”没有可读取的正文。`)
       pieces.push(`第${index + 1}章 ${chapter.title}\n\n${text}`)
+      contents.push({ ...chapter, text })
       if (Buffer.byteLength(pieces.join('\n\n'), 'utf8') > MAX_TEXT_DOWNLOAD_BYTES - 2000)
         throw new SourceError('SOURCE_UNAVAILABLE', '所选正文超过 32 MiB，请减少章节数量。')
     }
@@ -213,6 +217,10 @@ export class WikisourceTextSource {
     )
     return {
       bytes: Buffer.from(pieces.join('\n\n'), 'utf8'),
+      chapters: contents,
+      title: detail.title,
+      pageUrl: detail.pageUrl,
+      catalog: detail.chapters,
       filename: `${[...detail.title]
         .map((char) => (char.charCodeAt(0) < 32 ? '_' : char))
         .join('')

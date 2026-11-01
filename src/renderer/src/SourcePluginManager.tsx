@@ -9,6 +9,8 @@ import './source-plugins.css'
 export function SourcePluginManager() {
   const [state, setState] = useState<PluginState | null>(null)
   const [preview, setPreview] = useState<PluginPreview | null>(null)
+  const [previewUpdateUrl, setPreviewUpdateUrl] = useState('')
+  const [updateEditor, setUpdateEditor] = useState<{ id: string; url: string } | null>(null)
   const [urlOpen, setUrlOpen] = useState(false)
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
@@ -24,6 +26,14 @@ export function SourcePluginManager() {
   const activeCancelable = useRef(false)
   const revision = useRef(0)
   const retry = useRef<(() => void) | null>(null)
+
+  function showPreview(value: PluginPreview) {
+    setPreview(value)
+    setPreviewUpdateUrl(value.suggestedUpdateUrl ?? '')
+    setReport(null)
+    setRemoving(null)
+    setUpdateEditor(null)
+  }
 
   useEffect(() => {
     let live = true
@@ -101,7 +111,7 @@ export function SourcePluginManager() {
       () => window.desktop.pluginChoose(),
       (value) => {
         if (!value.canceled) {
-          setPreview(value.preview)
+          showPreview(value.preview)
           setUrlOpen(false)
           setReport(null)
           setRemoving(null)
@@ -117,7 +127,7 @@ export function SourcePluginManager() {
       '正在下载并检查插件包…',
       (requestId) => window.desktop.pluginPreviewUrl({ requestId, url: url.trim() }),
       (value) => {
-        setPreview(value)
+        showPreview(value)
         setReport(null)
         setRemoving(null)
       },
@@ -129,7 +139,11 @@ export function SourcePluginManager() {
     retry.current = install
     void run(
       '正在验证并安装插件…',
-      () => window.desktop.pluginInstall({ previewId: preview.previewId }),
+      () =>
+        window.desktop.pluginInstall({
+          previewId: preview.previewId,
+          updateUrl: previewUpdateUrl.trim() || null,
+        }),
       (value) => {
         setState(value)
         setStatus(
@@ -186,14 +200,49 @@ export function SourcePluginManager() {
     retry.current = () => test(plugin)
     void run(
       '正在测试搜索、目录与内容解析…',
-      (requestId) =>
-        window.desktop.pluginTest({
+      async (requestId) => {
+        const result = await window.desktop.pluginTest({
           requestId,
           id: plugin.id,
           sourceId,
           query: query.trim() || undefined,
-        }),
-      setReport,
+        })
+        if (!result.ok) return result
+        const listed = await window.desktop.pluginList()
+        return { ok: true, value: { report: result.value, state: listed.ok ? listed.value : null } }
+      },
+      (value) => {
+        setReport(value.report)
+        if (value.state) setState(value.state)
+      },
+      true,
+    )
+  }
+  function saveUpdateUrl(plugin: PluginInfo) {
+    if (updateEditor?.id !== plugin.id) return
+    const url = updateEditor.url.trim() || null
+    retry.current = () => saveUpdateUrl(plugin)
+    void run(
+      '正在保存更新地址…',
+      () => window.desktop.pluginSetUpdateUrl({ id: plugin.id, url }),
+      (value) => {
+        setState(value)
+        setUpdateEditor(null)
+        setStatus(url ? '更新地址已保存，点击检查更新可获取新版本预览。' : '已移除更新地址。')
+      },
+    )
+  }
+  function checkUpdate(plugin: PluginInfo) {
+    retry.current = () => checkUpdate(plugin)
+    setPreview(null)
+    void run(
+      '正在检查插件更新…',
+      (requestId) => window.desktop.pluginCheckUpdate({ requestId, id: plugin.id }),
+      (value) => {
+        setState(value.state)
+        if (value.preview) showPreview(value.preview)
+        setStatus(value.status.message)
+      },
       true,
     )
   }
@@ -263,6 +312,11 @@ export function SourcePluginManager() {
           />
         </div>
       )}
+      {state?.maintenanceNotice && (
+        <p className="source-center-error" role="alert">
+          {state.maintenanceNotice}
+        </p>
+      )}
       {preview && (
         <section
           className="source-center-connection source-plugin-preview"
@@ -308,6 +362,43 @@ export function SourcePluginManager() {
               ))}
             </ul>
           </details>
+          {preview.action === 'update' && (
+            <section className="source-plugin-permission-changes" aria-label="更新权限变化">
+              <h4>权限变化</h4>
+              {preview.permissionChanges?.length ? (
+                <ul>
+                  {preview.permissionChanges.map((change) => (
+                    <li key={`${change.sourceId}:${change.kind}:${change.origin}:${change.change}`}>
+                      <strong>{change.change === 'added' ? '新增' : '移除'}</strong>
+                      {' · '}
+                      {change.sourceName}
+                      {' · '}
+                      {{ request: '网站请求', audio: '音频', cover: '封面' }[change.kind]}
+                      {' · '}
+                      {change.origin}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>访问权限没有变化。</p>
+              )}
+            </section>
+          )}
+          <label className="source-plugin-update-url">
+            <span>更新地址（可选）</span>
+            <input
+              aria-label="安装后的插件更新地址"
+              type="url"
+              placeholder="https://…/source.zip"
+              maxLength={4000}
+              value={previewUpdateUrl}
+              disabled={busy}
+              onChange={(event) => setPreviewUpdateUrl(event.target.value)}
+            />
+          </label>
+          <HelpTip label="插件更新地址">
+            仅保存无参数的 HTTPS ZIP 直链。检查更新只下载并预览，不会自动安装；新版本仍需确认。
+          </HelpTip>
           <div className="source-center-connection-actions">
             <button type="button" className="primary-button" disabled={busy} onClick={install}>
               {preview.action === 'update' ? '确认更新插件' : '确认安装插件'}
@@ -331,10 +422,50 @@ export function SourcePluginManager() {
                   {plugin.sources.map((source) => (
                     <li key={source.id}>
                       <Icon name={source.kind === 'audio' ? 'headphones' : 'book'} />
-                      <span>{source.name}</span>
+                      <div>
+                        <span>{source.name}</span>
+                        {(() => {
+                          const health = plugin.health?.find((row) => row.sourceId === source.id)
+                          return health ? (
+                            <p
+                              className="source-plugin-health"
+                              data-result={
+                                health.version === plugin.version && health.passed
+                                  ? 'passed'
+                                  : 'failed'
+                              }
+                            >
+                              {health.version !== plugin.version
+                                ? `旧版 ${health.version} 检查`
+                                : health.passed
+                                  ? '检查通过'
+                                  : '检查未通过'}
+                              {' · '}
+                              <time dateTime={health.checkedAt}>
+                                {new Date(health.checkedAt).toLocaleString()}
+                              </time>
+                              {!health.passed && <span>{health.message}</span>}
+                            </p>
+                          ) : (
+                            <p className="source-plugin-health">尚未检查</p>
+                          )
+                        })()}
+                      </div>
                     </li>
                   ))}
                 </ul>
+                {plugin.updateCheck && (
+                  <p
+                    className="source-plugin-update-status"
+                    role={plugin.updateCheck.status === 'failed' ? 'alert' : 'status'}
+                  >
+                    {plugin.updateCheck.message}
+                    {' · '}
+                    <time dateTime={plugin.updateCheck.checkedAt}>
+                      {new Date(plugin.updateCheck.checkedAt).toLocaleString()}
+                    </time>
+                  </p>
+                )}
                 <div
                   className="source-plugin-actions"
                   role="group"
@@ -368,6 +499,27 @@ export function SourcePluginManager() {
                     />
                   )}
                   <SourceCenterAction
+                    label={`设置 ${plugin.name} 更新地址`}
+                    icon="link"
+                    disabled={busy}
+                    aria-expanded={updateEditor?.id === plugin.id}
+                    onClick={() => {
+                      setUpdateEditor((value) =>
+                        value?.id === plugin.id
+                          ? null
+                          : { id: plugin.id, url: plugin.updateUrl ?? '' },
+                      )
+                      setTesting(null)
+                      setRemoving(null)
+                    }}
+                  />
+                  <SourceCenterAction
+                    label={`检查 ${plugin.name} 更新`}
+                    icon="refresh"
+                    disabled={busy || !plugin.updateUrl}
+                    onClick={() => checkUpdate(plugin)}
+                  />
+                  <SourceCenterAction
                     label={`卸载 ${plugin.name}`}
                     icon="trash"
                     disabled={busy}
@@ -378,6 +530,36 @@ export function SourcePluginManager() {
                     }}
                   />
                 </div>
+                {updateEditor?.id === plugin.id && (
+                  <form
+                    className="source-plugin-update-editor source-center-search"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      saveUpdateUrl(plugin)
+                    }}
+                  >
+                    <input
+                      aria-label={`${plugin.name} 更新 ZIP 地址`}
+                      type="url"
+                      placeholder="https://…/source.zip"
+                      maxLength={4000}
+                      value={updateEditor.url}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setUpdateEditor({ id: plugin.id, url: event.target.value })
+                      }
+                    />
+                    <SourceCenterAction
+                      label={`保存 ${plugin.name} 更新地址`}
+                      icon="check"
+                      type="submit"
+                      disabled={busy}
+                    />
+                    <HelpTip label="更新直链要求">
+                      使用无参数的 HTTPS ZIP 直链，留空后保存可移除地址。不会定期联网或自动安装。
+                    </HelpTip>
+                  </form>
+                )}
                 {removing === plugin.id && (
                   <div className="source-plugin-remove">
                     <p>卸载「{plugin.name}」？</p>

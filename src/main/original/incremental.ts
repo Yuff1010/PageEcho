@@ -20,6 +20,7 @@ export interface OriginalIncrementalBatch {
 export interface OriginalIncrementalPlan {
   target: OriginalTarget
   originalId: string
+  originalHash: string
   transcriptId: string
   transcriptRevision: number
   alignmentRevision: number
@@ -57,6 +58,7 @@ export function sourceForMatch(match: OriginalMatch): OriginalMatchSource | unde
 export function createIncrementalPlan(
   target: OriginalTarget,
   originalId: string,
+  originalHash: string,
   transcript: StoredTranscript,
   previous: OriginalAlignment | null,
   limit = 128,
@@ -167,6 +169,7 @@ export function createIncrementalPlan(
   return {
     target,
     originalId,
+    originalHash,
     transcriptId: transcript.id,
     transcriptRevision: transcript.revision,
     alignmentRevision: previous?.revision ?? 0,

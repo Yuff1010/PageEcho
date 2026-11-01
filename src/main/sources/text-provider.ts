@@ -6,6 +6,8 @@ import type {
   TextImportRequest,
   TextDetailRequest,
   TextSourceInfo,
+  SourceReadingChapter,
+  TextChapter,
 } from '../../shared/text-sources'
 import type { TextHttpClient } from './text-http'
 
@@ -25,6 +27,11 @@ export interface TextLibraryContext {
 export interface TextDownload {
   bytes: Buffer
   filename: string
+  /** Available only for explicitly selected chapter sources, not whole-file acquisitions. */
+  chapters?: SourceReadingChapter[]
+  title?: string
+  pageUrl?: string | null
+  catalog?: TextChapter[]
 }
 
 export interface TextLibraryConnector {

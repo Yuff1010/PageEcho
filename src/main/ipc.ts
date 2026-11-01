@@ -16,6 +16,7 @@ import {
 import { AppError, isTrustedRenderer, validateRequest } from '../shared/validation'
 import { scanBook, type ScannedBook } from './files'
 import type { LibraryStore } from './database'
+import type { PersistentBookCovers } from './sources/persistent-book-covers'
 import { checkAudio, MEDIA_PREFIX } from './media'
 import type { TranscriptRequest } from '../shared/transcript'
 import type { SubtitleStatusTarget } from '../shared/subtitle-status'
@@ -83,12 +84,13 @@ export function registerIpc(
   subtitleImports: SubtitleImportService,
   sharedComponentSetup?: ComponentSetup,
   covers?: Pick<SourceCoverPresenter, 'audio'>,
+  savedCovers?: PersistentBookCovers,
 ): void {
   const state = (): AppState => ({
     version: app.getVersion(),
     dataLocation,
     files: store.listFiles(),
-    books: store.listBooks(),
+    books: store.listBooks().map((book) => savedCovers?.decorate('audio', book) ?? book),
     ...store.getPlayerState(),
   })
   let choosing = false
@@ -156,7 +158,9 @@ export function registerIpc(
   }
 
   handle(CHANNELS.getState, state)
-  handle(CHANNELS.readingList, () => store.reading.list())
+  handle(CHANNELS.readingList, () =>
+    store.reading.list().map((book) => savedCovers?.decorate('ebook', book) ?? book),
+  )
   handle(CHANNELS.bookLinksList, () => store.bookLinks.list())
   const bookLinkTargets = (bookId: string): OriginalTarget[] =>
     (store.listBooks().find((book) => book.id === bookId)?.episodes ?? [])
@@ -478,11 +482,13 @@ export function registerIpc(
         rememberCatalog(detail)
       }
       signal.throwIfAborted()
-      store.rememberSourceBook(
+      const bookId = store.rememberSourceBook(
         detail.book,
         detail.episodes.items,
         detail.episodes.nextCursor === null,
       )
+      if (savedCovers && covers)
+        await savedCovers.remember('audio', bookId, covers.audio(detail.book).coverUrl)
       return state()
     })
   })

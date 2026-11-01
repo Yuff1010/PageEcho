@@ -10,6 +10,7 @@ import { useAppAppearance } from './app-appearance'
 import { readerPanelAppearance } from './reader-panel'
 import { EbookSpeechControls, useEbookSpeech } from './EbookSpeechControls'
 import { ReaderFooter, ReaderToolbar, ReaderAction } from './ReaderToolbar'
+import { updateSourceReadingSession } from './source-session'
 
 interface ReaderNavigation {
   onBack: () => void
@@ -84,6 +85,7 @@ export function ReaderPage({
     <ReadingSurface
       key={book.id}
       book={book}
+      onBookUpdated={setBook}
       onBack={onBack}
       onListen={onListen}
       listeningTitle={listeningTitle}
@@ -100,6 +102,7 @@ export function ReaderPage({
 type ReaderPanel = 'contents' | 'bookmarks' | 'search' | 'settings' | null
 function ReadingSurface({
   book,
+  onBookUpdated,
   onBack,
   onListen,
   listeningTitle,
@@ -109,7 +112,7 @@ function ReadingSurface({
   onDismissNavigationNotice,
   autoRead,
   onAutoReadHandled,
-}: ReaderNavigation & { book: ReadingBook }) {
+}: ReaderNavigation & { book: ReadingBook; onBookUpdated: (book: ReadingBook) => void }) {
   const preferences = useReaderPreferences(book.id),
     settings = preferences.settings
   const { resolvedTheme } = useAppAppearance()
@@ -129,6 +132,18 @@ function ReadingSurface({
   const [progressDraft, setProgressDraft] = useState<number | null>(null)
   const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement)
   const [uiError, setUiError] = useState('')
+  const [continuing, setContinuing] = useState(false)
+  const [continueNotice, setContinueNotice] = useState('')
+  const continueRequest = useRef<string | null>(null)
+  const continueCanceled = useRef(false)
+  useEffect(
+    () => () => {
+      const requestId = continueRequest.current
+      continueRequest.current = null
+      if (requestId) void window.desktop.textCancel({ requestId })
+    },
+    [],
+  )
   const backButton = useRef<HTMLButtonElement>(null),
     panelElement = useRef<HTMLElement>(null)
   const hideTimer = useRef<number | undefined>(undefined)
@@ -137,6 +152,47 @@ function ReadingSurface({
   const leaving = useRef(false)
   const { viewport, ...reader } = useEbookDocument(book, settings)
   const narration = useEbookSpeech(book.id, (anchor) => reader.followAnchor(anchor))
+  async function continueReading() {
+    if (continueRequest.current) {
+      continueCanceled.current = true
+      await window.desktop.textCancel({ requestId: continueRequest.current })
+      return
+    }
+    const requestId = crypto.randomUUID()
+    continueCanceled.current = false
+    continueRequest.current = requestId
+    setContinuing(true)
+    setContinueNotice('正在获取下一章…')
+    setUiError('')
+    try {
+      await reader.flush()
+      if (continueCanceled.current) {
+        setContinueNotice('已取消获取，已下载内容已保留。')
+        return
+      }
+      const result = await window.desktop.textContinue({ requestId, readingBookId: book.id })
+      if (continueRequest.current !== requestId) return
+      if (!result.ok) {
+        setContinueNotice('')
+        if (continueCanceled.current) setContinueNotice('已取消获取，已下载内容已保留。')
+        else setUiError(result.error.message)
+      } else {
+        updateSourceReadingSession(result.value)
+        onBookUpdated(result.value.book)
+        setContinueNotice(result.value.message)
+      }
+    } catch {
+      if (continueRequest.current === requestId) {
+        setContinueNotice('')
+        setUiError('获取下一章失败，请重试。已下载内容已保留。')
+      }
+    } finally {
+      if (continueRequest.current === requestId) {
+        continueRequest.current = null
+        setContinuing(false)
+      }
+    }
+  }
   const automaticRead = useRef(false)
   useEffect(() => {
     if (!autoRead || reader.busy || automaticRead.current) return
@@ -690,10 +746,20 @@ function ReadingSurface({
         <div className="reader-bottom-heading">
           <span title={chapter?.title}>{chapter?.title}</span>
           <span className="reader-save-status" role="status">
-            {reader.saved ? '位置已保存' : '正在保存…'}
+            {continueNotice || (reader.saved ? '位置已保存' : '正在保存…')}
           </span>
         </div>
         <div className="reader-progress-controls">
+          {book.source && (
+            <ReaderAction
+              className="reader-button"
+              disabled={!continuing && reader.busy}
+              onClick={() => void continueReading()}
+              label={continuing ? '取消获取下一章' : '获取下一章'}
+              icon={continuing ? 'stop' : 'refresh'}
+              aria-busy={continuing}
+            />
+          )}
           <ReaderAction
             className="reader-action-previous reader-button"
             disabled={

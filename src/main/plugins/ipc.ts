@@ -7,16 +7,24 @@ import { SourceError } from '../../shared/sources'
 import { MAX_PLUGIN_ZIP_BYTES } from './manifest'
 import type { PluginService } from './service'
 import { validatePluginArgs } from './validation'
+import type { PluginMaintenance } from './maintenance'
 
 export function registerPluginIpc(
   window: BrowserWindow,
   rendererUrl: string,
   service: PluginService,
   sourceCatalog: () => AudioSourceInfo[] = () => service.audioSources(),
+  maintenance?: PluginMaintenance,
 ): () => void {
   const channels = PLUGIN_CHANNELS
+  const state = (value = service.list()) => maintenance?.state(value) ?? value
+  const maintained = () => {
+    if (!maintenance)
+      throw new SourceError('SOURCE_UNAVAILABLE', '插件维护服务尚未准备好，请重启应用。')
+    return maintenance
+  }
   const actions: Record<string, (request: unknown) => unknown> = {
-    [channels.list]: () => service.list(),
+    [channels.list]: () => state(),
     [channels.choose]: async () => {
       const picked = await dialog.showOpenDialog(window, {
         properties: ['openFile'],
@@ -39,23 +47,39 @@ export function registerPluginIpc(
             throw new SourceError('INVALID_SOURCE_REQUEST', '插件 ZIP 在读取期间超过 8 MiB。')
           chunks.push(Buffer.from(chunk))
         }
-        return { canceled: false, preview: service.previewFile(Buffer.concat(chunks)) }
+        const preview = service.previewFile(Buffer.concat(chunks))
+        return { canceled: false, preview: maintenance?.decoratePreview(preview) ?? preview }
       } finally {
         await file.close()
       }
     },
     [channels.previewUrl]: (request) =>
-      service.previewUrl(request as { requestId: string; url: string }),
-    [channels.install]: (request) => service.install((request as { previewId: string }).previewId),
-    [channels.cancel]: (request) => service.cancel((request as { requestId: string }).requestId),
+      (maintenance ?? service).previewUrl(request as { requestId: string; url: string }),
+    [channels.install]: (request) => {
+      const value = request as { previewId: string; updateUrl?: string | null }
+      return maintenance ? maintenance.install(value) : service.install(value.previewId)
+    },
+    [channels.setUpdateUrl]: (request) =>
+      maintained().setUpdateUrl(request as { id: string; url: string | null }),
+    [channels.checkUpdate]: (request) =>
+      maintained().checkUpdate(request as { requestId: string; id: string }),
+    [channels.cancel]: (request) =>
+      (maintenance ?? service).cancel((request as { requestId: string }).requestId),
     [channels.toggle]: (request) => {
       const value = request as { id: string; enabled: boolean }
-      return service.toggle(value.id, value.enabled)
+      return state(service.toggle(value.id, value.enabled))
     },
-    [channels.remove]: (request) => service.remove((request as { id: string }).id),
-    [channels.rollback]: (request) => service.rollback((request as { id: string }).id),
+    [channels.remove]: (request) => {
+      const id = (request as { id: string }).id
+      const value = service.remove(id)
+      maintenance?.forget(id)
+      return state(value)
+    },
+    [channels.rollback]: (request) => state(service.rollback((request as { id: string }).id)),
     [channels.test]: (request) =>
-      service.test(request as { requestId: string; id: string; sourceId: string; query?: string }),
+      (maintenance ?? service).test(
+        request as { requestId: string; id: string; sourceId: string; query?: string },
+      ),
     [channels.sourceCatalog]: () => sourceCatalog(),
   }
   for (const [channel, action] of Object.entries(actions))

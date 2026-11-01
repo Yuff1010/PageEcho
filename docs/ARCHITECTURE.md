@@ -212,3 +212,11 @@ docs/
 schema v10 的 `reading_books` 以原文 UUID 保存句序号和最近阅读时间，不创建音频书或伪造集身份。`ReadingStore` 与 `OriginalStore` 通过事务内的 `storeOriginalDocument` 共用哈希/解析版本去重；访问正文、分页和写位置前必须验证独立书架成员资格，缓存命中也不能跳过检查。移除时只回收没有伴读引用的正文。
 
 `reading:*` IPC 继续验证顶层 renderer 身份、精确参数和有界序号，导入路径来自原生选择器。解析与全文检索复用受限 Node worker，检索完成后再次确认书籍仍存在。`NormalReading` 每页最多展示 60 句，按自然段合并呈现，通过可见句锚点保存/恢复位置；字体和主题独立保存。目录、翻页、全文定位不调用播放器，空播放器仅在正常阅读且没有音频时隐藏。验证见 [正常阅读](NORMAL_READING.md)。
+
+## 20. 来源续读、封面与维护边界
+
+`TextSourceService` 维护来源身份和取消，`TextBookImporter` 调用原文 worker 解析单章，`SourceReadingStore` 在事务中向同一个来源阅读文档追加。schema 17 增加独立扩展表 `source_reading_books`，记录本地文档、来源作品及已下载章节身份／序号；手动 TXT／EPUB 的不可变去重流程不变。来源文档追加会更新 hash，保留旧句序号和本地 ID；正文缓存、自动匹配 worker 及提交快照同时校验 hash，拒绝追加前的过期匹配结果。目录令牌由宿主绑定作品和插件包 hash，不把原站 cursor 直接当作阅读坐标。
+
+`SourceCoverService` 代理按来源授权的栅格图片；`PersistentBookCovers` 仅持久保存已校验候选，按内容 hash 去重并以本地只读协议提供。图片索引与备份复制串行。`PluginMaintenance` 将检查结果及无凭据更新地址保存在独立本机元数据中，更新检查只产生包预览，仍经既有安装事务确认。
+
+`BackupService` 对白名单 SQLite 数据、正文、封面和偏好建立校验清单；原文件、模型、缓存、凭据和执行包不打包。恢复在单实例锁取得后、数据库打开前应用，先保留原目录；本机已有插件及其维护记录单独保留。渲染入口在 App 首次挂载前应用白名单偏好并确认。`GeneratedStorageService` 只管理新建回执目录，备份回滚与历史未知内容不进入清理范围。协议和故障边界见 [备份与存储](BACKUP_STORAGE.md)。

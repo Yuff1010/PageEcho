@@ -10,6 +10,8 @@ import type {
   RemoteLibraryConfig,
   RemoteLibraryInfo,
   RemoteManifestPreview,
+  TextContinueRequest,
+  TextContinueResult,
 } from './text-sources'
 
 export const TEXT_SOURCE_CHANNELS = {
@@ -17,6 +19,7 @@ export const TEXT_SOURCE_CHANNELS = {
   browse: 'text-sources:browse',
   detail: 'text-sources:detail',
   import: 'text-sources:import',
+  continue: 'text-sources:continue',
   cancel: 'text-sources:cancel',
   save: 'remote-libraries:save',
   remove: 'remote-libraries:remove',
@@ -31,6 +34,7 @@ export interface TextSourceApi {
   textBrowse(request: TextBrowseRequest): Promise<Result<TextBrowsePage>>
   textDetail(request: TextDetailRequest): Promise<Result<TextBookDetail>>
   textImport(request: TextImportRequest): Promise<Result<TextImportResult>>
+  textContinue(request: TextContinueRequest): Promise<Result<TextContinueResult>>
   textCancel(request: { requestId: string }): Promise<Result<void>>
   remoteLibrarySave(request: RemoteLibraryConfig): Promise<Result<RemoteLibraryInfo>>
   remoteLibraryRemove(request: { id: string }): Promise<Result<void>>

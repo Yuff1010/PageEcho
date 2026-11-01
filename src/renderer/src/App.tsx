@@ -3,6 +3,7 @@ import type { AppState, Book, ImportDraft } from '../../shared/contracts'
 import { player } from './player'
 import { TranscriptReader } from './TranscriptReader'
 import { MaintenancePanel } from './MaintenancePanel'
+import { BackupStoragePanel } from './BackupStoragePanel'
 import { OfflinePreparationPanel } from './OfflinePreparationPanel'
 import { ListeningTools, type ListeningToolsSection } from './ListeningTools'
 import { RemoveBookConfirmation } from './RemoveBookConfirmation'
@@ -46,12 +47,12 @@ function readLayout(): 'grid' | 'list' {
   }
 }
 
-export function App() {
+export function App({ startupNotice = '' }: { startupNotice?: string }) {
   useAppAppearance()
   const [state, setState] = useState<AppState | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState(startupNotice)
   const [draft, setDraft] = useState<ImportDraft | null>(null)
   const [route, setRoute] = useState(() => parseAppRoute(window.location.hash))
   const selectedBook = route.view === 'chapters' ? route.bookId : null
@@ -71,6 +72,7 @@ export function App() {
   const toolsTrigger = useRef<HTMLElement | null>(null)
   const removeTrigger = useRef<HTMLElement | null>(null)
   const [maintenanceOpen, setMaintenanceOpen] = useState(false)
+  const [backupOpen, setBackupOpen] = useState(false)
   const [offlineTarget, setOfflineTarget] = useState<{ bookId: string | null } | null>(null)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('added')
@@ -462,6 +464,10 @@ export function App() {
               <Icon name="settings" />
               缓存与任务
             </button>
+            <button role="menuitem" onClick={() => setBackupOpen(true)}>
+              <Icon name="upload" />
+              备份与存储
+            </button>
             <button role="menuitem" onClick={() => setOfflineTarget({ bookId: null })}>
               <Icon name="folder" />
               离线准备计划
@@ -650,6 +656,7 @@ export function App() {
                         key={item.id}
                         id={item.id}
                         title={item.title}
+                        coverUrl={item.coverUrl}
                         kind="audio"
                         openLabel={`打开 ${item.title} 的目录`}
                         onOpen={() => openChapters(item.id)}
@@ -729,7 +736,7 @@ export function App() {
                 返回书架
               </button>
               <div className="chapter-book-heading">
-                <BookCover title={book.title} id={book.id} small />
+                <BookCover title={book.title} id={book.id} coverUrl={book.coverUrl} small />
                 <div>
                   <h2 title={book.title}>{book.title}</h2>
                   <p>
@@ -942,6 +949,16 @@ export function App() {
           onOpenOffline={() => {
             setMaintenanceOpen(false)
             setOfflineTarget({ bookId: null })
+          }}
+        />
+      )}
+      {backupOpen && (
+        <BackupStoragePanel
+          onClose={() => {
+            setBackupOpen(false)
+            requestAnimationFrame(() =>
+              document.querySelector<HTMLButtonElement>('button[aria-label="应用设置"]')?.focus(),
+            )
           }}
         />
       )}

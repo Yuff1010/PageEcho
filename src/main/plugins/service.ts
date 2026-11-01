@@ -9,6 +9,7 @@ import type {
   PluginTestReport,
 } from '../../shared/plugins'
 import { SourceError, type SourceAdapter } from '../../shared/sources'
+import { downloadPluginPackage } from './download'
 import type {
   TextBookDetail,
   TextBrowseRequest,
@@ -26,7 +27,6 @@ import {
   pluginResourceId,
   pluginSourceInfo,
   pluginString,
-  pluginUrl,
   PLUGIN_SOURCE_ID,
 } from './manifest'
 import { parsePluginPackage, type ParsedPluginPackage } from './package'
@@ -79,6 +79,15 @@ const REQUIRED: Record<'audio' | 'text', PluginMethod[]> = {
   audio: ['search', 'getBook', 'getEpisodes', 'resolveAudio'],
   text: ['search', 'getBook', 'getChapters', 'getChapterText'],
 }
+interface TextCatalogCursor {
+  sourceId: string
+  workId: string
+  packageHash: string
+  cursor: string
+  offset: number
+  prefixHashes: string[]
+  anchor: { cursor: string | null; hash: string }
+}
 
 export class PluginService {
   private filename: string
@@ -89,6 +98,7 @@ export class PluginService {
   private packages = new Map<string, ParsedPluginPackage>()
   private adapters = new Map<string, SourceAdapter>()
   private requests = new Map<string, AbortController>()
+  private textCursors = new Map<string, TextCatalogCursor>()
   private mutating = false
   private closed = false
 
@@ -298,49 +308,9 @@ export class PluginService {
   }
 
   previewUrl(request: { requestId: string; url: string }): Promise<PluginPreview> {
-    return this.request(request.requestId, async (signal) => {
-      const initial = pluginUrl(request.url)
-      let url = initial.href
-      for (let redirect = 0; redirect <= 4; redirect++) {
-        const response = await fetch(url, {
-          redirect: 'manual',
-          signal,
-          headers: { Accept: 'application/zip, application/octet-stream' },
-        })
-        if ([301, 302, 303, 307, 308].includes(response.status)) {
-          const location = response.headers.get('location')
-          await response.body?.cancel()
-          if (!location || redirect === 4) return invalidPlugin('插件下载重定向过多或无效。')
-          const target = pluginUrl(new URL(location, url).href)
-          if (target.origin !== initial.origin)
-            return invalidPlugin('插件包下载重定向超出原域名，请使用直接下载地址。')
-          url = target.href
-          continue
-        }
-        if (
-          response.status !== 200 ||
-          response.headers.has('content-range') ||
-          Number(response.headers.get('content-length') ?? 0) > MAX_PLUGIN_ZIP_BYTES ||
-          !response.body
-        ) {
-          await response.body?.cancel()
-          throw new SourceError('SOURCE_UNAVAILABLE', '插件包下载失败、响应不完整或超过 8 MiB。')
-        }
-        const chunks: Buffer[] = []
-        let size = 0
-        for await (const chunk of response.body) {
-          size += chunk.length
-          if (size > MAX_PLUGIN_ZIP_BYTES) {
-            await response.body.cancel().catch(() => undefined)
-            return invalidPlugin('插件包超过 8 MiB。')
-          }
-          chunks.push(Buffer.from(chunk))
-        }
-        signal.throwIfAborted()
-        return this.previewFile(Buffer.concat(chunks))
-      }
-      throw new SourceError('SOURCE_UNAVAILABLE', '插件包下载失败。')
-    })
+    return this.request(request.requestId, async (signal) =>
+      this.previewFile(await downloadPluginPackage(request.url, signal)),
+    )
   }
 
   async install(previewId: string): Promise<PluginState> {
@@ -487,22 +457,47 @@ export class PluginService {
     signal: AbortSignal,
     snapshot = this.snapshot(request.sourceId, 'text'),
   ) {
-    const { source, call } = snapshot
+    const { source, call, parsed } = snapshot
     pluginResourceId(request.workId)
     const book = await call('getBook', [request.workId], signal)
     const summary = pluginTextSummary(source, book, request.workId)
+    const ownedCursor = request.cursor ? this.textCursors.get(request.cursor) : undefined
+    if (
+      request.cursor &&
+      (!ownedCursor ||
+        ownedCursor.sourceId !== request.sourceId ||
+        ownedCursor.workId !== request.workId ||
+        ownedCursor.packageHash !== parsed.sha256)
+    )
+      return invalidPlugin('目录页已失效或属于另一书目，请重新打开目录。')
+    if (request.cursor && ownedCursor) {
+      this.textCursors.delete(request.cursor)
+      this.textCursors.set(request.cursor, ownedCursor)
+      const anchor = pluginChapters(
+        await call('getChapters', [request.workId, ownedCursor.anchor.cursor], signal),
+      )
+      if (this.catalogPageHash(anchor.items) !== ownedCursor.anchor.hash)
+        return invalidPlugin('网站目录顺序已变化，请重新打开目录核对；已下载正文保持不变。')
+    }
     const chapters: TextBookDetail['chapters'] = [],
-      seen = new Set<string>(),
+      seen = new Set<string>(ownedCursor?.prefixHashes ?? []),
       cursors = new Set<string>()
-    let cursor: string | null = null
+    let cursor: string | null = ownedCursor?.cursor ?? null
+    const offset = ownedCursor?.offset ?? 0
+    let anchor: TextCatalogCursor['anchor'] | null = null
     let complete = false
     for (let index = 0; index < 10; index++) {
       signal.throwIfAborted()
       const page = pluginChapters(await call('getChapters', [request.workId, cursor], signal))
+      if (chapters.length && chapters.length + page.items.length > 1000) break
+      anchor = { cursor, hash: this.catalogPageHash(page.items) }
       for (const chapter of page.items) {
-        if (seen.has(chapter.id)) return invalidPlugin('插件目录跨页含重复章节 ID。')
-        seen.add(chapter.id)
-        if (chapters.length < 1000) chapters.push(chapter)
+        const hash = createHash('sha256').update(chapter.id).digest('hex')
+        if (seen.has(hash)) return invalidPlugin('插件目录跨页含重复章节 ID。')
+        seen.add(hash)
+        if (offset + chapters.length >= 100000)
+          return invalidPlugin('来源目录超过 100000 项，请按卷选择书目。')
+        chapters.push({ ...chapter, order: offset + chapters.length })
       }
       if (!page.nextCursor) {
         complete = true
@@ -514,14 +509,43 @@ export class PluginService {
       cursor = page.nextCursor
       if (chapters.length >= 1000) break
     }
+    let nextCursor: string | null = null
+    if (!complete && cursor && anchor) {
+      nextCursor = randomUUID()
+      this.textCursors.set(nextCursor, {
+        sourceId: request.sourceId,
+        workId: request.workId,
+        packageHash: parsed.sha256,
+        cursor,
+        offset: offset + chapters.length,
+        prefixHashes: [...seen],
+        anchor,
+      })
+      // Two adjacent long-book pages remain available for selection/import; older sessions expire.
+      while (
+        this.textCursors.size > 64 ||
+        [...this.textCursors.values()].reduce((sum, item) => sum + item.prefixHashes.length, 0) >
+          200000
+      )
+        this.textCursors.delete(this.textCursors.keys().next().value!)
+    }
     return {
       ...summary,
       chapters,
       acquisitions: [],
+      nextCursor,
+      catalogComplete: complete,
+      ...(request.cursor ? { chapterCursor: request.cursor } : {}),
       notice: complete
         ? null
-        : '这里只显示已读取目录；插件还有后续目录页。请选择本次要导入的章节，最多 20 项。',
+        : '插件还有后续目录，可继续加载。每次选择最多 20 章，后续内容会追加到同一本书。',
     } satisfies TextBookDetail
+  }
+
+  private catalogPageHash(chapters: TextBookDetail['chapters']) {
+    return createHash('sha256')
+      .update(JSON.stringify(chapters.map((item) => [item.id, item.title])))
+      .digest('hex')
   }
 
   textDetail(request: TextDetailRequest, signal: AbortSignal): Promise<TextBookDetail> {
@@ -530,13 +554,23 @@ export class PluginService {
 
   async textDownload(request: TextImportRequest, signal: AbortSignal): Promise<TextDownload> {
     const snapshot = this.snapshot(request.sourceId, 'text')
-    const detail = await this.detailSnapshot(request, signal, snapshot)
+    const detail = await this.detailSnapshot(
+      {
+        requestId: request.requestId,
+        sourceId: request.sourceId,
+        workId: request.workId,
+        ...(request.chapterCursor ? { cursor: request.chapterCursor } : {}),
+      },
+      signal,
+      snapshot,
+    )
     const selected = new Set(request.chapterIds)
     if (!selected.size || selected.size > 20 || selected.size !== request.chapterIds?.length)
       return invalidPlugin('请选择 1–20 个不重复的插件章节。')
     const chapters = detail.chapters.filter((chapter) => selected.has(chapter.id))
     if (chapters.length !== selected.size) return invalidPlugin('所选章节不在插件当前目录中。')
     const pieces: string[] = []
+    const contents: NonNullable<TextDownload['chapters']> = []
     let bytes = 0
     for (const [index, chapter] of chapters.entries()) {
       signal.throwIfAborted()
@@ -548,6 +582,7 @@ export class PluginService {
       if (bytes > 32 * 1024 * 1024 - 5000)
         return invalidPlugin('所选插件正文超过 32 MiB，请减少章节数量。')
       pieces.push(piece)
+      contents.push({ ...chapter, text })
     }
     pieces.push(
       `来源：${snapshot.source.name}\n${detail.pageUrl ?? snapshot.source.baseUrl}\n本次导入 ${chapters.length} 项。`,
@@ -555,6 +590,10 @@ export class PluginService {
     signal.throwIfAborted()
     return {
       bytes: Buffer.from(pieces.join('\n\n')),
+      chapters: contents,
+      title: detail.title,
+      pageUrl: detail.pageUrl,
+      catalog: detail.chapters,
       filename: `${detail.title.replace(/[<>:"/\\|?*\p{Cc}]/gu, '_').slice(0, 100) || '插件电子书'}（选${chapters.length}项）.txt`,
     }
   }
@@ -640,5 +679,6 @@ export class PluginService {
     this.closed = true
     for (const request of this.requests.values()) request.abort()
     this.previews.clear()
+    this.textCursors.clear()
   }
 }

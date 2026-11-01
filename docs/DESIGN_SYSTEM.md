@@ -63,6 +63,12 @@
 
 来源页面由 `OnlineSourceBrowser`／`SourceCenterText` 维护，使用 `SourceCenterAction`、共享 `Tooltip` 和局部 `source-center.css` 参数。有声书、电子书、我的书库是互斥的实际面板，支持方向键与 Home／End；管理动作收在更多菜单。来源页面标题继续使用应用共用头部，导入正文后进入既有普通阅读器，不新增第二套阅读结构或状态栏。协议、导入身份及连接清单的边界见 [来源中心](SOURCE_CENTER.md)。
 
+`source-session.ts` 保存当前进程内各来源的关键词、结果、详情、目录页与选章；互斥面板卸载时取消请求，已完成的界面状态留待返回恢复，不把所有面板同时挂载隐藏。`aggregate-search.ts` 负责三路并发的首批聚合发现，来源面板复用原有结果卡和取消入口，分源错误直接可读；聚合结果不能冒充单一来源的完整分页。
+
+`BackupStoragePanel` 是应用设置中的独立模态面板，由局部 `backup-storage.css` 使用现有 `--app-info-*` 参数控制尺寸。备份／存储为互斥且支持键盘的真实页签；导出、选包、保存、清理预览使用共用图标和气泡，恢复摘要、真实空间、错误及最终“恢复并重启”明确显示。未保存的策略不能预览，处理中不能改动策略。备份偏好仅由 `backup-preferences.ts` 白名单读取，恢复在 `main.tsx` 挂载 App 前完成，失败保留待重试记录。它不拥有书架或阅读 chrome。
+
+来源分章电子书的“获取下一章／取消”属于现有 `ReaderFooter`，不增加常驻横幅。追加完成只更新同一本书的文档版本和总量，`useEbookDocument` 按 hash 清空旧数据块缓存，再用现有锚点恢复，不把追加当作重新打开书籍或自动跳回开头。
+
 `0.33.0-dev.1` 增加第四个互斥的“插件”面板，由 `SourcePluginManager` 与局部 `source-plugins.css` 负责；继续使用 `SourceCenterAction`／`Tooltip` 与既有尺寸参数。安装权限、实际版本、错误和测试结果可读，刷新／回滚／卸载使用准确图标，不复用带 15 秒标记的播放图标。音频及正文面板只选择已启用的插件来源，数据获取仍进入原有链路；不增加书架横幅、阅读工具栏或播放器状态栏。插件包与运行契约见 [SDK 说明](SOURCE_PLUGINS.md)。
 
 | 层级           | 入口与职责                                                                                          | 不应承担的职责                             |
@@ -136,11 +142,15 @@
 
 `tests/desktop/reader-settings-compact.spec.ts` 覆盖 1200px／720px 宽度、浅色／深色、面板高度与滚动、三个设置分类、键盘／悬停／触屏帮助提示、Escape 焦点、范围短选项、配色草稿及常显错误。既有 `reader-preferences.spec.ts` 和 `reader-blending.spec.ts` 仍验证配色持久化、透明度和真实绘制对比度；高级控件改为先展开后操作。此处列出验收范围，最终桌面结果由主任务统一运行记录。
 
-## 来源搜索封面
+## 来源与书架原封面
 
 `SourceBookResult` 和 `SourceBookImage` 负责音频／正文来源搜索及详情中的相同封面结构，局部尺寸属于 `source-book-result.css`，不改变 `ShelfBookCard`、书架标题或阅读 chrome。保留书名、作者与简介，封面按钮直接打开书籍；可访问名称和提示共用原动作，不另加重复箭头。结果封面为 78×111px，详情为 58×83px，窄窗口结果宽 70px；图片使用 `object-fit: cover`。
 
-来源适配器只提供可选的原始 `coverUrl`。`SourceCoverPresenter` 在主进程 IPC 返回时注册候选地址，不修改来源缓存和数据库。`SourceCoverService` 按来源权限代理有界栅格图片，渲染端仅接受 `readlisten://app/covers/` 的不透明地址；图片缺失或失败使用既有 `BookCover`。本版封面属于搜索与详情展示，不代表已持久保存到书架；认证图片不借用个人书库密码。
+来源适配器只提供可选的原始 `coverUrl`。`SourceCoverPresenter` 在主进程 IPC 返回时注册候选地址，不修改来源缓存和数据库。`SourceCoverService` 按来源权限代理有界栅格图片，搜索渲染端仅接受 `readlisten://app/covers/` 的不透明地址；图片缺失或失败使用既有 `BookCover`。认证图片不借用个人书库密码。
+
+入库后的原封面由 `PersistentBookCovers` 保存到应用数据目录的 `book-covers/`，按音频／电子书及本地书籍 ID 建立关联，以内容 SHA-256 去重。注册候选经过同一图片代理校验后才可持久保存，独立的 `readlisten://app/book-covers/<hash>` 只读本地图片，不发起网络请求。最多保存 512 个关联／64 MiB，按最近使用情况回收本模块生成的图片；不触碰其他文件。封面不依赖来源继续启用，重启和断网仍可读取已保存内容，图片失效／被配额回收时回退默认书封。
+
+`BookCover` 是书架、章节页和播放器封面的唯一视觉组件，接收可选持久本地 `coverUrl`，拒绝 HTTP(S) 地址；原图片填满既有几何，不另改封面尺寸。`ShelfBookCard`、`App`、`NormalReading` 与 `PlayerBar` 传递相同字段；`player.updateLibrary` 只更新封面状态，不重建音频元素或修改播放位置。封面更新、配额及备份复制通过同一队列串行，保存索引后才发出更新通知。
 
 `source-covers.spec.ts` 在实际 Electron 中验证原图解码、破损／越权图片回退、窄宽与明暗场景，并在正文搜索期间核对正在播放的音频元素、来源和进度保持连续。代理权限、重定向、尺寸、响应类型、预算与缓存由对应逻辑回归覆盖。
 

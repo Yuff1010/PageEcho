@@ -176,6 +176,7 @@ export function NormalReading({
                 key={item.id}
                 id={item.id}
                 title={item.title}
+                coverUrl={item.coverUrl}
                 kind="ebook"
                 openLabel={`阅读 ${item.title}`}
                 onOpen={() => onOpenBook(item.id)}

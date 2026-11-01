@@ -14,6 +14,7 @@
 | 程序模块与数据结构             | [ARCHITECTURE](ARCHITECTURE.md)                                                  |
 | 项目目录、脚本和文件保留范围   | [WORKSPACE_STRUCTURE](WORKSPACE_STRUCTURE.md)                                    |
 | 磁盘占用与删除状态             | [STORAGE_CLEANUP](STORAGE_CLEANUP.md)                                            |
+| 备份恢复与今后生成物保留策略   | [BACKUP_STORAGE](BACKUP_STORAGE.md)                                              |
 | 每版变更和当时的验证证据       | [CHANGELOG](../CHANGELOG.md)、[releases/](releases/)                             |
 
 最初的功能整理与需求草案保存在 [归档草案](archive/initial-requirements.md)。

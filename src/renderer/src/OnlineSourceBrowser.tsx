@@ -13,6 +13,9 @@ import { SourceCenterAction, SourceCenterEmpty } from './SourceCenterUI'
 import { SourceCenterText } from './SourceCenterText'
 import { SourcePluginManager } from './SourcePluginManager'
 import { SourceBookImage, SourceBookResult } from './SourceBookResult'
+import { recentSourceView, useSourceSession } from './source-session'
+import { ALL_SOURCES, aggregateSearch, type AggregateProgress } from './aggregate-search'
+import { HelpTip } from './HelpTip'
 import './source-center.css'
 
 const categories = [
@@ -28,6 +31,7 @@ interface AudioView {
   resultsFor: string
   results: SourcePage<SourceBook> | null
   detail: SourceBookDetail | null
+  aggregate?: AggregateProgress<SourceBook>
 }
 const emptyView = (): AudioView => ({ query: '', resultsFor: '', results: null, detail: null })
 const bookKey = (book: SourceBook) => `${book.sourceId}:${book.id}`
@@ -44,7 +48,7 @@ export function OnlineSourceBrowser({
   onLibrary: (state: AppState) => void
   onReadBook?: (id: string) => void
 }) {
-  const [category, setCategory] = useState<Category>('audio')
+  const [category, setCategory] = useSourceSession<Category>('sources.category', 'audio')
   const prefix = useId()
   return (
     <section className="online-source source-center" aria-label="来源中心">
@@ -105,30 +109,39 @@ function AudioSourcePanel({
   state: AppState | null
   onLibrary: (state: AppState) => void
 }) {
-  const [sourceId, setSourceId] = useState<SourceId>('ting13')
+  const [sourceId, setSourceId] = useSourceSession<SourceId | typeof ALL_SOURCES>(
+    'sources.audio.selected',
+    'ting13',
+  )
   const [sourceCatalog, setSourceCatalog] = useState<AudioSourceInfo[]>([])
-  const [views, setViews] = useState<Partial<Record<SourceId, AudioView>>>({})
+  const [views, setViews] = useSourceSession<Record<string, AudioView>>('sources.audio.views', {})
   const view = views[sourceId] ?? emptyView()
   const { query, resultsFor, results, detail } = view
   const update = (patch: Partial<AudioView>) =>
-    setViews((current) => ({
-      ...current,
-      [sourceId]: { ...(current[sourceId] ?? emptyView()), ...patch },
-    }))
+    setViews((current) =>
+      recentSourceView(current, sourceId, { ...(current[sourceId] ?? emptyView()), ...patch }),
+    )
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const active = useRef<string | null>(null)
   const openingEpisode = useRef<string | null>(null)
   const retry = useRef<(() => void) | null>(null)
+  const aggregated = useRef<AbortController | null>(null)
   useEffect(() => {
     let live = true
     void window.desktop
       .pluginSourceCatalog()
       .then((result) => {
         if (!live) return
-        if (result.ok) setSourceCatalog(result.value)
-        else setError(result.error.message)
+        if (result.ok) {
+          setSourceCatalog(result.value)
+          setSourceId((current) =>
+            current === ALL_SOURCES || result.value.some((source) => source.id === current)
+              ? current
+              : (result.value[0]?.id ?? 'ting13'),
+          )
+        } else setError(result.error.message)
       })
       .catch(() => {
         if (live) setError('无法读取有声书来源，请重新进入来源中心。')
@@ -136,10 +149,12 @@ function AudioSourcePanel({
     return () => {
       live = false
     }
-  }, [])
+  }, [setSourceId])
   useEffect(
     () => () => {
       const id = active.current
+      aggregated.current?.abort()
+      aggregated.current = null
       active.current = null
       if (id) void window.desktop.cancelSourceRequest({ id }).catch(() => undefined)
     },
@@ -180,6 +195,8 @@ function AudioSourcePanel({
     }
   }
   function cancel(showMessage = true) {
+    aggregated.current?.abort()
+    aggregated.current = null
     const id = active.current
     active.current = null
     setBusy(false)
@@ -191,6 +208,40 @@ function AudioSourcePanel({
     const text = query.trim()
     if (!text) return
     retry.current = search
+    if (sourceId === ALL_SOURCES) {
+      cancel(false)
+      const controller = new AbortController()
+      aggregated.current = controller
+      setBusy(true)
+      update({ detail: null, resultsFor: text, results: { items: [], nextCursor: null } })
+      void aggregateSearch({
+        sources: sourceCatalog,
+        signal: controller.signal,
+        key: bookKey,
+        request: async (id, requestId) => {
+          const result = await window.desktop.searchSource({
+            id: requestId,
+            sourceId: id as SourceId,
+            query: text,
+            cursor: null,
+          })
+          return result.ok ? { ok: true as const, value: result.value.items } : result
+        },
+        cancel: (id) => window.desktop.cancelSourceRequest({ id }),
+        onProgress: (progress) => {
+          if (aggregated.current !== controller) return
+          update({ results: { items: progress.items, nextCursor: null }, aggregate: progress })
+          setStatus(`已检索 ${progress.completed} / ${progress.total} 个来源`)
+        },
+      }).finally(() => {
+        if (aggregated.current === controller) {
+          aggregated.current = null
+          setBusy(false)
+          setStatus('')
+        }
+      })
+      return
+    }
     void run(
       `正在搜索「${text}」…`,
       (id) => window.desktop.searchSource({ id, sourceId, query: text, cursor: null }),
@@ -198,6 +249,7 @@ function AudioSourcePanel({
     )
   }
   function moreSearch() {
+    if (sourceId === ALL_SOURCES) return
     if (!results?.nextCursor) return
     const cursor = results.nextCursor
     retry.current = moreSearch
@@ -208,6 +260,7 @@ function AudioSourcePanel({
     )
   }
   function open(book: SourceBook) {
+    if (aggregated.current) cancel(false)
     retry.current = () => open(book)
     void run(
       `正在读取《${book.title}》的详情与目录…`,
@@ -313,9 +366,10 @@ function AudioSourcePanel({
             cancel(false)
             setError('')
             retry.current = null
-            setSourceId(event.target.value as SourceId)
+            setSourceId(event.target.value as SourceId | typeof ALL_SOURCES)
           }}
         >
+          {sourceCatalog.length > 1 && <option value={ALL_SOURCES}>全部来源</option>}
           {sourceCatalog.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -338,6 +392,28 @@ function AudioSourcePanel({
         />
         {busy && <SourceCenterAction label="取消读取" icon="close" onClick={() => cancel()} />}
       </form>
+      {sourceId === ALL_SOURCES && view.aggregate && (
+        <div className="source-center-aggregate">
+          <span>
+            {view.aggregate.items.length} 本 · 已检索 {view.aggregate.completed} /{' '}
+            {view.aggregate.total} 个来源
+          </span>
+          <HelpTip label="全部来源搜索">
+            同时最多读取三个来源的首批搜索结果，最多显示300本；缩小关键词或选择单个来源可继续翻页。
+          </HelpTip>
+          {view.aggregate.truncated && <span>结果较多，请缩小关键词。</span>}
+          {!!view.aggregate.errors.length && (
+            <details>
+              <summary>{view.aggregate.errors.length} 个来源未完成</summary>
+              {view.aggregate.errors.map((error, i) => (
+                <p key={i}>
+                  {error.source}：{error.message}
+                </p>
+              ))}
+            </details>
+          )}
+        </div>
+      )}
       {status && (
         <p role="status" className="source-center-status">
           <span className={busy ? 'source-center-spinner' : ''} aria-hidden="true" />
@@ -437,13 +513,19 @@ function AudioSourcePanel({
                   title={book.title}
                   coverUrl={book.coverUrl}
                   credit={
-                    [book.narrators.join('、'), book.authors.join('、')]
+                    [
+                      book.narrators.join('、'),
+                      book.authors.join('、'),
+                      sourceId === ALL_SOURCES
+                        ? sourceCatalog.find((source) => source.id === book.sourceId)?.name
+                        : null,
+                    ]
                       .filter(Boolean)
                       .join(' · ') || source?.name
                   }
                   description={book.description}
                   label={`查看 ${book.title} 的详情`}
-                  disabled={busy}
+                  disabled={busy && sourceId !== ALL_SOURCES}
                   onOpen={() => open(book)}
                 />
               ))}

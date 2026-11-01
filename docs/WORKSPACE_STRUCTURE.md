@@ -15,7 +15,7 @@ ReadAndListenBook/
 ├─ scripts/
 │  ├─ build/                 主程序构建、目录打包与插件打包
 │  ├─ asr/                   字幕组件准备与构建
-│  ├─ maintenance/           只读空间清点
+│  ├─ maintenance/           只读空间清点、未来生成物回执与保留策略
 │  └─ *.ts / *.py            现存验收／诊断脚本，待删除范围
 ├─ examples/source-plugins/  可打包的网站插件源码和许可
 ├─ docs/                     使用、设计、架构及版本记录；archive/ 保留早期草案
@@ -40,8 +40,12 @@ ReadAndListenBook/
 | `npm run plugin:pack -- --directory <路径> --output <新ZIP>` | `scripts/build/pack-source-plugin.ts`                         |
 | `npm run asr:component` / `asr:bundle`                       | `scripts/asr/` 中的组件准备／构建入口                         |
 | `npm run workspace:inventory`                                | 清点空间，写入 `cache/maintenance/inventory.json`，不删除文件 |
+| `npm run workspace:storage -- state`                         | 查看未来生成物的策略、占用与保护项                            |
+| `npm run workspace:storage -- preview`                       | 只预览回执所有且符合策略的生成物，返回短时 token              |
 
 `workspace:inventory` 使用 Node.js 读取元信息，跳过链接，不读取文件内容、不扫描工作区外目录，报告仅允许写入 `cache/maintenance/*.json`。占用是文件逻辑字节总量，不等同于文件系统实际分配空间。
+
+`0.35.0-dev.1` 开始，新预览构建及两种目录打包的中间产物写入 `cache/managed-generated/<UUID>/`，并保留生成回执。默认不自动删除；策略、预览与 token 确认命令见 [备份与存储](BACKUP_STORAGE.md)。这些入口不会把旧 `cache/`、`release/` 或测试源码自动登记为可清理内容，最终发行目录与 ZIP 仍在 `release/`。
 
 ## 用户要求的删除及当前状态
 

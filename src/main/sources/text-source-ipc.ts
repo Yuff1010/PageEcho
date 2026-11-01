@@ -6,31 +6,54 @@ import type {
   TextBrowseRequest,
   TextDetailRequest,
   TextImportRequest,
+  TextContinueRequest,
 } from '../../shared/text-sources'
 import { AppError, isTrustedRenderer } from '../../shared/validation'
 import { SourceError } from '../../shared/sources'
 import type { TextSourceService } from './text-service'
 import { validateTextSourceArgs } from './text-validation'
 import type { SourceCoverPresenter } from './source-cover-presenter'
+import type { PersistentBookCovers } from './persistent-book-covers'
+import type { TextBookSummary } from '../../shared/text-sources'
 
 export function registerTextSourceIpc(
   window: BrowserWindow,
   rendererUrl: string,
   service: TextSourceService,
   covers?: SourceCoverPresenter,
+  savedCovers?: PersistentBookCovers,
 ): () => void {
   const channels = TEXT_SOURCE_CHANNELS
+  const seen = new Map<string, TextBookSummary>()
+  const remember = (book: TextBookSummary) => {
+    const key = `${book.sourceId}:${book.workId}`
+    seen.delete(key)
+    seen.set(key, book)
+    if (seen.size > 128) seen.delete(seen.keys().next().value!)
+  }
   const actions: Record<string, (request: unknown) => unknown> = {
     [channels.state]: () => service.state(),
     [channels.browse]: async (request) => {
       const page = await service.browse(request as TextBrowseRequest)
+      for (const book of page.books) remember(book)
       return covers ? { ...page, books: page.books.map((book) => covers.ebook(book)) } : page
     },
     [channels.detail]: async (request) => {
       const detail = await service.detail(request as TextDetailRequest)
+      remember(detail)
       return covers ? { ...detail, ...covers.ebook(detail) } : detail
     },
-    [channels.import]: (request) => service.import(request as TextImportRequest),
+    [channels.import]: async (request) => {
+      const result = await service.import(request as TextImportRequest)
+      const raw = seen.get(`${result.sourceId}:${result.workId}`)
+      if (savedCovers && covers && raw)
+        await savedCovers.remember('ebook', result.book.id, covers.ebook(raw).coverUrl)
+      return savedCovers ? { ...result, book: savedCovers.decorate('ebook', result.book) } : result
+    },
+    [channels.continue]: async (request) => {
+      const result = await service.continueReading(request as TextContinueRequest)
+      return savedCovers ? { ...result, book: savedCovers.decorate('ebook', result.book) } : result
+    },
     [channels.cancel]: (request) => service.cancel((request as { requestId: string }).requestId),
     [channels.save]: (request) => service.save(request as RemoteLibraryConfig),
     [channels.remove]: (request) => service.remove((request as { id: string }).id),

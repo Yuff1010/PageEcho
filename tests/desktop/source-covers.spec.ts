@@ -172,14 +172,17 @@ test('original covers load through registered local URLs, fail to a shared fallb
   const source = await fixture()
   const env = { ...process.env, RALB_USER_DATA: mkdtempSync(join(tmpdir(), '听读封面桌面 ')) }
   Reflect.deleteProperty(env, 'ELECTRON_RUN_AS_NODE')
-  const app = await electron.launch({
-    ...(process.env.RALB_EXECUTABLE
-      ? { executablePath: resolve(process.env.RALB_EXECUTABLE), args: [] }
-      : { args: [resolve(process.env.RALB_APP_ROOT ?? '.')] }),
-    env,
-  })
-  const page = await app.firstWindow(),
-    errors: string[] = []
+  const launch = () =>
+    electron.launch({
+      ...(process.env.RALB_EXECUTABLE
+        ? { executablePath: resolve(process.env.RALB_EXECUTABLE), args: [] }
+        : { args: [resolve(process.env.RALB_APP_ROOT ?? '.')] }),
+      env,
+    })
+  let app = await launch()
+  let page = await app.firstWindow()
+  let sourceClosed = false
+  const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
     await page.getByRole('button', { name: '在线书源', exact: true }).click()
@@ -205,12 +208,12 @@ test('original covers load through registered local URLs, fail to a shared fallb
     const broken = page
       .locator('.source-book-result')
       .filter({ has: page.getByRole('heading', { name: '声音失效封面', exact: true }) })
-    await expect(broken.locator('[data-cover-state="fallback"]')).toBeVisible()
+    await expect(broken.locator('.source-book-image[data-cover-state="fallback"]')).toBeVisible()
     await expect(broken.locator('img')).toHaveCount(0)
     const denied = page
       .locator('.source-book-result')
       .filter({ has: page.getByRole('heading', { name: '声音越权封面', exact: true }) })
-    await expect(denied.locator('[data-cover-state="fallback"]')).toBeVisible()
+    await expect(denied.locator('.source-book-image[data-cover-state="fallback"]')).toBeVisible()
     expect(source.foreignRequests).toEqual([])
     await original.getByRole('button', { name: '查看 声音原封面 的详情', exact: true }).click()
     await expect(
@@ -219,12 +222,15 @@ test('original covers load through registered local URLs, fail to a shared fallb
         .getByRole('img', { name: '声音原封面的封面', exact: true }),
     ).toBeVisible()
     await page.getByRole('button', { name: '加入书架', exact: true }).click()
+    // Native click dispatch is not completion of the asynchronous artwork save.
+    await expect(page.getByRole('button', { name: '更新书架目录', exact: true })).toBeEnabled()
     const state = await page.evaluate(() => window.desktop.getState())
     expect(state.ok).toBe(true)
     if (!state.ok) throw new Error(state.error.message)
     const book = state.value.books.find(
       (book) => book.online?.sourceId === 'plugin:synthetic.covers:audio',
     )!
+    expect(book.coverUrl).toMatch(/^readlisten:\/\/app\/book-covers\/[a-f0-9]{64}$/)
     await page.evaluate(
       (id) =>
         window.desktop.setSubtitlePreparation({
@@ -239,6 +245,11 @@ test('original covers load through registered local URLs, fail to a shared fallb
     await expect
       .poll(() => audio.evaluate((element: HTMLAudioElement) => element.currentTime))
       .toBeGreaterThan(0.1)
+    const playerCover = page.locator('.player-cover img.cover-original')
+    await expect(playerCover).toHaveAttribute('src', book.coverUrl!)
+    await expect
+      .poll(() => playerCover.evaluate((element: HTMLImageElement) => element.naturalWidth))
+      .toBeGreaterThan(0)
     const before = await audio.evaluate((element: HTMLAudioElement) => {
       Reflect.set(element, 'coverTestIdentity', true)
       return { src: element.currentSrc, time: element.currentTime }
@@ -284,9 +295,49 @@ test('original covers load through registered local URLs, fail to a shared fallb
     expect(source.imageRequests).toContain('/covers/audio.png')
     expect(source.imageRequests).toContain('/covers/text.png')
     expect(source.foreignRequests).toEqual([])
+    await page.getByRole('button', { name: '查看 正文原封面 的电子书详情', exact: true }).click()
+    await page.getByRole('checkbox', { name: '合成正文第一章', exact: true }).check()
+    await page.getByRole('button', { name: '导入并阅读所选正文', exact: true }).click()
+    await expect(page).toHaveURL(/#\/read\//)
+    const reading = await page.evaluate(() => window.desktop.getReadingBooks())
+    if (!reading.ok) throw new Error(reading.error.message)
+    const ebook = reading.value[0]!
+    expect(ebook.coverUrl).toMatch(/^readlisten:\/\/app\/book-covers\/[a-f0-9]{64}$/)
+    const fetchedImages = source.imageRequests.length
+    await source.close()
+    sourceClosed = true
+    await closeOwnedElectron(app)
+    app = await launch()
+    page = await app.firstWindow()
+    page.on('pageerror', (error) => errors.push(error.message))
+    await page.evaluate(() => {
+      window.location.hash = '#/library/audiobooks'
+    })
+    const shelfCover = page
+      .locator('.shelf-card')
+      .filter({ has: page.getByRole('heading', { name: '声音原封面', exact: true }) })
+      .locator('img.cover-original')
+    await expect(shelfCover).toHaveAttribute('src', book.coverUrl!)
+    await expect
+      .poll(() => shelfCover.evaluate((element: HTMLImageElement) => element.naturalWidth))
+      .toBeGreaterThan(0)
+    await expect(page.locator('.player-cover img.cover-original')).toHaveAttribute(
+      'src',
+      book.coverUrl!,
+    )
+    await page
+      .getByRole('navigation', { name: '书籍类型', exact: true })
+      .getByRole('button', { name: '电子书', exact: true })
+      .click()
+    const ebookCover = page.locator('.ebook-shelf img.cover-original')
+    await expect(ebookCover).toHaveAttribute('src', ebook.coverUrl!)
+    await expect
+      .poll(() => ebookCover.evaluate((element: HTMLImageElement) => element.naturalWidth))
+      .toBeGreaterThan(0)
+    expect(source.imageRequests).toHaveLength(fetchedImages)
     expect(errors).toEqual([])
   } finally {
     await closeOwnedElectron(app)
-    await source.close()
+    if (!sourceClosed) await source.close()
   }
 })

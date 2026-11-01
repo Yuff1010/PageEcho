@@ -14,6 +14,12 @@ import type {
   TextImportRequest,
   TextImportResult,
   TextSourceState,
+  SourceReadingImport,
+  SourceReadingState,
+  TextBookDetail,
+  SourceReadingContext,
+  TextContinueRequest,
+  TextContinueResult,
 } from '../../shared/text-sources'
 import { sourceUrl, TextHttpClient } from './text-http'
 import { OpdsTextConnector } from './text-opds'
@@ -33,6 +39,12 @@ export interface TextSourceOptions {
     signal: AbortSignal,
   ) => Promise<ReadingBook> | ReadingBook
   getReadingBook: (id: string) => ReadingBook | null
+  importChapters?: (
+    input: SourceReadingImport,
+    signal: AbortSignal,
+  ) => Promise<ReadingBook> | ReadingBook
+  getSourceReading?: (sourceKey: string) => SourceReadingState | null
+  getSourceReadingByBook?: (readingBookId: string) => SourceReadingContext | null
   connectors?: Partial<Record<RemoteLibraryKind, TextLibraryConnector>>
   secretCodec?: { encrypt(value: string): string; decrypt(value: string): string }
   /** Controlled fixtures only; production leaves this unset. */
@@ -335,6 +347,9 @@ export class TextSourceService {
   cancel(requestId: string): void {
     this.requests.get(requestId)?.abort()
   }
+  get busy(): boolean {
+    return this.requests.size > 0 || this.importing.size > 0
+  }
   close(): void {
     this.closed = true
     for (const request of this.requests.values()) request.abort()
@@ -353,61 +368,250 @@ export class TextSourceService {
   }
 
   detail(request: TextDetailRequest) {
-    return this.run(request.requestId, async (signal) => {
-      if (request.sourceId === 'wikisource') return this.wiki.detail(request.workId, signal)
-      if (request.sourceId.startsWith('plugin:')) {
-        this.pluginSource(request.sourceId)
-        return this.options.plugins!.detail(request, signal)
-      }
+    return this.run(request.requestId, (signal) => this.readDetail(request, signal))
+  }
+
+  private async readDetail(request: TextDetailRequest, signal: AbortSignal) {
+    let detail: TextBookDetail
+    if (request.sourceId === 'wikisource') {
+      if (request.cursor) return invalid('此来源目录没有后续分页。')
+      detail = await this.wiki.detail(request.workId, signal)
+    } else if (request.sourceId.startsWith('plugin:')) {
+      this.pluginSource(request.sourceId)
+      detail = await this.options.plugins!.detail(request, signal)
+    } else {
+      if (request.cursor) return invalid('文件书库目录不使用章节分页。')
       const { connector, context } = this.context(request.sourceId, signal)
-      return connector.detail(context, request.workId)
-    })
+      detail = await connector.detail(context, request.workId)
+    }
+    const saved = this.sourceReading(this.sourceIdentity(request))
+    if (saved) this.checkSourceOrders(saved, detail.chapters)
+    return {
+      ...detail,
+      downloadedChapterIds: saved?.downloadedChapterIds ?? [],
+      readingBookId: saved?.readingBookId ?? null,
+      lastDownloadedOrder: saved ? Math.max(-1, ...Object.values(saved.chapterOrders)) : -1,
+    }
+  }
+
+  private sourceIdentity(request: Pick<TextDetailRequest, 'sourceId' | 'workId'>) {
+    const plugin = request.sourceId.startsWith('plugin:')
+      ? this.pluginSource(request.sourceId)
+      : null
+    const library = this.disk.libraries.find((item) => item.id === request.sourceId)
+    const endpoint = plugin
+      ? ['plugin', plugin.baseUrl]
+      : library
+        ? [library.kind, library.baseUrl]
+        : ['wikisource', WIKISOURCE_URL]
+    return createHash('sha256')
+      .update(JSON.stringify([endpoint, request.sourceId, request.workId]))
+      .digest('hex')
+  }
+
+  private sourceReading(key: string) {
+    const saved = this.options.getSourceReading?.(key)
+    return saved && this.options.getReadingBook(saved.readingBookId) ? saved : null
+  }
+
+  private checkSourceOrders(saved: SourceReadingState, chapters: TextBookDetail['chapters']) {
+    for (const chapter of chapters)
+      if (
+        Object.hasOwn(saved.chapterOrders, chapter.id) &&
+        saved.chapterOrders[chapter.id] !== chapter.order
+      )
+        throw new SourceError(
+          'SOURCE_CHANGED',
+          '网站已改变已下载章节的目录顺序；原书与阅读位置保留，请重新核对。',
+        )
   }
 
   import(request: TextImportRequest): Promise<TextImportResult> {
-    return this.run(request.requestId, async (signal) => {
-      const plugin = request.sourceId.startsWith('plugin:')
-        ? this.pluginSource(request.sourceId)
-        : null
-      const remote =
-        request.sourceId === 'wikisource' || plugin ? null : this.context(request.sourceId, signal)
-      const endpoint = remote
-        ? [remote.context.connection.kind, remote.context.connection.baseUrl]
-        : plugin
-          ? ['plugin', plugin.baseUrl]
-          : ['wikisource', WIKISOURCE_URL]
-      const selection =
-        request.sourceId === 'wikisource' || plugin
-          ? [...(request.chapterIds ?? [])].sort()
-          : (request.acquisitionId ?? '')
-      if (!selection.length) return invalid('请先选择本次导入范围或获取格式。')
-      const identity = createHash('sha256')
-        .update(JSON.stringify([endpoint, request.sourceId, request.workId, selection]))
-        .digest('hex')
-      const prior = this.disk.imports[identity]
-      if (prior) {
-        const book = this.options.getReadingBook(prior)
-        if (book) return { book, reused: true, sourceId: request.sourceId, workId: request.workId }
-      }
-      if (this.importing.has(identity))
-        throw new SourceError('SOURCE_BUSY', '相同书目正在导入，请稍候。')
-      this.importing.add(identity)
+    return this.run(request.requestId, (signal) => this.importSelected(request, signal))
+  }
+
+  private async importSelected(
+    request: TextImportRequest,
+    signal: AbortSignal,
+  ): Promise<TextImportResult> {
+    const plugin = request.sourceId.startsWith('plugin:')
+      ? this.pluginSource(request.sourceId)
+      : null
+    const remote =
+      request.sourceId === 'wikisource' || plugin ? null : this.context(request.sourceId, signal)
+    const endpoint = remote
+      ? [remote.context.connection.kind, remote.context.connection.baseUrl]
+      : plugin
+        ? ['plugin', plugin.baseUrl]
+        : ['wikisource', WIKISOURCE_URL]
+    const selection =
+      request.sourceId === 'wikisource' || plugin
+        ? [...(request.chapterIds ?? [])].sort()
+        : (request.acquisitionId ?? '')
+    if (!selection.length) return invalid('请先选择本次导入范围或获取格式。')
+    const chapterSource = request.sourceId === 'wikisource' || !!plugin
+    if (chapterSource && this.options.importChapters) {
+      const ids = request.chapterIds ?? []
+      if (!ids.length || ids.length > 20 || new Set(ids).size !== ids.length)
+        return invalid('请选择 1–20 个不重复的章节。')
+      const sourceKey = this.sourceIdentity(request)
+      if (this.importing.has(sourceKey))
+        throw new SourceError('SOURCE_BUSY', '这本书正在追加章节，请稍候。')
+      this.importing.add(sourceKey)
       try {
+        const prior = this.sourceReading(sourceKey)
+        const downloaded = new Set(prior?.downloadedChapterIds ?? [])
+        const fresh = ids.filter((id) => !downloaded.has(id))
+        if (!fresh.length && prior) {
+          signal.throwIfAborted()
+          return {
+            book: this.options.getReadingBook(prior.readingBookId)!,
+            reused: true,
+            sourceId: request.sourceId,
+            workId: request.workId,
+            appended: false,
+            addedChapterIds: [],
+          }
+        }
+        const narrowed = { ...request, chapterIds: fresh }
         const download =
           request.sourceId === 'wikisource'
-            ? await this.wiki.download(request, signal)
-            : plugin
-              ? await this.options.plugins!.download(request, signal)
-              : await remote!.connector.download(remote!.context, request)
-        // Last cancellation point precedes the immutable reading import transaction.
+            ? await this.wiki.download(narrowed, signal)
+            : await this.options.plugins!.download(narrowed, signal)
         signal.throwIfAborted()
-        const book = await this.options.importBook(download.bytes, download.filename, signal)
-        this.disk.imports[identity] = book.id
-        this.persist()
-        return { book, reused: false, sourceId: request.sourceId, workId: request.workId }
+        if (
+          !download.chapters ||
+          download.chapters.length !== fresh.length ||
+          new Set(download.chapters.map((chapter) => chapter.id)).size !== fresh.length ||
+          download.chapters.some((chapter) => !fresh.includes(chapter.id))
+        )
+          return invalid('来源没有返回所选章节的完整身份信息，未更改已有电子书。')
+        if (prior) this.checkSourceOrders(prior, download.catalog ?? download.chapters)
+        const book = await this.options.importChapters(
+          {
+            sourceKey,
+            sourceId: request.sourceId,
+            workId: request.workId,
+            title: download.title ?? download.filename.replace(/\.txt$/i, ''),
+            pageUrl: download.pageUrl ?? null,
+            chapters: download.chapters,
+          },
+          signal,
+        )
+        return {
+          book,
+          reused: false,
+          sourceId: request.sourceId,
+          workId: request.workId,
+          appended: !!prior,
+          addedChapterIds: download.chapters.map((chapter) => chapter.id),
+        }
       } finally {
-        this.importing.delete(identity)
+        this.importing.delete(sourceKey)
       }
+    }
+    const identity = createHash('sha256')
+      .update(JSON.stringify([endpoint, request.sourceId, request.workId, selection]))
+      .digest('hex')
+    const prior = this.disk.imports[identity]
+    if (prior) {
+      const book = this.options.getReadingBook(prior)
+      if (book) return { book, reused: true, sourceId: request.sourceId, workId: request.workId }
+    }
+    if (this.importing.has(identity))
+      throw new SourceError('SOURCE_BUSY', '相同书目正在导入，请稍候。')
+    this.importing.add(identity)
+    try {
+      const download =
+        request.sourceId === 'wikisource'
+          ? await this.wiki.download(request, signal)
+          : plugin
+            ? await this.options.plugins!.download(request, signal)
+            : await remote!.connector.download(remote!.context, request)
+      // Last cancellation point precedes the immutable reading import transaction.
+      signal.throwIfAborted()
+      const book = await this.options.importBook(download.bytes, download.filename, signal)
+      this.disk.imports[identity] = book.id
+      this.persist()
+      return { book, reused: false, sourceId: request.sourceId, workId: request.workId }
+    } finally {
+      this.importing.delete(identity)
+    }
+  }
+
+  continueReading(request: TextContinueRequest): Promise<TextContinueResult> {
+    return this.run(request.requestId, async (signal) => {
+      const context = this.options.getSourceReadingByBook?.(request.readingBookId)
+      const book = this.options.getReadingBook(request.readingBookId)
+      if (!context || !book) return invalid('只有来源分章导入的电子书可以获取后续章节。')
+      if (this.sourceReading(this.sourceIdentity(context))?.readingBookId !== book.id)
+        throw new SourceError(
+          'SOURCE_CHANGED',
+          '来源地址或书目身份已变化，原书保留，请先核对来源。',
+        )
+      const last = Math.max(-1, ...Object.values(context.chapterOrders))
+      const downloaded = new Set(context.downloadedChapterIds)
+      const cursors = new Set<string>()
+      let cursor: string | undefined
+      for (let page = 0; page < 32; page++) {
+        signal.throwIfAborted()
+        const detail = await this.readDetail(
+          {
+            requestId: request.requestId,
+            sourceId: context.sourceId,
+            workId: context.workId,
+            ...(cursor ? { cursor } : {}),
+          },
+          signal,
+        )
+        const next = detail.chapters.find(
+          (chapter) =>
+            !downloaded.has(chapter.id) && chapter.order !== undefined && chapter.order > last,
+        )
+        if (next) {
+          const imported = await this.importSelected(
+            {
+              requestId: request.requestId,
+              sourceId: context.sourceId,
+              workId: context.workId,
+              chapterIds: [next.id],
+              ...(detail.chapterCursor ? { chapterCursor: detail.chapterCursor } : {}),
+            },
+            signal,
+          )
+          return {
+            book: imported.book,
+            noMore: false,
+            appended: !!imported.appended,
+            addedChapterIds: imported.addedChapterIds ?? [],
+            lastDownloadedOrder: Math.max(last, next.order ?? last),
+            message: `已获取“${next.title}”，阅读位置已保留。`,
+          }
+        }
+        if (!detail.nextCursor) {
+          if (detail.catalogComplete === false)
+            throw new SourceError(
+              'SOURCE_UNAVAILABLE',
+              '当前已读取目录没有后续章节，尚不能确认全书目录完整；请到来源目录核对。',
+            )
+          return {
+            book,
+            noMore: true,
+            appended: false,
+            addedChapterIds: [],
+            lastDownloadedOrder: last,
+            message: '当前来源目录没有后续章节。',
+          }
+        }
+        if (cursors.has(detail.nextCursor))
+          throw new SourceError('SOURCE_CHANGED', '来源目录分页重复，请重新打开目录。')
+        cursors.add(detail.nextCursor)
+        cursor = detail.nextCursor
+      }
+      throw new SourceError(
+        'SOURCE_UNAVAILABLE',
+        '本次已达到目录检查上限，尚未确认全书结束；请在来源目录继续加载后选择章节。',
+      )
     })
   }
 

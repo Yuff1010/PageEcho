@@ -3,6 +3,8 @@ import { ORIGINAL_PAGE_SIZE, type OriginalPage, type ParsedOriginal } from '../s
 import type { ReadingBook } from '../shared/reading'
 import { AppError } from '../shared/validation'
 import { storeOriginalDocument } from './original/documents'
+import { SourceReadingStore, type ParsedSourceChapter } from './source-reading-store'
+import type { SourceReadingImport } from '../shared/text-sources'
 
 export const READING_SCHEMA = `
   CREATE TABLE reading_books (
@@ -13,7 +15,23 @@ export const READING_SCHEMA = `
 
 export class ReadingStore {
   private cached: { id: string; value: ParsedOriginal } | null = null
-  constructor(private db: DatabaseSync) {}
+  private sources: SourceReadingStore
+  constructor(private db: DatabaseSync) {
+    this.sources = new SourceReadingStore(db)
+  }
+
+  sourceState(key: string) {
+    return this.sources.state(key)
+  }
+  sourceByBook(id: string) {
+    this.get(id)
+    return this.sources.byBook(id)
+  }
+  appendSource(input: SourceReadingImport, chapters: ParsedSourceChapter[]): ReadingBook {
+    const id = this.sources.append(input, chapters)
+    if (this.cached?.id === id) this.cached = null
+    return this.get(id)
+  }
 
   list(): ReadingBook[] {
     return this.db
@@ -55,8 +73,8 @@ export class ReadingStore {
     }
   }
   document(id: string): ParsedOriginal {
-    this.get(id) // Membership must be checked even for a cached document.
-    if (this.cached?.id === id) return this.cached.value
+    const info = this.get(id) // Membership and source append revision are checked on every read.
+    if (this.cached?.id === id && this.cached.value.hash === info.hash) return this.cached.value
     const row = this.db.prepare('SELECT document_json FROM original_documents WHERE id=?').get(id)!
     const value = JSON.parse(String(row.document_json)) as ParsedOriginal
     this.cached = { id, value }

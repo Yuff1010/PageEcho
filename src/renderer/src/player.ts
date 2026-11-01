@@ -26,6 +26,7 @@ import {
 export interface PlayerState {
   episode: Episode | null
   bookTitle: string
+  coverUrl?: string
   positionMs: number
   durationMs: number
   rate: number
@@ -313,6 +314,9 @@ class PlayerController {
 
   updateLibrary(state: AppState) {
     this.books = state.books
+    const currentBook = this.books.find((book) => book.id === this.state.episode?.bookId)
+    if (this.state.coverUrl !== currentBook?.coverUrl)
+      this.patch({ coverUrl: currentBook?.coverUrl })
     if (
       this.state.subtitleWaiting &&
       this.books.find((book) => book.id === this.source?.episode.bookId)?.subtitlePreparation
@@ -367,6 +371,7 @@ class PlayerController {
     this.patch({
       episode,
       bookTitle: book?.title ?? '',
+      coverUrl: book?.coverUrl,
       ready: false,
       positionMs: fromStart ? 0 : (episode?.positionMs ?? 0),
       durationMs: episode?.durationMs ?? 0,
@@ -398,6 +403,7 @@ class PlayerController {
       this.patch({
         episode: result.value.episode,
         bookTitle: book?.title ?? '',
+        coverUrl: this.books.find((item) => item.id === result.value.episode.bookId)?.coverUrl,
         positionMs: fromStart ? 0 : result.value.episode.positionMs,
         durationMs: result.value.episode.durationMs ?? 0,
         ready: false,
@@ -839,6 +845,7 @@ class PlayerController {
     this.patch({
       episode: null,
       bookTitle: '',
+      coverUrl: undefined,
       ready: false,
       playing: false,
       loading: false,

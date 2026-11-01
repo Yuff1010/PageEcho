@@ -66,6 +66,9 @@ export class OfflinePreparation {
   private pending = false
   private tickDone: Promise<void> | undefined
   private readonly requests = new Set<Promise<unknown>>()
+  get busy(): boolean {
+    return !!this.active || this.previews.size > 0 || this.requests.size > 0 || this.ticking
+  }
   private readonly retryAfter = new Map<string, number>()
   private readonly audioChecked = new Map<string, string>()
   private readonly durationChecked = new Map<string, string>()

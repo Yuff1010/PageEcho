@@ -11,6 +11,14 @@
   border-radius: var(--shelf-card-cover-radius);
   box-shadow: var(--ui-cover-shadow);
 }
+.book-cover > .cover-original {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
 .bookshelf .shelf-card .book-cover-button {
   border-radius: var(--shelf-card-cover-radius);
 }

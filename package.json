@@ -18,6 +18,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "workspace:inventory": "tsx scripts/maintenance/workspace-inventory.ts",
+    "workspace:storage": "tsx scripts/maintenance/generated-storage.ts",
     "test": "tsx --test tests/unit/*.test.ts",
     "test:worker": "tsx --test tests/worker/*.test.ts && python -X utf8 -m unittest discover -s python -p test_*.py",
     "test:desktop": "playwright test",

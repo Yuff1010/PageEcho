@@ -1,0 +1,98 @@
+.listening-dialog.backup-storage-dialog {
+  width: min(var(--app-info-width), calc(100vw - var(--app-info-gap) * 2));
+}
+.backup-storage-dialog h2:focus {
+  outline: none;
+}
+.backup-storage-dialog .source-center-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-control-size);
+  height: var(--shell-control-size);
+  flex-shrink: 0;
+  border: 0;
+  padding: 0;
+  border-radius: var(--shell-control-radius);
+  color: var(--ui-muted);
+  background: transparent;
+}
+.backup-storage-dialog .source-center-action .icon {
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
+}
+.backup-storage-dialog .source-center-action:hover:not(:disabled) {
+  color: var(--ui-text);
+  background: var(--ui-hover);
+}
+.backup-storage-dialog .source-center-action:disabled {
+  opacity: 0.45;
+}
+.backup-storage-tabs {
+  display: flex;
+  gap: var(--app-info-gap);
+  margin-bottom: var(--app-info-gap);
+}
+.backup-storage-tabs button {
+  flex: 1;
+  min-height: var(--shell-control-size);
+  border: 0;
+  border-radius: var(--shell-control-radius);
+  color: var(--ui-muted);
+  background: transparent;
+}
+.backup-storage-tabs [aria-selected='true'] {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+  box-shadow: var(--ui-pressed-shadow);
+}
+.backup-storage-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--app-info-gap);
+  margin-block: var(--app-info-gap);
+}
+.backup-storage-actions label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.backup-storage-dialog input[type='number'] {
+  width: 100%;
+  min-width: 0;
+}
+.backup-storage-policy {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--app-info-gap);
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.backup-storage-policy label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.backup-storage-preview {
+  padding: var(--app-info-gap);
+  border: 1px solid var(--ui-control-line);
+  border-radius: var(--shell-control-radius);
+  margin-block: var(--app-info-gap);
+}
+.backup-storage-dialog p,
+.backup-storage-dialog li {
+  overflow-wrap: anywhere;
+}
+.backup-storage-dialog details {
+  margin-block: var(--app-info-gap);
+}
+.backup-storage-notice {
+  user-select: text;
+}
+@media (max-width: 520px) {
+  .backup-storage-policy {
+    grid-template-columns: 1fr;
+  }
+}

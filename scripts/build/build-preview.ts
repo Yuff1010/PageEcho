@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, relative, resolve, sep } from 'node:path'
+import { beginManagedGenerated } from './managed-generated'
 
 const args = process.argv.slice(2)
 if (
@@ -28,56 +29,61 @@ async function inventory(root: string) {
   return files
 }
 const original = await inventory(resolve('out'))
-const directory = resolve('cache/preview-builds', new Date().toISOString().replaceAll(':', '-'))
-const appRoot = join(directory, 'app'),
-  output = join(appRoot, 'out')
-await mkdir(appRoot, { recursive: true })
-await new Promise<void>((done, reject) => {
-  const child = spawn(
-    process.execPath,
-    [resolve('node_modules/electron-vite/bin/electron-vite.js'), 'build', '--outDir', output],
-    { stdio: 'inherit', windowsHide: true },
+const managed = await beginManagedGenerated('build', `preview-${previewVersion}`)
+try {
+  const directory = managed.directory
+  const appRoot = join(directory, 'app'),
+    output = join(appRoot, 'out')
+  await mkdir(appRoot, { recursive: true })
+  await new Promise<void>((done, reject) => {
+    const child = spawn(
+      process.execPath,
+      [resolve('node_modules/electron-vite/bin/electron-vite.js'), 'build', '--outDir', output],
+      { stdio: 'inherit', windowsHide: true },
+    )
+    child.once('error', reject)
+    child.once('exit', (code) =>
+      code === 0 ? done() : reject(new Error(`Preview build exited ${code}`)),
+    )
+  })
+  const after = await inventory(resolve('out'))
+  if (JSON.stringify(original) !== JSON.stringify(after))
+    throw new Error('The original out/ changed during an isolated preview build')
+  const pkg = JSON.parse(await readFile('package.json', 'utf8'))
+  await writeFile(
+    join(appRoot, 'package.json'),
+    JSON.stringify(
+      {
+        name: pkg.name,
+        version: previewVersion,
+        type: 'module',
+        main: './out/main/index.js',
+        dependencies: pkg.dependencies,
+      },
+      null,
+      2,
+    ) + '\n',
   )
-  child.once('error', reject)
-  child.once('exit', (code) =>
-    code === 0 ? done() : reject(new Error(`Preview build exited ${code}`)),
+  await mkdir(join(appRoot, 'python'))
+  for (const name of await readdir('python'))
+    if (/^asr_.*\.py$/.test(name) || name === 'evaluation-models.json')
+      await copyFile(join('python', name), join(appRoot, 'python', name))
+  const report = {
+    previewVersion,
+    status: 'built',
+    createdAt: new Date().toISOString(),
+    appRoot,
+    sourceHashes: await inventory(resolve('src')),
+    outputHashes: await inventory(output),
+    pythonHashes: await inventory(join(appRoot, 'python')),
+    originalOutputUnchanged: true,
+    originalOutputHashes: original,
+    scope: 'Isolated development preview, no packaged EXE or installer execution.',
+  }
+  await writeFile(join(directory, 'manifest.json'), JSON.stringify(report, null, 2) + '\n')
+  console.log(
+    JSON.stringify({ status: report.status, appRoot, manifest: join(directory, 'manifest.json') }),
   )
-})
-const after = await inventory(resolve('out'))
-if (JSON.stringify(original) !== JSON.stringify(after))
-  throw new Error('The original out/ changed during an isolated preview build')
-const pkg = JSON.parse(await readFile('package.json', 'utf8'))
-await writeFile(
-  join(appRoot, 'package.json'),
-  JSON.stringify(
-    {
-      name: pkg.name,
-      version: previewVersion,
-      type: 'module',
-      main: './out/main/index.js',
-      dependencies: pkg.dependencies,
-    },
-    null,
-    2,
-  ) + '\n',
-)
-await mkdir(join(appRoot, 'python'))
-for (const name of await readdir('python'))
-  if (/^asr_.*\.py$/.test(name) || name === 'evaluation-models.json')
-    await copyFile(join('python', name), join(appRoot, 'python', name))
-const report = {
-  previewVersion,
-  status: 'built',
-  createdAt: new Date().toISOString(),
-  appRoot,
-  sourceHashes: await inventory(resolve('src')),
-  outputHashes: await inventory(output),
-  pythonHashes: await inventory(join(appRoot, 'python')),
-  originalOutputUnchanged: true,
-  originalOutputHashes: original,
-  scope: 'Isolated development preview, no packaged EXE or installer execution.',
+} finally {
+  await managed.complete()
 }
-await writeFile(join(directory, 'manifest.json'), JSON.stringify(report, null, 2) + '\n')
-console.log(
-  JSON.stringify({ status: report.status, appRoot, manifest: join(directory, 'manifest.json') }),
-)

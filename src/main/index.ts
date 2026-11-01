@@ -58,10 +58,16 @@ import { registerTextSourceIpc } from './sources/text-source-ipc'
 import { PluginRuntime } from './plugins/runtime'
 import { PluginService } from './plugins/service'
 import { registerPluginIpc } from './plugins/ipc'
+import { PluginMaintenance } from './plugins/maintenance'
+import { BackupService, applyPendingRestoreAtStartup } from './maintenance/backup'
+import { registerBackupStorageIpc } from './maintenance/backup-ipc'
+import { GeneratedStorageService } from './maintenance/storage-policy'
 import { SOURCE_METADATA, sourceQueryLimit } from '../shared/sources'
 import { SourceCoverService } from './sources/source-covers'
 import { SOURCE_COVER_PREFIX } from '../shared/source-covers'
 import { SourceCoverPresenter } from './sources/source-cover-presenter'
+import { PersistentBookCovers } from './sources/persistent-book-covers'
+import { BOOK_COVER_PREFIX } from '../shared/source-covers'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -100,8 +106,10 @@ let ebookSpeech: EbookSpeech | undefined
 let textSources: TextSourceService | undefined
 let textImporter: TextBookImporter | undefined
 let plugins: PluginService | undefined
+let pluginMaintenance: PluginMaintenance | undefined
 let pluginRuntime: PluginRuntime | undefined
 let sourceCovers: SourceCoverService | undefined
+let bookCovers: PersistentBookCovers | undefined
 const originals = new OriginalService()
 
 // A small code-drawn book icon; no external assets or network dependency.
@@ -155,8 +163,10 @@ function finishQuit() {
     const stoppingImports = subtitleImports?.close().catch(logError)
     ebookSpeech?.close()
     textSources?.close()
+    pluginMaintenance?.close()
     plugins?.close()
     sourceCovers?.close()
+    const stoppingBookCovers = bookCovers?.close().catch(logError)
     const stoppingPluginRuntime = pluginRuntime?.close().catch(logError)
     const stoppingTextImporter = textImporter?.close().catch(logError)
     const stoppingTranscription = transcription?.close().catch(logError)
@@ -183,6 +193,7 @@ function finishQuit() {
       await stoppingTextImporter
       await stoppingPluginRuntime
       await stoppingComponents
+      await stoppingBookCovers
     } catch (error) {
       logError(error)
     }
@@ -214,6 +225,7 @@ async function start() {
     return
   }
   await app.whenReady()
+  const restore = await applyPendingRestoreAtStartup(paths.root, { maxSchemaVersion: 17 })
   app.setAppUserModelId('com.readandlistenbook.desktop')
   store = new LibraryStore(paths.database)
   ebookSpeech = new EbookSpeech(store.reading)
@@ -265,6 +277,8 @@ async function start() {
     allowFullscreen(contents, permission, details),
   )
   protocol.handle('readlisten', async (request) => {
+    if (request.url.startsWith(BOOK_COVER_PREFIX))
+      return bookCovers ? bookCovers.serve(request) : new Response('Not found', { status: 404 })
     if (request.url.startsWith(SOURCE_COVER_PREFIX))
       return sourceCovers ? sourceCovers.serve(request) : new Response('Not found', { status: 404 })
     if (request.url.startsWith(SPEECH_MEDIA_PREFIX))
@@ -368,13 +382,23 @@ async function start() {
         window.webContents.send(CHANNELS.sourceChanged)
     },
   })
-  registerPluginIpc(window, rendererUrl, plugins, () => [
-    ...SOURCE_METADATA.map((source) => ({
-      ...source,
-      maxQueryLength: sourceQueryLimit(source.id),
-    })),
-    ...plugins!.audioSources(),
-  ])
+  pluginMaintenance = new PluginMaintenance({
+    directory: join(paths.data, 'plugin-maintenance'),
+    service: plugins,
+  })
+  registerPluginIpc(
+    window,
+    rendererUrl,
+    plugins,
+    () => [
+      ...SOURCE_METADATA.map((source) => ({
+        ...source,
+        maxQueryLength: sourceQueryLimit(source.id),
+      })),
+      ...plugins!.audioSources(),
+    ],
+    pluginMaintenance,
+  )
   const sourceSession = new Ting13Session()
   sources = new AudioSourceRegistry(
     [
@@ -451,6 +475,20 @@ async function start() {
     store,
     notify: (target) => transcription!.changed(target),
   })
+  sourceCovers = new SourceCoverService({
+    trustedRendererOrigin: developmentUrl ? new URL(developmentUrl).origin : undefined,
+  })
+  bookCovers = new PersistentBookCovers({
+    directory: join(paths.data, 'book-covers'),
+    sourceCovers,
+    thumbnail: (bytes) => {
+      const original = nativeImage.createFromBuffer(bytes)
+      if (original.isEmpty()) throw new Error('Invalid cover image')
+      return (
+        original.getSize().width > 320 ? original.resize({ width: 320, quality: 'good' }) : original
+      ).toJPEG(85)
+    },
+  })
   const coverPresenter = () => new SourceCoverPresenter(sourceCovers!, plugins!, textSources!)
   const presentSource = {
     audio: (book: Parameters<SourceCoverPresenter['audio']>[0]) =>
@@ -478,6 +516,7 @@ async function start() {
     subtitleImports,
     componentSetup,
     presentSource,
+    bookCovers,
   )
   registerListeningReviewIpc(window, rendererUrl, listeningReviews, logError)
   registerEbookSpeechIpc(window, rendererUrl, ebookSpeech)
@@ -491,6 +530,9 @@ async function start() {
       download: (request, signal) => plugins!.textDownload(request, signal),
     },
     importBook: (bytes, filename, signal) => textImporter!.import(bytes, filename, signal),
+    importChapters: (input, signal) => textImporter!.importChapters(input, signal),
+    getSourceReading: (sourceKey) => store!.reading.sourceState(sourceKey),
+    getSourceReadingByBook: (id) => store!.reading.sourceByBook(id),
     getReadingBook: (id) => {
       try {
         return store!.reading.get(id)
@@ -511,10 +553,31 @@ async function start() {
       decrypt: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
     },
   })
-  sourceCovers = new SourceCoverService({
-    trustedRendererOrigin: developmentUrl ? new URL(developmentUrl).origin : undefined,
+  registerTextSourceIpc(window, rendererUrl, textSources, coverPresenter(), bookCovers)
+  const generatedStorage = new GeneratedStorageService({
+    directory: join(paths.cache, 'generated-artifacts'),
   })
-  registerTextSourceIpc(window, rendererUrl, textSources, coverPresenter())
+  const backup = new BackupService({
+    root: paths.root,
+    version: app.getVersion(),
+    maxSchemaVersion: 17,
+    generated: generatedStorage,
+    isBusy: () =>
+      !!store?.activeJobs().length ||
+      !!transcription?.maintaining ||
+      !!textSources?.busy ||
+      !!offlinePreparation?.busy,
+    publicPlugins: () =>
+      plugins!.list().plugins.map(({ id, name, version }) => ({ id, name, version })),
+    withSnapshot: (copy) => bookCovers!.withSnapshot(copy),
+  })
+  registerBackupStorageIpc(window, rendererUrl, backup, generatedStorage, {
+    onRestorePrepared: () => {
+      app.relaunch({ args: process.argv.slice(1) })
+      app.quit()
+    },
+    onError: logError,
+  })
   acoustic = new OriginalAcousticService(
     store,
     component,
@@ -611,6 +674,12 @@ async function start() {
   })
   window.once('ready-to-show', () => window.show())
   await window.loadURL(rendererUrl)
+  if (restore.notice)
+    void dialog.showMessageBox(window, {
+      type: 'warning',
+      title: '备份恢复',
+      message: restore.notice,
+    })
   offlinePreparation.start()
 }
 

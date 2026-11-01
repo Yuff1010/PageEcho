@@ -145,7 +145,12 @@ export function PlayerBar({
       <div className="player-heading">
         <div className="player-cover">
           {playback.episode ? (
-            <BookCover title={playback.bookTitle} id={playback.episode.bookId} small />
+            <BookCover
+              title={playback.bookTitle}
+              id={playback.episode.bookId}
+              coverUrl={playback.coverUrl}
+              small
+            />
           ) : (
             <Icon name="headphones" />
           )}

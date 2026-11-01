@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { isBookCoverUrl } from '../../shared/source-covers'
 
 export type IconName =
   | 'library'
@@ -221,33 +222,52 @@ export function Icon({ name, className = '' }: { name: IconName; className?: str
 export function BookCover({
   title,
   id,
+  coverUrl,
   small = false,
 }: {
   title: string
   id: string
+  coverUrl?: string | null
   small?: boolean
 }) {
   const tone = [...id].reduce((sum, character) => sum + character.charCodeAt(0), 0) % 5
+  const [failed, setFailed] = useState<string | null>(null)
+  const image = isBookCoverUrl(coverUrl) && failed !== coverUrl ? coverUrl : null
   return (
     <div
       className={`book-cover cover-tone-${tone}${small ? ' cover-small' : ''}`}
       aria-hidden="true"
+      data-cover-state={image ? 'original' : 'fallback'}
     >
-      <span className="cover-label">READ & LISTEN</span>
-      <span className="cover-book-title">
-        {title.replace(/\.(mp3|m4a|m4b|wav|ogg|flac|txt|epub)$/i, '')}
-      </span>
-      <svg viewBox="0 0 200 130" fill="none">
-        <circle cx="145" cy="37" r="24" fill="currentColor" opacity=".4" />
-        <path
-          d="M-20 120 62 35l57 68 37-39 65 66M-20 133 60 75l60 58"
-          stroke="currentColor"
-          strokeWidth="1"
-          opacity=".7"
+      {image ? (
+        <img
+          className="cover-original"
+          src={image}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(image)}
         />
-        <path d="M10 125h180M30 119h140" stroke="currentColor" opacity=".4" />
-      </svg>
-      <span className="cover-edition">声音里的另一种生活</span>
+      ) : (
+        <>
+          <span className="cover-label">READ & LISTEN</span>
+          <span className="cover-book-title">
+            {title.replace(/\.(mp3|m4a|m4b|wav|ogg|flac|txt|epub)$/i, '')}
+          </span>
+          <svg viewBox="0 0 200 130" fill="none">
+            <circle cx="145" cy="37" r="24" fill="currentColor" opacity=".4" />
+            <path
+              d="M-20 120 62 35l57 68 37-39 65 66M-20 133 60 75l60 58"
+              stroke="currentColor"
+              strokeWidth="1"
+              opacity=".7"
+            />
+            <path d="M10 125h180M30 119h140" stroke="currentColor" opacity=".4" />
+          </svg>
+          <span className="cover-edition">声音里的另一种生活</span>
+        </>
+      )}
     </div>
   )
 }

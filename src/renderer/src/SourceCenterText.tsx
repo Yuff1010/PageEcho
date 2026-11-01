@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type SetStateAction } from 'react'
 import type { Result } from '../../shared/contracts'
 import type {
   RemoteLibraryConfig,
@@ -12,6 +12,8 @@ import type {
 import { HelpTip } from './HelpTip'
 import { SourceCenterAction, SourceCenterEmpty } from './SourceCenterUI'
 import { SourceBookImage, SourceBookResult } from './SourceBookResult'
+import { recentSourceView, useSourceSession } from './source-session'
+import { ALL_SOURCES, aggregateSearch, type AggregateProgress } from './aggregate-search'
 
 const libraryKinds = [
   { id: 'opds', name: 'OPDS' },
@@ -25,6 +27,25 @@ const emptyConnection = (): RemoteLibraryConfig => ({
   enabled: true,
 })
 const identity = (book: TextBookSummary) => `${book.sourceId}:${book.workId}`
+interface TextView {
+  query: string
+  resultsFor: string
+  page: TextBrowsePage | null
+  currentCursor: string | undefined
+  detail: TextBookDetail | null
+  selectedChapters: string[]
+  acquisitionId: string
+  aggregate?: AggregateProgress<TextBookSummary>
+}
+const emptyTextView = (): TextView => ({
+  query: '',
+  resultsFor: '',
+  page: null,
+  currentCursor: undefined,
+  detail: null,
+  selectedChapters: [],
+  acquisitionId: '',
+})
 
 export function SourceCenterText({
   personal,
@@ -34,14 +55,9 @@ export function SourceCenterText({
   onReadBook?: (id: string) => void
 }) {
   const [sources, setSources] = useState<TextSourceState | null>(null)
-  const [selectedId, setSelectedId] = useState('')
-  const [query, setQuery] = useState('')
-  const [resultsFor, setResultsFor] = useState('')
-  const [page, setPage] = useState<TextBrowsePage | null>(null)
-  const [currentCursor, setCurrentCursor] = useState<string | undefined>(undefined)
-  const [detail, setDetail] = useState<TextBookDetail | null>(null)
-  const [selectedChapters, setSelectedChapters] = useState<string[]>([])
-  const [acquisitionId, setAcquisitionId] = useState('')
+  const scope = personal ? 'sources.personal' : 'sources.text'
+  const [selectedId, setSelectedId] = useSourceSession(scope + '.selected', '')
+  const [views, setViews] = useSourceSession<Record<string, TextView>>(scope + '.views', {})
   const [busy, setBusy] = useState(false)
   const [cancelable, setCancelable] = useState(false)
   const [status, setStatus] = useState('')
@@ -54,6 +70,7 @@ export function SourceCenterText({
   const [manifestPreview, setManifestPreview] = useState<RemoteManifestPreview | null>(null)
   const active = useRef<string | null>(null)
   const retry = useRef<(() => void) | null>(null)
+  const aggregated = useRef<AbortController | null>(null)
   const choices = personal
     ? (sources?.libraries.map((library) => ({
         id: library.id,
@@ -63,11 +80,38 @@ export function SourceCenterText({
     : (sources?.sources
         .filter((source) => source.kind === 'wikisource' || source.kind === 'plugin')
         .map((source) => ({ id: source.id, name: source.name, enabled: true })) ?? [])
-  const sourceId = choices.some((source) => source.id === selectedId)
-    ? selectedId
-    : (choices[0]?.id ?? '')
+  const sourceId =
+    !personal && selectedId === ALL_SOURCES
+      ? ALL_SOURCES
+      : choices.some((source) => source.id === selectedId)
+        ? selectedId
+        : (choices[0]?.id ?? '')
   const library = sources?.libraries.find((item) => item.id === sourceId)
-  const enabled = choices.find((source) => source.id === sourceId)?.enabled ?? false
+  const enabled =
+    sourceId === ALL_SOURCES
+      ? choices.some((source) => source.enabled)
+      : (choices.find((source) => source.id === sourceId)?.enabled ?? false)
+  const view = views[sourceId] ?? emptyTextView()
+  const { query, resultsFor, page, currentCursor, detail, selectedChapters, acquisitionId } = view
+  function field<K extends keyof TextView>(key: K) {
+    return (action: SetStateAction<TextView[K]>) =>
+      setViews((current) => {
+        const previous = current[sourceId] ?? emptyTextView()
+        const value =
+          typeof action === 'function'
+            ? (action as (value: TextView[K]) => TextView[K])(previous[key])
+            : action
+        return recentSourceView(current, sourceId, { ...previous, [key]: value })
+      })
+  }
+  const setQuery = field('query'),
+    setResultsFor = field('resultsFor'),
+    setPage = field('page'),
+    setCurrentCursor = field('currentCursor'),
+    setDetail = field('detail'),
+    setSelectedChapters = field('selectedChapters'),
+    setAcquisitionId = field('acquisitionId')
+  const setAggregate = field('aggregate')
 
   useEffect(() => {
     let live = true
@@ -83,6 +127,8 @@ export function SourceCenterText({
       })
     return () => {
       live = false
+      aggregated.current?.abort()
+      aggregated.current = null
       const requestId = active.current
       active.current = null
       if (requestId) void window.desktop.textCancel({ requestId }).catch(() => undefined)
@@ -122,6 +168,8 @@ export function SourceCenterText({
     }
   }
   function cancel(showMessage = true) {
+    aggregated.current?.abort()
+    aggregated.current = null
     const requestId = active.current
     active.current = null
     setBusy(false)
@@ -144,11 +192,6 @@ export function SourceCenterText({
   function switchSource(id: string) {
     cancel(false)
     setSelectedId(id)
-    setQuery('')
-    setResultsFor('')
-    setPage(null)
-    setCurrentCursor(undefined)
-    setDetail(null)
     setError('')
     setEditing(null)
     setDeleting(false)
@@ -157,6 +200,46 @@ export function SourceCenterText({
   }
   function browse(cursor?: string, append = false) {
     if (!sourceId || !enabled) return
+    if (sourceId === ALL_SOURCES) {
+      const text = query.trim()
+      if (!text) return
+      cancel(false)
+      const controller = new AbortController()
+      aggregated.current = controller
+      setBusy(true)
+      setCancelable(true)
+      setResultsFor(text)
+      setDetail(null)
+      void aggregateSearch({
+        sources: choices.filter((source) => source.enabled),
+        signal: controller.signal,
+        key: identity,
+        request: async (id, requestId) => {
+          const result = await window.desktop.textBrowse({ requestId, sourceId: id, query: text })
+          return result.ok ? { ok: true as const, value: result.value.books } : result
+        },
+        cancel: (requestId) => window.desktop.textCancel({ requestId }),
+        onProgress: (progress) => {
+          if (aggregated.current !== controller) return
+          setPage({
+            sourceId: ALL_SOURCES,
+            books: progress.items,
+            nextCursor: null,
+            navigation: [],
+            searchable: true,
+          })
+          setAggregate(progress)
+          setStatus(`已检索 ${progress.completed} / ${progress.total} 个来源`)
+        },
+      }).finally(() => {
+        if (aggregated.current === controller) {
+          aggregated.current = null
+          setBusy(false)
+          setStatus('')
+        }
+      })
+      return
+    }
     const navigating = !!cursor && !append
     const text = append ? resultsFor : navigating ? '' : query.trim()
     const targetCursor = cursor ?? (library?.kind !== 'opds' ? currentCursor : undefined)
@@ -193,6 +276,7 @@ export function SourceCenterText({
     )
   }
   function open(book: TextBookSummary) {
+    if (aggregated.current) cancel(false)
     retry.current = () => open(book)
     void run(
       `正在读取《${book.title}》…`,
@@ -216,12 +300,79 @@ export function SourceCenterText({
           sourceId: detail.sourceId,
           workId: detail.workId,
           chapterIds: selectedChapters.length ? selectedChapters : undefined,
+          chapterCursor: detail.chapterCursor,
           acquisitionId: acquisitionId || undefined,
         }),
       (value) => {
-        setStatus(value.reused ? '已打开书架中的同一来源版本。' : '已保存到电子书架。')
+        setStatus(
+          value.appended
+            ? `已向同一本书添加 ${value.addedChapterIds?.length ?? 0} 章，阅读位置已保留。`
+            : value.reused
+              ? '已打开书架中的同一本书。'
+              : '已保存到电子书架。',
+        )
+        setSelectedChapters([])
+        setDetail((current) =>
+          current
+            ? {
+                ...current,
+                readingBookId: value.book.id,
+                lastDownloadedOrder: Math.max(
+                  current.lastDownloadedOrder ?? -1,
+                  ...current.chapters
+                    .filter((chapter) =>
+                      (value.addedChapterIds ?? selectedChapters).includes(chapter.id),
+                    )
+                    .map((chapter) => chapter.order ?? -1),
+                ),
+                downloadedChapterIds: [
+                  ...new Set([
+                    ...(current.downloadedChapterIds ?? []),
+                    ...(value.addedChapterIds ?? selectedChapters),
+                  ]),
+                ],
+              }
+            : current,
+        )
         onReadBook?.(value.book.id)
       },
+    )
+  }
+  function directoryPage(cursor?: string) {
+    if (!detail) return
+    retry.current = () => directoryPage(cursor)
+    void run(
+      '正在读取章节目录…',
+      (requestId) =>
+        window.desktop.textDetail({
+          requestId,
+          sourceId: detail.sourceId,
+          workId: detail.workId,
+          cursor,
+        }),
+      (value) => {
+        setDetail(value)
+        setSelectedChapters([])
+      },
+    )
+  }
+  function selectNextChapters() {
+    if (!detail) return
+    const downloaded = new Set(detail.downloadedChapterIds ?? [])
+    const last = Math.max(
+      detail.lastDownloadedOrder ?? -1,
+      ...detail.chapters
+        .filter((chapter) => downloaded.has(chapter.id))
+        .map((chapter) => chapter.order ?? 0),
+    )
+    setSelectedChapters(
+      detail.chapters
+        .filter(
+          (chapter) =>
+            !downloaded.has(chapter.id) && (chapter.order === undefined || chapter.order > last),
+        )
+        .slice(0, 20)
+        .map((chapter) => chapter.id),
     )
   }
   function saveConnection(config: RemoteLibraryConfig) {
@@ -349,6 +500,7 @@ export function SourceCenterText({
           disabled={!choices.length}
           onChange={(event) => switchSource(event.target.value)}
         >
+          {!personal && choices.length > 1 && <option value={ALL_SOURCES}>全部来源</option>}
           {!choices.length && (
             <option value="">{personal ? '尚未连接书库' : '正在读取来源'}</option>
           )}
@@ -407,6 +559,28 @@ export function SourceCenterText({
           />
         )}
       </form>
+      {sourceId === ALL_SOURCES && view.aggregate && (
+        <div className="source-center-aggregate">
+          <span>
+            {view.aggregate.items.length} 本 · 已检索 {view.aggregate.completed} /{' '}
+            {view.aggregate.total} 个来源
+          </span>
+          <HelpTip label="全部来源搜索">
+            读取各已启用正文来源的首批结果，并发最多三个，最多显示300本；选择具体来源可继续翻页。
+          </HelpTip>
+          {view.aggregate.truncated && <span>结果较多，请缩小关键词。</span>}
+          {!!view.aggregate.errors.length && (
+            <details>
+              <summary>{view.aggregate.errors.length} 个来源未完成</summary>
+              {view.aggregate.errors.map((error, i) => (
+                <p key={i}>
+                  {error.source}：{error.message}
+                </p>
+              ))}
+            </details>
+          )}
+        </div>
+      )}
       {personal && managementOpen && (
         <div
           className="source-center-toolbar source-center-management"
@@ -618,9 +792,30 @@ export function SourceCenterText({
               <div className="source-center-list-heading">
                 <h3>选择正文</h3>
                 <span>{selectedChapters.length} / 20</span>
+                <SourceCenterAction
+                  label="选择后续20章"
+                  icon="check"
+                  disabled={busy}
+                  onClick={selectNextChapters}
+                />
+                {!!selectedChapters.length && (
+                  <SourceCenterAction
+                    label="清除章节选择"
+                    icon="close"
+                    disabled={busy}
+                    onClick={() => setSelectedChapters([])}
+                  />
+                )}
+                {!!detail.readingBookId && (
+                  <SourceCenterAction
+                    label="继续阅读已下载章节"
+                    icon="book"
+                    onClick={() => onReadBook?.(detail.readingBookId!)}
+                  />
+                )}
                 <HelpTip label="正文选择">
                   仅下载勾选的正文，每次最多 20
-                  项。此处是来源当前页面提供的目录，可能不包含整本书；导入后可离线阅读。
+                  项。同一来源作品会追加到书架中的同一本书，已下载章节不会重复下载，阅读位置保持；后续目录可按页读取。
                 </HelpTip>
               </div>
               <ul className="source-center-chapters">
@@ -632,6 +827,7 @@ export function SourceCenterText({
                         checked={selectedChapters.includes(chapter.id)}
                         disabled={
                           busy ||
+                          !!detail.downloadedChapterIds?.includes(chapter.id) ||
                           (!selectedChapters.includes(chapter.id) && selectedChapters.length >= 20)
                         }
                         onChange={(event) =>
@@ -643,10 +839,37 @@ export function SourceCenterText({
                         }
                       />
                       {chapter.title}
+                      {detail.downloadedChapterIds?.includes(chapter.id) ? (
+                        <span className="source-center-downloaded"> · 已下载</span>
+                      ) : null}
                     </label>
                   </li>
                 ))}
               </ul>
+              {(detail.nextCursor || detail.chapterCursor) && (
+                <div className="source-center-toolbar" aria-label="章节目录分页">
+                  {detail.chapterCursor && (
+                    <SourceCenterAction
+                      label="返回首批目录"
+                      className="source-center-back"
+                      icon="arrow"
+                      disabled={busy}
+                      onClick={() => directoryPage()}
+                    />
+                  )}
+                  {detail.nextCursor && (
+                    <SourceCenterAction
+                      label="读取后续目录"
+                      icon="arrow"
+                      disabled={busy}
+                      onClick={() => directoryPage(detail.nextCursor!)}
+                    />
+                  )}
+                  <HelpTip label="目录分页">
+                    这里只是有界目录页，不代表整本书；每次最多保存20章，后续章节可在同一本书中持续添加。
+                  </HelpTip>
+                </div>
+              )}
             </>
           )}
           {!!detail.acquisitions.length && (
@@ -704,10 +927,17 @@ export function SourceCenterText({
                   id={identity(book)}
                   title={book.title}
                   coverUrl={book.coverUrl}
-                  credit={book.author}
+                  credit={[
+                    book.author,
+                    sourceId === ALL_SOURCES
+                      ? choices.find((source) => source.id === book.sourceId)?.name
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                   description={book.description}
                   label={`查看 ${book.title} 的电子书详情`}
-                  disabled={busy}
+                  disabled={busy && sourceId !== ALL_SOURCES}
                   onOpen={() => open(book)}
                 />
               ))}

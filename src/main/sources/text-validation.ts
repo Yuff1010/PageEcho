@@ -55,6 +55,15 @@ export function validateTextSourceArgs(channel: string, args: unknown[]): void {
     if (Object.keys(request).length !== 1) invalid()
     return
   }
+  if (channel === channels.continue) {
+    if (
+      Object.keys(request).some((key) => !['requestId', 'readingBookId'].includes(key)) ||
+      !string(request.readingBookId, 100) ||
+      !/^[a-f0-9-]{36}$/.test(String(request.readingBookId))
+    )
+      invalid()
+    return
+  }
   if (
     !isPluginSourceId(request.sourceId) &&
     (!string(request.sourceId, 100) || !/^[\w-]+$/.test(String(request.sourceId)))
@@ -75,8 +84,12 @@ export function validateTextSourceArgs(channel: string, args: unknown[]): void {
   } else if ([channels.detail, channels.import].includes(channel as typeof channels.detail)) {
     allowed = [...allowed, 'workId']
     if (!string(request.workId, 12_000)) invalid()
+    if (channel === channels.detail) {
+      allowed = [...allowed, 'cursor']
+      if (request.cursor !== undefined && !string(request.cursor, 12_000)) invalid()
+    }
     if (channel === channels.import) {
-      allowed = [...allowed, 'chapterIds', 'acquisitionId']
+      allowed = [...allowed, 'chapterIds', 'acquisitionId', 'chapterCursor']
       if (
         request.chapterIds !== undefined &&
         (!Array.isArray(request.chapterIds) ||
@@ -86,6 +99,7 @@ export function validateTextSourceArgs(channel: string, args: unknown[]): void {
       )
         invalid()
       if (request.acquisitionId !== undefined && !string(request.acquisitionId, 12_000)) invalid()
+      if (request.chapterCursor !== undefined && !string(request.chapterCursor, 12_000)) invalid()
     }
   } else if (channel !== channels.check) invalid()
   if (Object.keys(request).some((key) => !allowed.includes(key))) invalid()

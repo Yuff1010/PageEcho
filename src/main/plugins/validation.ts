@@ -1,4 +1,5 @@
 import { PLUGIN_CHANNELS } from '../../shared/plugins'
+import { cleanPluginUpdateUrl } from './maintenance'
 import {
   invalidPlugin,
   pluginId,
@@ -34,9 +35,21 @@ export function validatePluginArgs(channel: string, args: unknown[]): void {
       pluginUrl(value.url)
       return
     case PLUGIN_CHANNELS.install:
-      exact(['previewId'])
+      exact(['previewId', 'updateUrl'])
       if (!/^[a-f0-9-]{36}$/.test(String(value.previewId)))
         return invalidPlugin('插件预览 ID 无效。')
+      if (value.updateUrl !== undefined && value.updateUrl !== null)
+        cleanPluginUpdateUrl(value.updateUrl)
+      return
+    case PLUGIN_CHANNELS.setUpdateUrl:
+      exact(['id', 'url'])
+      pluginId(value.id)
+      if (value.url !== null) cleanPluginUpdateUrl(value.url)
+      return
+    case PLUGIN_CHANNELS.checkUpdate:
+      exact(['requestId', 'id'])
+      requestId()
+      pluginId(value.id)
       return
     case PLUGIN_CHANNELS.cancel:
       exact(['requestId'])

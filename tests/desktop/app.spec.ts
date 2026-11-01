@@ -218,7 +218,19 @@ test('sandbox, file selection, cancellation, errors and restart persistence', as
         'updateOfflinePreparation',
         'updateSubtitleImportPreview',
         'useDetectedTranscriptionComponent',
-      ],
+        'acknowledgeRestoredPreferences',
+        'chooseLibraryBackup',
+        'clearGeneratedStorage',
+        'exportLibraryBackup',
+        'getGeneratedStorage',
+        'getRestoredPreferences',
+        'restoreLibraryBackup',
+        'saveGeneratedStoragePolicy',
+        'previewGeneratedStorageClear',
+        'pluginSetUpdateUrl',
+        'pluginCheckUpdate',
+        'textContinue',
+      ].sort(),
     })
     const invalid = await page.evaluate(() => window.desktop.selectAudio({ kind: 'any' } as never))
     expect(invalid.ok).toBe(false)
