@@ -1,6 +1,6 @@
 .source-center {
-  --source-result-cover-width: 78px;
-  --source-detail-cover-width: 58px;
+  --source-result-cover-width: 96px;
+  --source-detail-cover-width: 120px;
   --source-result-cover-ratio: 0.7;
   --source-result-cover-radius: 5px;
   --source-result-copy-gap: 16px;
@@ -82,7 +82,8 @@
 }
 @media (max-width: 800px) {
   .source-center {
-    --source-result-cover-width: 70px;
+    --source-result-cover-width: 84px;
+    --source-detail-cover-width: 96px;
     --source-result-copy-gap: 14px;
   }
 }

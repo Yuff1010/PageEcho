@@ -1,6 +1,8 @@
 # 自包含 Windows 目录版
 
-当前目录版为 `0.35.0-dev.1`，新增来源状态保留、原封面离线保存、分章续读、多源搜索、插件健康与更新、备份恢复及未来生成物保留策略。目录及同名 ZIP：`release/ReadAndListenBook-0.35.0-dev.1-2026-11-01T15-50-07.040Z-win-x64`；ZIP SHA-256 为 `f6a0879b2d22f64141adf41ffe93406fd9446e8ab5d2f7b58bc6d5326e8ecefe`。本版验证和限制见 [交付记录](releases/0.35.0-dev.1.md)，备份与策略见 [使用说明](BACKUP_STORAGE.md)。
+当前目录版为 `0.35.0-dev.2`，修复听十三搜索原封面遗漏，并统一放大两类来源的搜索／详情封面。目录及同名 ZIP 为 `release/ReadAndListenBook-0.35.0-dev.2-2026-11-01T22-26-22.139Z-win-x64`，ZIP SHA-256 为 `ea9e16fc12a6b57c79f3638b8f7a2180b7369a507d2e3cf336627f1d435afb69`；验证与限制见 [交付记录](releases/0.35.0-dev.2.md)。
+
+上一版 `0.35.0-dev.1` 新增来源状态保留、原封面离线保存、分章续读、多源搜索、插件健康与更新、备份恢复及未来生成物保留策略。目录及同名 ZIP：`release/ReadAndListenBook-0.35.0-dev.1-2026-11-01T15-50-07.040Z-win-x64`；ZIP SHA-256 为 `f6a0879b2d22f64141adf41ffe93406fd9446e8ab5d2f7b58bc6d5326e8ecefe`。当时验证和限制见 [交付记录](releases/0.35.0-dev.1.md)，备份与策略见 [使用说明](BACKUP_STORAGE.md)。
 
 退出旧程序后，双击目录中的 `continue-preview.cmd` 沿用已有预览数据；`start.cmd` 使用独立数据。保留整个目录，不能只复制 `runtime/electron.exe`。根 `out/`、既有组件和用户数据不由构建覆盖。
 

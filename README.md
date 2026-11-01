@@ -2,7 +2,7 @@
 
 面向 Windows 的听书、电子书阅读与音文同步伴读软件。
 
-当前目录版为 **0.35.0-dev.1**：支持本地音频、TXT/EPUB、自动字幕、原文关联、来源中心和 SDK v1 网站插件；本版补齐来源状态保留、多源搜索、原封面离线保存、来源章节续读、插件维护和备份恢复。当前范围与验证见 [版本记录](docs/releases/0.35.0-dev.1.md)。
+当前目录版为 **0.35.0-dev.2**：修复听十三搜索页原封面遗漏，并放大音频／正文来源共用封面。保留来源状态、多源搜索、原封面离线保存、章节续读、插件维护和备份恢复。当前范围与验证见 [版本记录](docs/releases/0.35.0-dev.2.md)。
 
 ## 使用
 
@@ -22,7 +22,7 @@ Windows x64，Node.js 24.19+（24.x），依赖由 `package-lock.json` 固定。
 npm ci
 npm run dev
 npm run check
-npm run build:preview -- --version 0.35.0-dev.1
+npm run build:preview -- --version 0.35.0-dev.2
 npm run workspace:inventory
 ```
 

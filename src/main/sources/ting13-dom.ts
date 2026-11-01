@@ -41,6 +41,43 @@ export function readTing13Document(): Ting13Document {
   })
   const names = (root: ParentNode, selector: string) =>
     Array.from(root.querySelectorAll(selector), (element) => text(element, 200)).slice(0, 100)
+  const imageUrl = (image: Element | null) => {
+    for (const attribute of ['data-original', 'data-src', 'data-lazy-src', 'src']) {
+      const value = image?.getAttribute(attribute)?.trim()
+      if (!value || value.length > 4000) continue
+      try {
+        const url = new URL(value, location.href)
+        if (url.protocol === 'https:' && !url.username && !url.password && !url.hash) return value
+      } catch {
+        /* Try another image attribute; the adapter still validates source origins. */
+      }
+    }
+    return null
+  }
+  const searchCover = (card: Element, bookUrl: string) => {
+    const inline = imageUrl(card.querySelector('img'))
+    if (inline) return inline
+    // The site's result image is a sibling of the metadata <dl>, inside the
+    // same <li>. Match the book link rather than borrowing an unrelated image.
+    const row = card.closest('li')
+    if (!row) return null
+    let target: string
+    try {
+      target = new URL(bookUrl, location.href).href
+    } catch {
+      return null
+    }
+    for (const anchor of Array.from(row.querySelectorAll('a[href]')).slice(0, 30)) {
+      try {
+        if (new URL(anchor.getAttribute('href') ?? '', location.href).href !== target) continue
+        const image = imageUrl(anchor.querySelector('img'))
+        if (image) return image
+      } catch {
+        /* A malformed or unrelated link does not identify this book's cover. */
+      }
+    }
+    return null
+  }
   const info = document.querySelector('.book-info')
   return {
     url: location.href,
@@ -60,10 +97,10 @@ export function readTing13Document(): Ting13Document {
         authors: names(card, '.book-author a'),
         narrators: names(card, '.book-boyin a'),
         description: text(card.querySelector('.list-book-des')),
-        coverUrl:
-          card.querySelector('img')?.getAttribute('data-original') ||
-          card.querySelector('img')?.getAttribute('src') ||
-          null,
+        coverUrl: searchCover(
+          card,
+          card.querySelector('.list-book-dt > a')?.getAttribute('href') ?? '',
+        ),
       })),
     book: {
       title: text(info?.querySelector('.book-title') ?? null, 300).replace(/有声小说$/, ''),
@@ -76,12 +113,8 @@ export function readTing13Document(): Ting13Document {
           ?.slice(0, 2000) ?? '',
       directory: document.querySelector('a.dirurl')?.getAttribute('href') ?? '',
       coverUrl:
-        document
-          .querySelector('.book-img img, .book-cover img, .book-pic img, a.thumb img')
-          ?.getAttribute('data-original') ||
-        document
-          .querySelector('.book-img img, .book-cover img, .book-pic img, a.thumb img')
-          ?.getAttribute('src') ||
+        imageUrl(document.querySelector('.book-img img, .book-cover img, .book-pic img')) ||
+        imageUrl(document.querySelector('a.thumb img')) ||
         document.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
         null,
     },

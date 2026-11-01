@@ -9,6 +9,7 @@ import {
 } from '../../src/main/sources/ting13'
 import { allowTing13Request } from '../../src/main/sources/ting13-policy'
 import type { Ting13Document } from '../../src/main/sources/ting13-dom'
+import { syntheticCredentials } from '../helpers/synthetic-auth'
 
 const origin = 'https://www.ting13.cc'
 function document(overrides: Partial<Ting13Document> = {}): Ting13Document {
@@ -49,6 +50,45 @@ const book = () =>
       directory: '/tingdirs/UBuaPrGf/cbbhATacUFueSoEd.html',
     },
   })
+
+test('search cover URLs stay source-bound and need no per-book detail requests', async () => {
+  const credentials = syntheticCredentials()
+  const coverUrls = [
+    '/covers/one.jpg',
+    '//image.itingshu.net/cover/two.gif',
+    'https://foreign.invalid/cover.jpg',
+    'javascript:alert(1)',
+    `https://${credentials.username}:${credentials.password}@image.itingshu.net/cover.jpg`,
+    'https://image.itingshu.net/cover.jpg#fragment',
+  ]
+  const { adapter, requests } = fixture([
+    document({
+      title: '“合成”相关搜索结果',
+      searchResults: coverUrls.map((coverUrl, index) => ({
+        url: `/youshengxiaoshuo/${100 + index}/`,
+        title: `合成书${index}`,
+        authors: [],
+        narrators: [],
+        description: '',
+        coverUrl,
+      })),
+    }),
+  ])
+  const result = await adapter.search('合成')
+  assert.deepEqual(
+    result.items.map((book) => book.coverUrl),
+    [
+      origin + '/covers/one.jpg',
+      'https://image.itingshu.net/cover/two.gif',
+      null,
+      null,
+      null,
+      null,
+    ],
+  )
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0]?.kind, 'search')
+})
 
 test('source search keeps metadata and uses owned query-bound pagination', async () => {
   const first = document({

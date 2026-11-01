@@ -3,6 +3,7 @@ import {
   expect,
   _electron as electron,
   type ElectronApplication,
+  type Locator,
   type Page,
 } from '@playwright/test'
 import { createServer } from 'node:http'
@@ -167,6 +168,49 @@ async function search(page: Page, kind: 'audio' | 'text') {
     .click()
 }
 
+async function resize(app: ElectronApplication, width: number) {
+  await app.evaluate(
+    ({ BrowserWindow }, nextWidth) =>
+      BrowserWindow.getAllWindows()[0]!.setContentSize(nextWidth, 720),
+    width,
+  )
+}
+
+async function expectCoverGeometry(image: Locator, width: number) {
+  await expect
+    .poll(() => image.evaluate((element) => element.getBoundingClientRect().width))
+    .toBeCloseTo(width, 1)
+  const geometry = await image.evaluate((element) => {
+    const image = element.getBoundingClientRect(),
+      frame = element.parentElement!.getBoundingClientRect()
+    return {
+      image: { x: image.x, y: image.y, width: image.width, height: image.height },
+      frame: { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
+      fit: getComputedStyle(element).objectFit,
+    }
+  })
+  expect(geometry.image.height).toBeCloseTo(width / 0.7, 0)
+  expect(geometry.frame).toEqual(geometry.image)
+  expect(geometry.fit).toBe('cover')
+  await expect(image).toBeInViewport()
+}
+
+async function expectSourceContentFits(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(
+    await page
+      .locator('.source-book-result, .source-center-detail-heading')
+      .evaluateAll((items) => items.every((element) => element.scrollWidth <= element.clientWidth)),
+  ).toBe(true)
+  expect(
+    await page
+      .locator('.source-book-result-copy')
+      .evaluateAll((items) =>
+        items.every((element) => element.getBoundingClientRect().width >= 100),
+      ),
+  ).toBe(true)
+}
+
 test('original covers load through registered local URLs, fail to a shared fallback and never interrupt audio while browsing text', async ({}, info) => {
   test.setTimeout(90_000)
   const source = await fixture()
@@ -215,12 +259,31 @@ test('original covers load through registered local URLs, fail to a shared fallb
       .filter({ has: page.getByRole('heading', { name: '声音越权封面', exact: true }) })
     await expect(denied.locator('.source-book-image[data-cover-state="fallback"]')).toBeVisible()
     expect(source.foreignRequests).toEqual([])
+    for (const width of [1360, 720]) {
+      await resize(app, width)
+      await expectCoverGeometry(image, width > 800 ? 96 : 84)
+      await expectSourceContentFits(page)
+      await page.mouse.move(5, 5)
+      await page.screenshot({
+        path: info.outputPath(`source-audio-results-${width}.png`),
+        animations: 'disabled',
+      })
+    }
     await original.getByRole('button', { name: '查看 声音原封面 的详情', exact: true }).click()
-    await expect(
-      page
-        .locator('.source-center-detail-heading')
-        .getByRole('img', { name: '声音原封面的封面', exact: true }),
-    ).toBeVisible()
+    const audioDetailImage = page
+      .locator('.source-center-detail-heading')
+      .getByRole('img', { name: '声音原封面的封面', exact: true })
+    await expect(audioDetailImage).toBeVisible()
+    for (const width of [1360, 720]) {
+      await resize(app, width)
+      await expectCoverGeometry(audioDetailImage, width > 800 ? 120 : 96)
+      await expectSourceContentFits(page)
+      await page.mouse.move(5, 5)
+      await page.screenshot({
+        path: info.outputPath(`source-audio-detail-${width}.png`),
+        animations: 'disabled',
+      })
+    }
     await page.getByRole('button', { name: '加入书架', exact: true }).click()
     // Native click dispatch is not completion of the asynchronous artwork save.
     await expect(page.getByRole('button', { name: '更新书架目录', exact: true })).toBeEnabled()
@@ -263,19 +326,13 @@ test('original covers load through registered local URLs, fail to a shared fallb
       .toBe(true)
     for (const width of [1360, 720])
       for (const theme of ['light', 'dark']) {
-        await app.evaluate(
-          ({ BrowserWindow }, nextWidth) =>
-            BrowserWindow.getAllWindows()[0]!.setContentSize(nextWidth, 720),
-          width,
-        )
+        await resize(app, width)
         await page.evaluate(
           (nextTheme) => document.documentElement.setAttribute('data-ui-theme', nextTheme),
           theme,
         )
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-          true,
-        )
-        await expect(textImage).toBeInViewport()
+        await expectCoverGeometry(textImage, width > 800 ? 96 : 84)
+        await expectSourceContentFits(page)
         await page.mouse.move(5, 5)
         await page.screenshot({
           path: info.outputPath(`source-covers-${width}-${theme}.png`),
@@ -296,6 +353,19 @@ test('original covers load through registered local URLs, fail to a shared fallb
     expect(source.imageRequests).toContain('/covers/text.png')
     expect(source.foreignRequests).toEqual([])
     await page.getByRole('button', { name: '查看 正文原封面 的电子书详情', exact: true }).click()
+    const textDetailImage = page
+      .locator('.source-center-detail-heading')
+      .getByRole('img', { name: '正文原封面的封面', exact: true })
+    for (const width of [1360, 720]) {
+      await resize(app, width)
+      await expectCoverGeometry(textDetailImage, width > 800 ? 120 : 96)
+      await expectSourceContentFits(page)
+      await page.mouse.move(5, 5)
+      await page.screenshot({
+        path: info.outputPath(`source-text-detail-${width}.png`),
+        animations: 'disabled',
+      })
+    }
     await page.getByRole('checkbox', { name: '合成正文第一章', exact: true }).check()
     await page.getByRole('button', { name: '导入并阅读所选正文', exact: true }).click()
     await expect(page).toHaveURL(/#\/read\//)

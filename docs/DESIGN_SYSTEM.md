@@ -144,7 +144,7 @@
 
 ## 来源与书架原封面
 
-`SourceBookResult` 和 `SourceBookImage` 负责音频／正文来源搜索及详情中的相同封面结构，局部尺寸属于 `source-book-result.css`，不改变 `ShelfBookCard`、书架标题或阅读 chrome。保留书名、作者与简介，封面按钮直接打开书籍；可访问名称和提示共用原动作，不另加重复箭头。结果封面为 78×111px，详情为 58×83px，窄窗口结果宽 70px；图片使用 `object-fit: cover`。
+`SourceBookResult` 和 `SourceBookImage` 负责音频／正文来源搜索及详情中的相同封面结构，局部尺寸属于 `source-book-result.css` 的 `--source-result-cover-width`、`--source-detail-cover-width` 和比例参数，不改变 `ShelfBookCard`、书架标题或阅读 chrome。保留书名、作者与简介，封面按钮直接打开书籍；可访问名称和提示共用原动作，不另加重复箭头。结果封面为 96×137px，详情为 120×171px；≤800px 窗口两者宽度为 84px／96px，高度按同一 0.7 比例计算。两类来源共用这些参数，图片使用 `object-fit: cover`。
 
 来源适配器只提供可选的原始 `coverUrl`。`SourceCoverPresenter` 在主进程 IPC 返回时注册候选地址，不修改来源缓存和数据库。`SourceCoverService` 按来源权限代理有界栅格图片，搜索渲染端仅接受 `readlisten://app/covers/` 的不透明地址；图片缺失或失败使用既有 `BookCover`。认证图片不借用个人书库密码。
 
