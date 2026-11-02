@@ -7,7 +7,7 @@ aiosignal==1.4.0
 alembic==1.20.0
 aliyun-python-sdk-core==2.16.1
 aliyun-python-sdk-kms==2.16.5
-antlr4-python3-runtime==4.9.3
+antlr4-python3-runtime==4.13.2
 asteroid-filterbanks==0.4.0
 attrs==26.1.0
 av==19.0.1
