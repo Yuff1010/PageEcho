@@ -32,6 +32,32 @@ jobs:
           node-version: 24.19.0
           architecture: x64
           package-manager-cache: false
+      - name: Use a canonical Windows temporary directory
+        run: |
+          @'
+          import assert from 'node:assert/strict'
+          import { appendFileSync, lstatSync, mkdtempSync, realpathSync, rmdirSync } from 'node:fs'
+          import { tmpdir } from 'node:os'
+          import { join, resolve } from 'node:path'
+
+          // Hosted Windows TEMP may use RUNNER~1; keep strict junction guards unchanged.
+          const original = tmpdir()
+          const directory = realpathSync(mkdtempSync(join(realpathSync(original), 'ralb-ci-')))
+          assert.match(directory, /^C:\\/i, 'Large-file unit fixtures require temporary storage on C:')
+          assert.ok(lstatSync(directory).isDirectory() && !lstatSync(directory).isSymbolicLink())
+          process.env.TEMP = directory
+          process.env.TMP = directory
+          assert.equal(resolve(tmpdir()), directory)
+          const probe = mkdtempSync(join(tmpdir(), 'canonical-probe-'))
+          try {
+            assert.equal(resolve(realpathSync(probe)), resolve(probe))
+            assert.ok(!lstatSync(probe).isSymbolicLink())
+          } finally {
+            rmdirSync(probe)
+          }
+          appendFileSync(process.env.GITHUB_ENV, `TEMP=${directory}\nTMP=${directory}\n`)
+          console.log(JSON.stringify({ originalTemporaryDirectory: original, canonicalTemporaryDirectory: directory }))
+          '@ | node --input-type=module
       - name: Install locked dependencies
         run: npm.cmd ci
       - name: Check types, lint, unit tests and formatting

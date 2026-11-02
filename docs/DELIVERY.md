@@ -1,6 +1,6 @@
 # 自包含 Windows 目录版
 
-当前目录版为 `0.35.0-dev.4`，补齐 MIT 元数据和发行许可文件，应用功能与 `0.35.0-dev.2` 相同。目录及同名 ZIP 为 `release/ReadAndListenBook-0.35.0-dev.4-2026-11-02T02-59-48.687Z-win-x64`，ZIP SHA-256 为 `06d380a2c4dc2b42ce79ce2ee120bdd3103fa4566dea9c0bfba006283d25fa05`；604 项逻辑检查、隔离构建及两种打包的静态校验通过。本轮未重新运行桌面、模型或干净设备验收，范围见 [本版记录](releases/0.35.0-dev.4.md)。程序目录与 ZIP 继续仅保留在本机，没有上传 GitHub Release 资产。
+当前目录版为 `0.35.0-dev.4`，补齐 MIT 元数据和发行许可文件，Electron 安全修复至 44.9.1，应用功能与 `0.35.0-dev.2` 相同。目录及同名 ZIP 为 `release/ReadAndListenBook-0.35.0-dev.4-2026-11-02T03-15-01.519Z-win-x64`，ZIP SHA-256 为 `8a59ec574b8e8f3612cb6ba706e19731a22a9bbd49dffa160ebefc97c599c55f`；604 项逻辑检查、隔离构建、两种打包的静态校验和本机隔离运行／重启恢复通过。本轮未重新运行整套桌面、模型或干净设备验收，范围见 [本版记录](releases/0.35.0-dev.4.md)。程序目录与 ZIP 继续仅保留在本机，没有上传 GitHub Release 资产。
 
 文档维护版本 `0.35.0-dev.3` 更新 GitHub README 和合成界面截图，不替换下述 `0.35.0-dev.2` 程序；无需重新安装。文档验证见 [维护记录](releases/0.35.0-dev.3.md)。
 
