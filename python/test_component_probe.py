@@ -67,6 +67,7 @@ class ComponentProbeTests(unittest.TestCase):
         self.addCleanup(stack.close)
         stack.enter_context(patch.object(probe, 'protect_worker_process'))
         stack.enter_context(patch.object(probe, 'configure_offline_network'))
+        self.security = stack.enter_context(patch.object(probe, 'component_security_issues', return_value=[]))
         self.configure_cache = stack.enter_context(patch.object(probe, 'configure_cache', return_value=self.cache))
         stack.enter_context(patch.object(probe, 'importlib', SimpleNamespace(import_module=self.import_module)))
         stack.enter_context(patch.object(probe.subprocess, 'run', self.tools))
@@ -90,6 +91,16 @@ class ComponentProbeTests(unittest.TestCase):
             self.assertFalse(self.capability(result, engine, 'cuda')['available'])
             self.assertIn('尚未加载权重', self.capability(result, engine)['message'])
         self.assertTrue(result['ready'])
+
+    def test_outdated_component_is_rejected_before_native_imports_or_tool_execution(self):
+        self.security.return_value = ['转写组件需要安全更新，请安装新版组件，普通播放仍可使用。']
+        result = probe.check(self.args)
+        self.assertFalse(result['ready'])
+        self.assertTrue(all(not entry['available'] for entry in result['capabilities']))
+        self.assertIn('安全更新', result['issues'][0])
+        self.import_module.assert_not_called()
+        self.tools.assert_not_called()
+        self.configure_cache.assert_not_called()
 
     def test_missing_punctuation_weights_blocks_whisper_and_paraformer(self):
         (self.root / 'models/punctuation/model.pt').unlink()

@@ -387,9 +387,15 @@ test('automatic preflight reuses only a fresh positive report and invalidates ch
   await writeFile(join(sentence, 'abbrev_types.txt'), 'New sentence resource.')
   await setup.ensureRuntime(runtime, signal)
   assert.equal(calls, 3)
-  now += 5 * 60_000 + 1
+  await writeFile(join(fixture.root, 'asr_security.py'), '# changed component patch policy')
   await setup.ensureRuntime(runtime, signal)
   assert.equal(calls, 4)
+  await writeFile(join(fixture.root, 'asr-model-integrity.json'), '{"version":1}')
+  await setup.ensureRuntime(runtime, signal)
+  assert.equal(calls, 5)
+  now += 5 * 60_000 + 1
+  await setup.ensureRuntime(runtime, signal)
+  assert.equal(calls, 6)
   setup.close()
 })
 

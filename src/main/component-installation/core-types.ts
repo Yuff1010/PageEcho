@@ -7,6 +7,8 @@ export interface TrustedBundle {
   archiveSha256: string
   manifestSha256: string
   devices?: readonly ('cpu' | 'cuda')[]
+  /** Retain historical receipts, but refuse new imports of this authenticated artifact. */
+  revokedReason?: string
 }
 export interface BundleFile {
   path: string

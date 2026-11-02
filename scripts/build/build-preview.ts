@@ -69,7 +69,10 @@ try {
     await copyFile(resolve(name), join(appRoot, name))
   await mkdir(join(appRoot, 'python'))
   for (const name of await readdir('python'))
-    if (/^asr_.*\.py$/.test(name) || name === 'evaluation-models.json')
+    if (
+      /^asr_.*\.py$/.test(name) ||
+      ['evaluation-models.json', 'asr-model-integrity.json'].includes(name)
+    )
       await copyFile(join('python', name), join(appRoot, 'python', name))
   const report = {
     previewVersion,

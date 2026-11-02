@@ -96,6 +96,31 @@ async function fixture() {
   return { root, managed, path, bundle, core: new ComponentInstallerCore(managed, [bundle]) }
 }
 
+test('revoked authentic bundle is rejected before extraction while historical receipts remain readable', async () => {
+  const f = await fixture()
+  try {
+    const plan = await f.core.inspect(f.path, choice, signal(), progress)
+    const receipt = await f.core.install(plan, signal(), progress)
+    const revoked = new ComponentInstallerCore(f.managed, [
+      { ...f.bundle, revokedReason: '旧依赖需要升级。' },
+    ])
+    await assert.rejects(revoked.inspect(f.path, choice, signal(), progress), /旧依赖需要升级/)
+    assert.deepEqual(await revoked.load(), [receipt])
+    await revoked.verify(receipt, signal(), progress)
+    assert.deepEqual(await readdir(join(f.managed, 'staging')), [])
+    assert.equal(
+      await readFile(JSON.parse(await readFile(receipt.componentPath, 'utf8')).python, 'utf8'),
+      'never executed',
+    )
+    assert.throws(
+      () => new ComponentInstallerCore(f.managed, [{ ...f.bundle, revokedReason: ' ' }]),
+      /可信组件目录/,
+    )
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
 test('managed install generates its own v2 config, survives restart and verifies all referenced content', async () => {
   const f = await fixture()
   try {

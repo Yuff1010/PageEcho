@@ -1,6 +1,6 @@
 """Developer-only offline CPU component builder; never installs into an environment.
 
-The CLI accepts only the pinned 0.7.0 base and official cp312 Windows CPU wheels.
+The CLI accepts only the patched 0.8.0-sec.1 base and official cp312 Windows CPU wheels.
 It copies all retained distributions and complete replacement wheels, including
 licenses and static libraries. No CUDA DLL removal or pip resolution is used.
 """
@@ -24,8 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from component_bundle import BLOCK, BundleWriter, archive_bundle, checksum, requirements, safe_relative, verify_bundle
 
 
-BASE_MANIFEST_SHA256 = '870f19478ef78a0070882e5498c73f438c0291f567948cd1911ac41556d22454'
-BASE_VERSION = '0.7.0'
+BASE_MANIFEST_SHA256 = '1672902d73ed14c47e07d022e2794b12d40474a3b7aa5abb7a93274a0ff50b47'
+BASE_VERSION = '0.8.0-sec.1'
 SITE = 'python/Lib/site-packages/'
 CPU_WHEELS = {
     'torch': {'version': '2.8.0+cpu', 'oldVersion': '2.8.0+cu128',
@@ -44,7 +44,7 @@ ENGINE_ROLES = {
     'both': ['paraformer', 'vad', 'punctuation', 'whisper', 'alignment'],
 }
 REGENERATED = {'component.json', 'models.json', 'bundle-manifest.json',
-               'dependency-versions.txt', 'README.txt'}
+               'dependency-versions.txt', 'README.txt', 'component-security.json'}
 
 
 def portable_name(value):
@@ -272,6 +272,10 @@ def build_cpu_component(base, wheel_directory, output, version, engine='both', a
                             'runtime': 'official-pytorch-cpu-complete-wheels-v1', 'baseManifestSha256': base_manifest_sha256,
                             'cpuWheels': wheel_sources}
         writer.json('runtime-profile.json', resource_profile)
+        if (base / 'component-security.json').is_file():
+            security = json.loads((base / 'component-security.json').read_text(encoding='utf-8'))
+            security['componentVersion'] = version
+            writer.json('component-security.json', security)
         writer.json('build-provenance.json', {**resource_profile, 'builtAt': datetime.now(timezone.utc).isoformat(),
                     'originalVerified': original_verified, 'removedDistributions': distributions,
                     'builderSha256': checksum(__file__), 'cpuLockSha256': checksum(cpu_lock)})

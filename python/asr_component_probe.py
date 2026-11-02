@@ -13,6 +13,7 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from asr_runtime import configure_cache, configure_offline_network, load_local_models, protect_worker_process
+from asr_security import component_security_issues
 
 
 MODEL_FILES = {
@@ -42,6 +43,9 @@ def check(args):
         'level': 'imports-and-files', 'pythonVersion': platform.python_version(),
         'cudaName': None, 'freeBytes': None, 'issues': issues, 'capabilities': [],
     }
+    security_issues = component_security_issues()
+    if security_issues:
+        return unavailable(result, security_issues)
     try:
         cache = configure_cache(args.cache, str(Path(args.ffmpeg).parent), args.resources)
         result['freeBytes'] = shutil.disk_usage(cache).free

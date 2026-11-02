@@ -13,6 +13,8 @@
 | 界面参数与组件所有权             | [DESIGN_SYSTEM](DESIGN_SYSTEM.md)                                                     |
 | 软件名称、仓库地址与兼容标识     | [BRANDING](BRANDING.md)                                                               |
 | 程序模块与数据结构               | [ARCHITECTURE](ARCHITECTURE.md)                                                       |
+| 依赖安全、旧组件与剩余告警       | [DEPENDENCY_SECURITY](DEPENDENCY_SECURITY.md)                                         |
+| 新一轮优化优先级与交付依据       | [OPTIMIZATION_NEXT](OPTIMIZATION_NEXT.md)                                             |
 | 项目目录、脚本和文件保留范围     | [WORKSPACE_STRUCTURE](WORKSPACE_STRUCTURE.md)                                         |
 | 磁盘占用与删除状态               | [STORAGE_CLEANUP](STORAGE_CLEANUP.md)                                                 |
 | 备份恢复与今后生成物保留策略     | [BACKUP_STORAGE](BACKUP_STORAGE.md)                                                   |

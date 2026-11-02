@@ -149,6 +149,8 @@ class WorkerBudgetTests(unittest.TestCase):
         self.patches = [patch.dict(os.environ, {}, clear=True), patch.dict('sys.modules', {'torch': self.torch}),
                         patch('asr_worker.configure_cache', return_value=self.root),
                         patch('asr_worker.configure_offline_network'),
+                        patch('asr_worker.component_security_issues', return_value=[]),
+                        patch('asr_worker.verify_model_integrity', return_value='b' * 64),
                         patch('asr_worker.load_local_models', return_value=self.models),
                         patch('asr_worker.importlib.metadata.version', return_value='fixture'),
                         patch('asr_worker.hash_file', return_value='a' * 64),
@@ -161,16 +163,19 @@ class WorkerBudgetTests(unittest.TestCase):
             item.stop()
         self.temporary.cleanup()
 
-    def test_implicit_and_explicit_four_keep_the_legacy_configuration_and_cache_fingerprint(self):
+    def test_implicit_and_explicit_four_share_the_security_configuration_and_cache_fingerprint(self):
         pipeline = build_pipeline(self.args)
         versions = {name: 'fixture' for name in ('torch', 'torchaudio', 'funasr', 'whisperx', 'faster-whisper',
-                                                'pyannote.audio', 'ctranslate2', 'transformers', 'numpy', 'nltk')}
+                                                'pyannote.audio', 'ctranslate2', 'transformers', 'numpy', 'nltk',
+                                                'filelock', 'hydra-core', 'pillow', 'setuptools')}
         from asr_ctc import CTC_ALIGNMENT_CONTRACT
         from asr_compat import PARAFORMER_TIMESTAMP_CONTRACT
         legacy = {'engine': 'paraformer', 'device': 'cpu', 'computeType': 'float32', 'batchSize': 1,
                   'threads': 4, 'language': 'zh', 'versions': versions,
                   'models': {key: self.pinned[key] for key in ('paraformer', 'vad', 'punctuation', 'alignment')},
                   'python': '3.13.9', 'offlineNetwork': 'python-loopback-only-ffmpeg-file-pipe-v1',
+                  'componentSecurity': 'compatible-component-patch-floor-2026-11-02-v1',
+                  'modelIntegrity': 'b' * 64,
                   'punctuationPolicy': 'engine-surface-once-v1', 'ctcAlignmentObjective': CTC_ALIGNMENT_CONTRACT,
                   'ffmpegSha256': 'a' * 64, 'ffprobeSha256': 'a' * 64,
                   'timestampAdapter': PARAFORMER_TIMESTAMP_CONTRACT, 'nativeTimestampFallback': 'zh-ctc-no-interpolation-v1',

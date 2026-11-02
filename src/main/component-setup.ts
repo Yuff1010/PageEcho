@@ -195,6 +195,9 @@ async function runtimeFileSignature(runtime: AsrRuntime, script: string): Promis
       runtime.script,
       script,
       join(dirname(script), 'evaluation-models.json'),
+      join(dirname(script), 'asr-model-integrity.json'),
+      join(dirname(script), 'asr_security.py'),
+      join(dirname(script), 'asr_model_integrity.py'),
       ...SENTENCE_FILES.map((name) =>
         join(
           runtime.resources ?? runtime.cache,

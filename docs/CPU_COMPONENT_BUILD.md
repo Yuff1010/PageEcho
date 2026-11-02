@@ -1,6 +1,8 @@
 # 官方 CPU 运行库组件
 
-`python/build_cpu_component.py` 是开发者离线打包器，不调用 pip，不修改评估虚拟环境、原组件或系统 Python，也不在运行时下载依赖。原 0.7.0 组件继续保留。
+`python/build_cpu_component.py` 是开发者离线打包器，不调用 pip，不修改评估虚拟环境、原组件或系统 Python，也不在运行时下载依赖。旧组件继续保留。
+
+当前安全更新以 `0.8.0-sec.1` 通用包为 CPU builder 默认基础，固定 manifest SHA-256 为 `1672902d73ed14c47e07d022e2794b12d40474a3b7aa5abb7a93274a0ff50b47`，与当前五项兼容补丁锁一致。另用 `build_security_component.py` 从原 CPU 包生成了 `0.8.0-cpu-sec.2`，更新当前 runtime profile 的版本并保留基础来源。新包的摘要、真实运行及旧版停用范围见 [依赖安全](DEPENDENCY_SECURITY.md) 与 [0.37 记录](releases/0.37.0-dev.1.md)。以下是原 CPU 包的历史构建证据，不能作为新版安全或运行验证。
 
 ## 输入与替换规则
 

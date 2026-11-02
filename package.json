@@ -26,6 +26,8 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "audit:python": "tsx scripts/maintenance/audit-python-dependencies.ts",
+    "asr:patch": "python -B -X utf8 python/build_security_component.py",
     "workspace:inventory": "tsx scripts/maintenance/workspace-inventory.ts",
     "workspace:storage": "tsx scripts/maintenance/generated-storage.ts",
     "test": "tsx --test tests/unit/*.test.ts",
@@ -100,5 +102,8 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4"
+  },
+  "overrides": {
+    "minimatch@^10.0.0": "11.0.4"
   }
 }

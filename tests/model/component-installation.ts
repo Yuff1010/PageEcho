@@ -40,9 +40,9 @@ for (let index = 2; index < process.argv.length; index += 2) {
 assert(options['--app-root'], 'Pass the frozen preview with --app-root.')
 const appRoot = resolve(options['--app-root']),
   externalPath = resolve(
-    options['--component'] ?? 'release/asr-component-0.7.0-win-x64/component.json',
+    options['--component'] ?? 'release/PageEcho-ASR-0.8.0-sec.1-win-x64/component.json',
   ),
-  archivePath = resolve(options['--archive'] ?? 'release/ReadAndListenBook-ASR-0.7.0-win-x64.zip'),
+  archivePath = resolve(options['--archive'] ?? 'release/PageEcho-ASR-0.8.0-sec.1-win-x64.zip'),
   directory = resolve(
     options['--output'] ??
       join(

@@ -409,6 +409,10 @@ export class ComponentInstallerCore implements CoreContract {
         typeof bundle.version !== 'string' ||
         !bundle.version ||
         bundle.version.length > 100 ||
+        (bundle.revokedReason !== undefined &&
+          (typeof bundle.revokedReason !== 'string' ||
+            !bundle.revokedReason.trim() ||
+            bundle.revokedReason.length > 500)) ||
         (bundle.devices !== undefined &&
           (!Array.isArray(bundle.devices) ||
             !bundle.devices.length ||
@@ -498,6 +502,7 @@ export class ComponentInstallerCore implements CoreContract {
         (item) => item.archiveBytes === info.size && item.archiveSha256 === digest,
       )
       if (!bundle) invalid('离线组件包 SHA-256 不在可信目录中。')
+      if (bundle.revokedReason) invalid(bundle.revokedReason)
       const bounds = await zipBounds(handle, info.size, signal)
       const central = await abortable(
         Open.custom(

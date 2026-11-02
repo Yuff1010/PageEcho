@@ -16,6 +16,8 @@ import traceback
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from asr_jobs import JobError, JobPipeline, FFmpegDecoder, MAX_JSON_BYTES, parse_request, hash_file, cache_error
 from asr_runtime import configure_cache, load_local_models, protect_worker_process, configure_offline_network
+from asr_security import component_security_issues, SECURITY_CONTRACT
+from asr_model_integrity import verify_model_integrity
 from asr_resources import (
     CPU_THREAD_CHOICES, configure_cpu_environment, configure_torch_threads,
     execution_resources, ResourceCheckedEngine, ResourceCheckedPunctuation,
@@ -146,6 +148,9 @@ class WorkerService:
 
 
 def build_pipeline(args):
+    security_issues = component_security_issues()
+    if security_issues:
+        raise JobError('RUNTIME_UNAVAILABLE', '；'.join(security_issues))
     cpu_threads = getattr(args, 'cpu_threads', 4)
     configure_cpu_environment(cpu_threads)
     configure_offline_network()
@@ -163,9 +168,13 @@ def build_pipeline(args):
         if (models[key]['repository'] != pinned[key]['repository'] or
                 models[key]['revision'] != pinned[key]['revision'] or not Path(models[key]['path']).is_dir()):
             raise JobError('RUNTIME_UNAVAILABLE', '模型版本与当前转写组件不符，请先准备模型。')
+    try:
+        model_integrity = verify_model_integrity(models, keys)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise JobError('RUNTIME_UNAVAILABLE', f'模型完整性检查失败，已停止加载：{error}') from error
     versions = {name: importlib.metadata.version(name) for name in [
         'torch', 'torchaudio', 'funasr', 'whisperx', 'faster-whisper', 'pyannote.audio',
-        'ctranslate2', 'transformers', 'numpy', 'nltk',
+        'ctranslate2', 'transformers', 'numpy', 'nltk', 'filelock', 'hydra-core', 'pillow', 'setuptools',
     ]}
     from asr_ctc import CTC_ALIGNMENT_CONTRACT
     configuration = {
@@ -175,6 +184,8 @@ def build_pipeline(args):
         'models': {key: pinned[key] for key in keys},
         'python': sys.version.split()[0],
         'offlineNetwork': 'python-loopback-only-ffmpeg-file-pipe-v1',
+        'componentSecurity': SECURITY_CONTRACT,
+        'modelIntegrity': model_integrity,
         'punctuationPolicy': 'engine-surface-once-v1',
         'ctcAlignmentObjective': CTC_ALIGNMENT_CONTRACT,
         'ffmpegSha256': hash_file(Path(args.ffmpeg), threading.Event()),

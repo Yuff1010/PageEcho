@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "provenance": {
+    "publisherManifestSha256": "870f19478ef78a0070882e5498c73f438c0291f567948cd1911ac41556d22454",
+    "description": "Model bytes from the publisher-pinned 0.7.0 component; verify before loading weights. This does not certify framework safety."
+  },
+  "models": {
+    "paraformer": {
+      "repository": "funasr/paraformer-zh",
+      "revision": "d7811ee3ac581fbcfdeb37c98c6ba674028433dc",
+      "files": {
+        "README.md": {
+          "bytes": 3537,
+          "sha256": "513555aa084cc8a00e7bf1c916e659dfa9f70166ce6aaf6fe281c537bd6f1053"
+        },
+        "am.mvn": {
+          "bytes": 11203,
+          "sha256": "29b3c740a2c0cfc6b308126d31d7f265fa2be74f3bb095cd2f143ea970896ae5"
+        },
+        "config.yaml": {
+          "bytes": 2509,
+          "sha256": "bfd424b9f61846aac63591e96fe24d66b35f4643bddcb4b9bb759db8f987ab79"
+        },
+        "configuration.json": {
+          "bytes": 472,
+          "sha256": "b7d2917954fc547e43ad61486a5248596738cf5909907eade11e71c56f446f34"
+        },
+        "model.pt": {
+          "bytes": 880502012,
+          "sha256": "5bba782a5e9196166233b9ab12ba04cadff9ef9212b4ff6153ed9290ff679025"
+        },
+        "seg_dict": {
+          "bytes": 8287834,
+          "sha256": "59a2ef803a3f1648ad03a2e1480db1c1ee0c0d7dc4ef4dbd16cea33944329022"
+        },
+        "tokens.json": {
+          "bytes": 93676,
+          "sha256": "2b20c2b12572d682afff84ce1c8d560f67b8b32a4c1f21567411d141ed352127"
+        }
+      }
+    },
+    "vad": {
+      "repository": "funasr/fsmn-vad",
+      "revision": "df20e6b30c653645fa4ff125cacfcabd1020a669",
+      "files": {
+        "README.md": {
+          "bytes": 2289,
+          "sha256": "bc7ed04222f932ea519e5969140a7fa14944becbbb3c0728a267c5bf9dc9c200"
+        },
+        "am.mvn": {
+          "bytes": 8033,
+          "sha256": "df189fd5f4352df84a0fd464eeab4e450a5e645665d6b38f13c832492261a739"
+        },
+        "config.yaml": {
+          "bytes": 1215,
+          "sha256": "486861ca26ddb79081663b6179cb204c6bfae71c52f04aafc48a9e9d8dde1e93"
+        },
+        "configuration.json": {
+          "bytes": 365,
+          "sha256": "7bce8867e37d55c3dd8f672695ced18077a2be199ea529a5d432d5350fc0acba"
+        },
+        "model.pt": {
+          "bytes": 1721366,
+          "sha256": "b3be75be477f0780277f3bae0fe489f48718f585f3a6e45d7dd1fbb1a4255fc5"
+        }
+      }
+    },
+    "punctuation": {
+      "repository": "funasr/ct-punc",
+      "revision": "d0e55e2b8722a78b63705ff443d09c4f86e5d750",
+      "files": {
+        "README.md": {
+          "bytes": 2090,
+          "sha256": "caa13cf2d2b7ea4246d6da5390925d6adcb03de2805017c42d86fe53264c1d15"
+        },
+        "config.yaml": {
+          "bytes": 812,
+          "sha256": "c5ffb25cd063ed366cb26283908dca05a08ecfef8e90bef1d498ef9ffacd7552"
+        },
+        "configuration.json": {
+          "bytes": 450,
+          "sha256": "7043245e6264cea789404e498a6f55a330a18585a4690d35dfe71741e6982237"
+        },
+        "model.pt": {
+          "bytes": 1125507622,
+          "sha256": "7176cae922a872e130e6b88aef9a1153581711baf79c9124c7c95be383cd6f81"
+        },
+        "tokens.json": {
+          "bytes": 8280697,
+          "sha256": "89951fe0669380ed33298ee048c4a2b0ebcaaf6ee8f332d85c281c41d0f38392"
+        }
+      }
+    },
+    "whisper": {
+      "repository": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+      "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+      "files": {
+        "README.md": {
+          "bytes": 1445,
+          "sha256": "b3068692728faed23580cce5cd569fc47ff76c690c032b2641ffd5554ea64d8f"
+        },
+        "config.json": {
+          "bytes": 2263,
+          "sha256": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e"
+        },
+        "model.bin": {
+          "bytes": 1617884929,
+          "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+        },
+        "preprocessor_config.json": {
+          "bytes": 340,
+          "sha256": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711"
+        },
+        "tokenizer.json": {
+          "bytes": 2710337,
+          "sha256": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd"
+        },
+        "vocabulary.json": {
+          "bytes": 1068114,
+          "sha256": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1"
+        }
+      }
+    },
+    "alignment": {
+      "repository": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
+      "revision": "99ccb2737be22b8bb50dcfcc39ad4d567fb90cfd",
+      "files": {
+        "README.md": {
+          "bytes": 7722,
+          "sha256": "9b14283ce428f729bfbf8a82313f61e76d83c760b5a72f2fadf516523ff412b7"
+        },
+        "config.json": {
+          "bytes": 1567,
+          "sha256": "9af98614e322a5300c75605227d93c98af0c8f78754aba1dfc279166688afddd"
+        },
+        "preprocessor_config.json": {
+          "bytes": 158,
+          "sha256": "c403ce09975b90dff0dd8302c42d422e9de1f166cd7772df23490069893cb0cf"
+        },
+        "pytorch_model.bin": {
+          "bytes": 1276296151,
+          "sha256": "de031fd4b29e0c0667e5346450fadfe1326c89936b888b59c4ede608db763ee4"
+        },
+        "special_tokens_map.json": {
+          "bytes": 85,
+          "sha256": "bb7068de1150661a10b55f9e4b12a0e77af8bf91f5e45e1b58afaf1d0e17f675"
+        },
+        "vocab.json": {
+          "bytes": 44357,
+          "sha256": "33fea3444869c2cd2433f59da079b04ce91515f946d21fe1b0ff3825398bcec7"
+        }
+      }
+    }
+  },
+  "runtimeFiles": {
+    "whisperx/assets/pytorch_model.bin": {
+      "bytes": 17719103,
+      "sha256": "0b5b3216d60a2d32fc086b47ea8c67589aaeb26b7e07fcbe620d6d0b83e209ea"
+    }
+  }
+}

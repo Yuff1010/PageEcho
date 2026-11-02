@@ -1,6 +1,8 @@
 # 自包含 Windows 目录版
 
-当前目录版为 **听见书页 · PageEcho `0.36.0-dev.1`**。目录及同名 ZIP 为 `release/PageEcho-0.36.0-dev.1-2026-11-02T04-58-44.051Z-win-x64`，ZIP SHA-256 为 `c5eae68c10e024c5ec4de66a960c84c40d3e984f1729849eb086aec4254b83be`。604 项逻辑测试、7 项相关桌面回归、两种目录打包和本机隔离运行／重启恢复通过，见 [本版记录](releases/0.36.0-dev.1.md)。`continue-preview.cmd` 继续沿用原预览数据；改名不搬动书架、进度、书籍或模型。内部名称与路径的保留规则见 [品牌说明](BRANDING.md)。程序目录与 ZIP 继续仅保留在本机，没有上传 GitHub Release 资产。
+当前目录版为 **听见书页 · PageEcho 0.37.0-dev.1**。目录与同名 ZIP 为 `release/PageEcho-0.37.0-dev.1-2026-11-02T13-45-37.381Z-win-x64`，兼容补丁组件为 `0.8.0-sec.1`／`0.8.0-cpu-sec.2`。旧组件需升级；原文件、书架及人工文稿保留。摘要、验证和剩余告警见 [本版记录](releases/0.37.0-dev.1.md) 与 [依赖安全](DEPENDENCY_SECURITY.md)。产物保留本机。
+
+历史目录版为 **听见书页 · PageEcho `0.36.0-dev.1`**。目录及同名 ZIP 为 `release/PageEcho-0.36.0-dev.1-2026-11-02T04-58-44.051Z-win-x64`，ZIP SHA-256 为 `c5eae68c10e024c5ec4de66a960c84c40d3e984f1729849eb086aec4254b83be`。604 项逻辑测试、7 项相关桌面回归、两种目录打包和本机隔离运行／重启恢复通过，见 [本版记录](releases/0.36.0-dev.1.md)。`continue-preview.cmd` 继续沿用原预览数据；改名不搬动书架、进度、书籍或模型。内部名称与路径的保留规则见 [品牌说明](BRANDING.md)。程序目录与 ZIP 继续仅保留在本机，没有上传 GitHub Release 资产。
 
 历史目录版 `0.35.0-dev.4` 补齐 MIT 元数据和发行许可文件，Electron 安全修复至 44.9.1，应用功能与 `0.35.0-dev.2` 相同。目录及同名 ZIP 为 `release/ReadAndListenBook-0.35.0-dev.4-2026-11-02T03-15-01.519Z-win-x64`，ZIP SHA-256 为 `8a59ec574b8e8f3612cb6ba706e19731a22a9bbd49dffa160ebefc97c599c55f`；604 项逻辑检查、隔离构建、两种打包的静态校验和本机隔离运行／重启恢复通过。当时范围见 [本版记录](releases/0.35.0-dev.4.md)。
 
