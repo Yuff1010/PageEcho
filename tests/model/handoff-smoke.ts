@@ -84,6 +84,8 @@ try {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.context().setOffline(true)
+  await expect(page).toHaveTitle('听见书页 · PageEcho')
+  await expect(page.getByRole('link', { name: '听见书页首页', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '选择音频文件', exact: true })).toBeEnabled()
   const identity = await app.evaluate(({ app }) => ({
     isPackaged: app.isPackaged,

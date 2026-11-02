@@ -1,4 +1,4 @@
-# 听读 · ReadAndListenBook
+# 听见书页 · PageEcho
 
 **在一个书架里，听有声书、读电子书、跟随声音看文字。**
 
@@ -6,7 +6,7 @@
 
 [功能](#功能) · [开始使用](#开始使用) · [来源与插件](#来源与插件) · [本地开发](#本地开发) · [开发记录](#开发记录)
 
-当前程序为 **Windows x64 开发预览 `0.35.0-dev.4`**。已实现的能力、验证结果和限制记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
+当前程序为 **Windows x64 开发预览 `0.36.0-dev.1`**。已实现的能力、验证结果和限制记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
 
 ![统一电子书书架](docs/images/bookshelf.png)
 
@@ -39,6 +39,8 @@
 
 - `continue-preview.cmd`：沿用既有预览书架与进度。
 - `start.cmd`：使用该目录版的独立数据配置。
+
+软件原名“听读 · ReadAndListenBook”。改名后继续沿用原有书架、进度和设置的数据路径，无需手动迁移或重命名已有文件夹；命名与兼容范围见 [品牌与兼容标识](docs/BRANDING.md)。
 
 目录版自带主程序运行环境，普通听书和阅读不需要另装 Node.js 或系统 Python。不能只复制 `runtime/electron.exe`。程序目录、ZIP 和模型属于本机构建输出，不随 Git 仓库提交；路径、校验与组件配置见 [交付说明](docs/DELIVERY.md)。
 
@@ -91,8 +93,8 @@ npm.cmd run plugin:pack -- --directory examples/source-plugins/wikisource --outp
 开发环境：**Windows x64、Node.js ≥24.19 且 <25、npm**。依赖版本由 `package-lock.json` 固定。本地字幕组件独立配置，不是启动界面的前置条件。
 
 ```powershell
-git clone https://github.com/Yuff1010/ReadAndListenBook.git
-cd ReadAndListenBook
+git clone https://github.com/Yuff1010/PageEcho.git
+cd PageEcho
 npm ci
 npm.cmd run runtime:install
 npm.cmd run dev
@@ -103,7 +105,7 @@ npm.cmd run dev
 ```powershell
 npm.cmd run check
 New-Item -ItemType Directory -Force out | Out-Null
-npm.cmd run build:preview -- --version 0.35.0-dev.4
+npm.cmd run build:preview -- --version 0.36.0-dev.1
 ```
 
 全新 checkout 不包含 `out/`，上面的命令会在缺失时创建空目录，已有内容继续保留。构建会返回 `appRoot`，写入新的 `cache/managed-generated/` 目录，保留根 `out/`。把返回的实际路径用于桌面回归或自包含打包：

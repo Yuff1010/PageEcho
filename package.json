@@ -1,10 +1,18 @@
 {
   "name": "read-and-listen-book",
   "version": "0.8.4",
-  "description": "Windows 听书与同步伴读桌面应用",
+  "description": "听见书页 · PageEcho，Windows 听书与同步伴读桌面应用",
   "private": true,
   "license": "MIT",
-  "author": "ReadAndListenBook",
+  "author": "Yuff1010",
+  "homepage": "https://github.com/Yuff1010/PageEcho",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yuff1010/PageEcho.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Yuff1010/PageEcho/issues"
+  },
   "type": "module",
   "main": "./out/main/index.js",
   "engines": {

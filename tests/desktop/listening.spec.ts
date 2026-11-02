@@ -101,7 +101,7 @@ test('bookmarks preserve coordinates and notes across restart; changed audio dis
     await expect(dialog.getByText('本书跳过设置已保存。')).toBeVisible()
     await dialog.getByRole('button', { name: '关闭收听工具' }).click()
     const closed = app.waitForEvent('close')
-    await menuAction(page, '应用设置', '退出听读')
+    await menuAction(page, '应用设置', '退出听见书页')
     await closed
     app = await launch(root)
     page = await app.firstWindow()
@@ -370,7 +370,7 @@ test('wall-clock sleep pauses real playback in the tray, saves its media positio
     await expect(timerFeedback(page)).toHaveText('已定时停止')
     await expect(timerFeedback(page)).toBeVisible()
     const closed = app.waitForEvent('close')
-    await menuAction(page, '应用设置', '退出听读')
+    await menuAction(page, '应用设置', '退出听见书页')
     await closed
     app = await launch(root)
     page = await app.firstWindow()

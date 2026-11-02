@@ -10,6 +10,7 @@ import type { Readable } from 'node:stream'
 import { crc32, deflateRawSync } from 'node:zlib'
 import { createPackage, extractFile } from '@electron/asar'
 import unzipper from 'unzipper'
+import { APP_NAME, APP_PRODUCT } from '../../src/shared/brand'
 import { beginManagedGenerated } from './managed-generated'
 
 assert.equal(process.argv[2], '--app-root')
@@ -31,7 +32,7 @@ const managed = await beginManagedGenerated('package', `handoff-${pkg.version}`)
 try {
   const staging = managed.directory
   const bundle = join(staging, 'application')
-  const destination = resolve('release', `ReadAndListenBook-${pkg.version}-${stamp}-win-x64`)
+  const destination = resolve('release', `${APP_PRODUCT}-${pkg.version}-${stamp}-win-x64`)
   await mkdir(bundle, { recursive: true })
   await mkdir(destination, { recursive: true })
   await cp(resolve('scripts/build/package-handoff.ts'), join(staging, 'runner-started.ts'))
@@ -111,7 +112,7 @@ try {
   for (const name of legalFiles) await cp(resolve(name), join(destination, name))
   await writeFile(
     join(destination, 'README.txt'),
-    `听读 ${pkg.version}\r\n\r\n首次使用：解压完整目录，双击 start.cmd。无需安装 Node.js、Python 或工作区依赖。\r\n继续当前预览书架：先退出旧预览，再双击 continue-preview.cmd，沿用原预览数据。请先备份 %APPDATA%\\ReadAndListenBook-preview-0.13。\r\n普通听书、电子书阅读、导入已有字幕不需要模型。AI 字幕仍需在应用中选择离线组件 ZIP 或已解压的组件目录。\r\n这是包含官方 Electron 运行时的完整目录版；保留 electron.exe 原文件名与字节，没有创建 NSIS 安装器或修改系统安全策略。\r\n可移动整个程序目录；移除目录不会删除位于 APPDATA 的书架数据。\r\n本机隔离运行验证与全新 Windows 设备验收分别记录；不将本机测试称为干净设备验收。\r\n`,
+    `${APP_NAME} · ${APP_PRODUCT} ${pkg.version}\r\n\r\n首次使用：解压完整目录，双击 start.cmd。无需安装 Node.js、Python 或工作区依赖。\r\n继续当前预览书架：先退出旧预览，再双击 continue-preview.cmd，沿用原预览数据。请先备份 %APPDATA%\\ReadAndListenBook-preview-0.13。\r\n普通听书、电子书阅读、导入已有字幕不需要模型。AI 字幕仍需在应用中选择离线组件 ZIP 或已解压的组件目录。\r\n这是包含官方 Electron 运行时的完整目录版；保留 electron.exe 原文件名与字节，没有创建 NSIS 安装器或修改系统安全策略。\r\n可移动整个程序目录；移除目录不会删除位于 APPDATA 的书架数据。\r\n本机隔离运行验证与全新 Windows 设备验收分别记录；不将本机测试称为干净设备验收。\r\n`,
   )
   const files: Record<string, string> = {}
   async function inventory(directory: string) {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppState } from '../../shared/contracts'
+import { APP_TITLE } from '../../shared/brand'
 import { Icon } from './Icons'
 import { useAppAppearance, type AppTheme, type AppVisualStyle } from './app-appearance'
 import { Tooltip } from './Tooltip'
@@ -58,7 +59,7 @@ export function AppInfo({
       <div className="section-heading">
         <div>
           <h2 tabIndex={-1}>{title}</h2>
-          {!appearance && <p>听读 · Read & Listen</p>}
+          {!appearance && <p>{APP_TITLE}</p>}
         </div>
         <Tooltip content={`关闭${title}`}>
           <button className="icon-button" aria-label={`关闭${title}`} onClick={onClose}>

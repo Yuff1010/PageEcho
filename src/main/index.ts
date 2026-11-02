@@ -22,6 +22,7 @@ import { registerIpc } from './ipc'
 import { APP_URL, PRODUCTION_CSP, resolveRendererResource } from './resources'
 import { serveMedia } from './media'
 import { CHANNELS } from '../shared/contracts'
+import { APP_NAME, APP_TITLE } from '../shared/brand'
 import { AppError, isTrustedRenderer } from '../shared/validation'
 import { AsrComponent } from './asr-component'
 import { ComponentSetup, componentDiscoveryRoots } from './component-setup'
@@ -80,6 +81,7 @@ protocol.registerSchemesAsPrivileged([
 const bundledArchive =
   app.getAppPath().toLowerCase() === join(process.resourcesPath, 'app.asar').toLowerCase()
 const bundledResources = app.isPackaged || bundledArchive
+// Preserve Electron's existing default user-data directory across display rebrands.
 app.setName(bundledResources ? 'ReadAndListenBook' : 'ReadAndListenBook-dev')
 const root = process.env.RALB_USER_DATA || app.getPath('userData')
 let store: LibraryStore | undefined
@@ -322,7 +324,7 @@ async function start() {
     height: 800,
     minWidth: 720,
     minHeight: 600,
-    title: '听读 · ReadAndListenBook',
+    title: APP_TITLE,
     backgroundColor: '#121212',
     show: false,
     webPreferences: {
@@ -645,12 +647,12 @@ async function start() {
   }
   try {
     tray = new Tray(trayIcon())
-    tray.setToolTip('听读 · 关闭窗口后继续播放')
+    tray.setToolTip(`${APP_NAME} · 关闭窗口后继续播放`)
     tray.setContextMenu(
       Menu.buildFromTemplate([
         { label: '显示主窗口', click: showWindow },
         { type: 'separator' },
-        { label: '退出听读', click: () => app.quit() },
+        { label: `退出${APP_NAME}`, click: () => app.quit() },
       ]),
     )
     tray.on('double-click', showWindow)
@@ -711,7 +713,7 @@ app.on('will-quit', () => {
 void start().catch((error: unknown) => {
   logError(error)
   dialog.showErrorBox(
-    '听读无法启动',
+    `${APP_NAME}无法启动`,
     `请确认数据目录可写，并查看 logs/app.log。\n${error instanceof Error ? error.message : '未知错误'}`,
   )
   app.exit(1)

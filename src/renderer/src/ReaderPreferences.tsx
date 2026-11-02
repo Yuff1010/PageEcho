@@ -436,7 +436,7 @@ export function ReaderPreferences({
                 </select>
               </label>
               <HelpTip label="应用界面">
-                只改变听读的工具栏、菜单和设置面板，阅读配色独立保留。
+                只改变应用的工具栏、菜单和设置面板，阅读配色独立保留。
               </HelpTip>
             </div>
           </>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { AppState, Book, ImportDraft } from '../../shared/contracts'
+import { APP_NAME } from '../../shared/brand'
 import { player } from './player'
 import { TranscriptReader } from './TranscriptReader'
 import { MaintenancePanel } from './MaintenancePanel'
@@ -419,11 +420,11 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
       data-page-kind={libraryView || normalReading ? 'shelf' : reading ? 'companion' : 'content'}
     >
       <aside className="sidebar" aria-label="主导航">
-        <Tooltip content="听读 · 我的书架">
+        <Tooltip content={`${APP_NAME} · 我的书架`}>
           <a
             className="brand"
             href="#library"
-            aria-label="听读首页"
+            aria-label={`${APP_NAME}首页`}
             onClick={(event) => {
               event.preventDefault()
               navigate(lastShelf.current)
@@ -479,7 +480,7 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
             <div className="menu-divider" />
             <button role="menuitem" onClick={() => void window.desktop.quitApp()}>
               <Icon name="logout" />
-              退出听读
+              退出{APP_NAME}
             </button>
           </Popover>
         </div>

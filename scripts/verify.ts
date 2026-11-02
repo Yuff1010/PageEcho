@@ -102,7 +102,7 @@ async function run(step: Step, index: number): Promise<void> {
   Reflect.deleteProperty(env, 'ELECTRON_RUN_AS_NODE')
   Reflect.deleteProperty(env, 'RALB_EXECUTABLE')
   if (step.packaged)
-    Reflect.set(env, 'RALB_EXECUTABLE', resolve(root, 'release/win-unpacked/ReadAndListenBook.exe'))
+    Reflect.set(env, 'RALB_EXECUTABLE', resolve(root, 'release/win-unpacked/PageEcho.exe'))
   let output = ''
   let spawnError = ''
   const exitCode = await new Promise<number | null>((complete) => {

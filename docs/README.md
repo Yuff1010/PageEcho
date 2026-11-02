@@ -11,6 +11,7 @@
 | 播放、朗读和自动字幕             | [PLAYBACK_FLOW](PLAYBACK_FLOW.md)、[SUBTITLE_PROGRESS](SUBTITLE_PROGRESS.md)          |
 | 原文关联、匹配和校正             | [BOOK_LINKS](BOOK_LINKS.md)、[ORIGINAL_TEXT](ORIGINAL_TEXT.md)                        |
 | 界面参数与组件所有权             | [DESIGN_SYSTEM](DESIGN_SYSTEM.md)                                                     |
+| 软件名称、仓库地址与兼容标识     | [BRANDING](BRANDING.md)                                                               |
 | 程序模块与数据结构               | [ARCHITECTURE](ARCHITECTURE.md)                                                       |
 | 项目目录、脚本和文件保留范围     | [WORKSPACE_STRUCTURE](WORKSPACE_STRUCTURE.md)                                         |
 | 磁盘占用与删除状态               | [STORAGE_CLEANUP](STORAGE_CLEANUP.md)                                                 |

@@ -1,6 +1,7 @@
 import { dialog, ipcMain, type BrowserWindow } from 'electron'
 import { BACKUP_STORAGE_CHANNELS as channels } from '../../shared/backup-storage'
 import type { Result } from '../../shared/contracts'
+import { APP_NAME } from '../../shared/brand'
 import { AppError, isTrustedRenderer } from '../../shared/validation'
 import type { BackupService } from './backup'
 import { validateBackupSettings } from './backup'
@@ -54,17 +55,17 @@ export function registerBackupStorageIpc(
     [channels.export]: async (request) => {
       const picked = await dialog.showSaveDialog(window, {
         title: '导出书架与阅读资料备份',
-        defaultPath: `听读备份-${new Date().toISOString().slice(0, 10)}.zip`,
-        filters: [{ name: '听读备份 ZIP', extensions: ['zip'] }],
+        defaultPath: `${APP_NAME}备份-${new Date().toISOString().slice(0, 10)}.zip`,
+        filters: [{ name: `${APP_NAME}备份 ZIP`, extensions: ['zip'] }],
       })
       if (picked.canceled || !picked.filePath) return { canceled: true }
       return { canceled: false, backup: await backup.exportTo(picked.filePath, request.settings) }
     },
     [channels.choose]: async () => {
       const picked = await dialog.showOpenDialog(window, {
-        title: '选择听读备份',
+        title: `选择${APP_NAME}备份`,
         properties: ['openFile'],
-        filters: [{ name: '听读备份 ZIP', extensions: ['zip'] }],
+        filters: [{ name: `${APP_NAME}备份 ZIP`, extensions: ['zip'] }],
       })
       if (picked.canceled || !picked.filePaths[0]) return { canceled: true }
       return { canceled: false, preview: await backup.previewFile(picked.filePaths[0]) }

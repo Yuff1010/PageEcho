@@ -10,7 +10,7 @@ body:
     attributes:
       label: 软件版本
       description: 在应用信息中查看，同时注明开发运行或打包程序。
-      placeholder: 例如 0.35.0-dev.2，打包程序
+      placeholder: 例如 0.36.0-dev.1，打包程序
     validations:
       required: true
   - type: input

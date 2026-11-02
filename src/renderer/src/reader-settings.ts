@@ -30,7 +30,7 @@ export const READER_FONTS = {
   serif: { label: '宋体', family: '"Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif' },
   sans: { label: '黑体', family: '"Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif' },
   kai: { label: '楷体', family: 'KaiTi, STKaiti, "Noto Serif CJK SC", SimSun, serif' },
-  system: { label: '听读界面字体', family: '"Segoe UI", "Microsoft YaHei UI", sans-serif' },
+  system: { label: '应用界面字体', family: '"Segoe UI", "Microsoft YaHei UI", sans-serif' },
 } as const
 export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   fontSize: 20,

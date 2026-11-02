@@ -1,5 +1,5 @@
 appId: com.readandlistenbook.desktop
-productName: ReadAndListenBook
+productName: PageEcho
 directories:
   output: release
 files:
@@ -19,7 +19,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  artifactName: ReadAndListenBook-${version}-win-${arch}-setup.${ext}
+  artifactName: PageEcho-${version}-win-${arch}-setup.${ext}
 nsis:
   oneClick: false
   perMachine: false
@@ -28,4 +28,4 @@ nsis:
   deleteAppDataOnUninstall: false
   createDesktopShortcut: true
   runAfterFinish: false
-  shortcutName: 听读 ReadAndListenBook
+  shortcutName: 听见书页

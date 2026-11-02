@@ -50,6 +50,8 @@ async function fixture(withLegacyAudio = false) {
 test('appearance and application information have separate content, real version data and working legacy imports', async ({}, info) => {
   const { app, page, root, legacyName } = await fixture(true)
   try {
+    await expect(page).toHaveTitle('听见书页 · PageEcho')
+    await expect(page.getByRole('link', { name: '听见书页首页', exact: true })).toBeVisible()
     const state = await page.evaluate(() => window.desktop.getState())
     if (!state.ok) throw new Error(state.error.message)
     expect(state.value.dataLocation).toBe(root)
@@ -90,6 +92,7 @@ test('appearance and application information have separate content, real version
 
     await menuAction(page, '应用设置', '应用信息')
     await expect(about).toBeVisible()
+    await expect(about.getByText('听见书页 · PageEcho', { exact: true })).toBeVisible()
     await expect(about.getByRole('heading', { name: '应用信息', exact: true })).toBeFocused()
     await expect(appearance).toHaveCount(0)
     await expect(about.getByRole('combobox', { name: '应用界面主题', exact: true })).toHaveCount(0)

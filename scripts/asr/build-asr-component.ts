@@ -23,9 +23,7 @@ const python = resolve(dirname(component), config.python)
 const version = (JSON.parse(await readFile(resolve('package.json'), 'utf8')) as { version: string })
   .version
 const output = resolve(options.get('--output') ?? `release/asr-component-${version}-win-x64`)
-const archive = resolve(
-  options.get('--archive') ?? `release/ReadAndListenBook-ASR-${version}-win-x64.zip`,
-)
+const archive = resolve(options.get('--archive') ?? `release/PageEcho-ASR-${version}-win-x64.zip`)
 const source = JSON.parse(await readFile(resolve('python/embedded-python.json'), 'utf8')) as {
   version: string
   url: string

@@ -1,4 +1,5 @@
 import { SourceError } from '../../shared/sources'
+import { APP_PRODUCT } from '../../shared/brand'
 import type { PluginHttpOptions } from './runtime-types'
 
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024
@@ -114,7 +115,7 @@ export class PluginHttpSession {
       throw new SourceError('SOURCE_UNAVAILABLE', '插件单次操作超过 32 次网络请求。')
     let url = pluginRequestUrl(value, this.origins)
     let { method, headers, body } = requestOptions(options, this.origins)
-    headers = { 'user-agent': 'ReadAndListenBook/0.33 source-plugin', ...headers }
+    headers = { 'user-agent': `${APP_PRODUCT}/0.33 source-plugin`, ...headers }
     const timeout = AbortSignal.timeout(15_000)
     const signal = AbortSignal.any([this.signal, timeout])
     try {

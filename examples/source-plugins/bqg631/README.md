@@ -1,6 +1,6 @@
 # bqg631 网站插件示例
 
-此目录展示如何为 `https://www.bqg631.xyz/#/` 编写 ReadAndListenBook SDK v1 插件。它是可安装的正文来源，不是浏览器扩展，也不内置任何书籍正文。
+此目录展示如何为 `https://www.bqg631.xyz/#/` 编写听见书页（PageEcho）的 SDK v1 插件。它是可安装的正文来源，不是浏览器扩展，也不内置任何书籍正文。原 ReadAndListenBook 的 SDK v1 格式保持兼容。
 
 ## 打包与导入
 

@@ -191,7 +191,7 @@ test('player keyboard seeking moves five seconds, clamps endpoints and preserves
     await progress.press('ArrowRight')
     await expect(progress).toHaveValue('16234')
     const closed = app.waitForEvent('close')
-    await menuAction(page, '应用设置', '退出听读')
+    await menuAction(page, '应用设置', '退出听见书页')
     await closed
     app = await launch(root)
     page = await app.firstWindow()

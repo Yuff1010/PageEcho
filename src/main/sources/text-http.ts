@@ -1,4 +1,5 @@
 import { SourceError } from '../../shared/sources'
+import { APP_PRODUCT } from '../../shared/brand'
 
 export const MAX_TEXT_DOWNLOAD_BYTES = 32 * 1024 * 1024
 export const MAX_TEXT_FEED_BYTES = 2 * 1024 * 1024
@@ -60,7 +61,7 @@ export class TextHttpClient {
     let url = this.resolve(value)
     const headers: Record<string, string> = {
       Accept: options.accept ?? 'application/atom+xml, application/xml, text/xml',
-      'User-Agent': 'ReadAndListenBook/0.32 (personal ebook reader)',
+      'User-Agent': `${APP_PRODUCT}/0.32 (personal ebook reader)`,
     }
     if (this.options.token) headers.Authorization = `Bearer ${this.options.token}`
     else if (this.options.username || this.options.password)

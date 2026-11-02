@@ -1,6 +1,6 @@
 # 参与开发
 
-欢迎通过 Issue 和 Pull Request 改善听读。提交内容按仓库的 [MIT 许可证](LICENSE) 授权；第三方依赖和外部资源仍遵循各自许可。
+欢迎通过 Issue 和 Pull Request 改善听见书页（PageEcho）。提交内容按仓库的 [MIT 许可证](LICENSE) 授权；第三方依赖和外部资源仍遵循各自许可。
 
 ## 本地环境
 
@@ -24,6 +24,8 @@ npm.cmd run dev
 
 先阅读 [AGENTS.md](AGENTS.md)。调整布局前还需阅读 [设计系统](docs/DESIGN_SYSTEM.md)，复用书架、阅读器和设置组件及设计参数。界面修改应保留音频会话、阅读锚点、手工字幕与原文匹配语义，并验证相关流程。
 
+显示名称统一来自共享品牌配置，既有数据目录、应用标识和存储协议保持兼容；改名时先阅读 [品牌与兼容标识](docs/BRANDING.md)，不要全局替换内部名称。
+
 ## 验证
 
 提交前运行类型检查、静态检查、单元测试和格式检查：
@@ -36,7 +38,7 @@ npm.cmd run check
 
 ```powershell
 New-Item -ItemType Directory -Force -Path out | Out-Null
-npm.cmd run build:preview -- --version 0.35.0-dev.4
+npm.cmd run build:preview -- --version 0.36.0-dev.1
 ```
 
 此命令把新产物放入 `cache/managed-generated/`。`package.json` 中的 `0.8.4` 是构建内核基线；预览程序版本由构建参数指定，发布记录以 `CHANGELOG.md` 和 `docs/releases/` 为准。

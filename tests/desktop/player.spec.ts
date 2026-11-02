@@ -132,7 +132,7 @@ test('two-hour audio seeks, rate and volume work; page changes and tray preserve
     await page.getByRole('button', { name: '暂停', exact: true }).click()
     await seek(page, 5410000)
     const closed = app.waitForEvent('close')
-    await menuAction(page, '应用设置', '退出听读')
+    await menuAction(page, '应用设置', '退出听见书页')
     await closed
     app = await launch(root)
     page = await app.firstWindow()
