@@ -5,6 +5,7 @@ directories:
 files:
   - out/**/*
   - package.json
+  - LICENSE
   - THIRD_PARTY_NOTICES.md
 asar: true
 extraResources:

@@ -10,6 +10,7 @@ import { PLUGIN_CHANNELS } from '../../src/shared/plugins'
 import { SourceError } from '../../src/shared/sources'
 import { pluginFiles, pluginPackage } from '../fixtures/source-plugin'
 import { zip } from '../fixtures/original-epub'
+import { syntheticCredentials } from '../helpers/synthetic-auth'
 
 const origin = 'https://synthetic.example'
 const address = `${origin}/source.zip`
@@ -202,6 +203,7 @@ test('update failures, wrong plugin identity, cancellation and unavailable addre
 })
 
 test('maintenance IPC accepts exact requests and rejects query credentials, non-HTTPS, injected fields and missing values', () => {
+  const credentials = syntheticCredentials()
   assert.equal(cleanPluginUpdateUrl(address), address)
   validatePluginArgs(PLUGIN_CHANNELS.setUpdateUrl, [{ id, url: address }])
   validatePluginArgs(PLUGIN_CHANNELS.setUpdateUrl, [{ id, url: null }])
@@ -213,7 +215,7 @@ test('maintenance IPC accepts exact requests and rejects query credentials, non-
     `${address}?v=1`,
     `${address}#fragment`,
     'http://synthetic.example/source.zip',
-    'https://user:synthetic@synthetic.example/source.zip',
+    `https://${credentials.username}:${credentials.password}@synthetic.example/source.zip`,
     'https://synthetic.example/home',
     'file:///source.zip',
     undefined,

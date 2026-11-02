@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { LibriVoxAdapter, librivoxMediaUrl, librivoxPageUrl } from '../../src/main/sources/librivox'
+import { syntheticCredentials } from '../helpers/synthetic-auth'
 
 // Small synthetic fixture follows the documented API fields and the live id=52 response.
 function catalog() {
@@ -132,6 +133,7 @@ test('LibriVox keeps query-bound cursors and rejects malformed or incomplete cat
   }
 })
 test('Archive MP3 redirects remain within the same file on verified storage nodes', () => {
+  const credentials = syntheticCredentials()
   const initial = 'https://www.archive.org/download/example_librivox/letter_01.mp3'
   for (const url of [
     initial,
@@ -144,7 +146,7 @@ test('Archive MP3 redirects remain within the same file on verified storage node
     'http://archive.org/download/example_librivox/letter_01.mp3',
     'https://archive.org.attacker.invalid/download/example_librivox/letter_01.mp3',
     'https://127.0.0.1/download/example_librivox/letter_01.mp3',
-    'https://user:secret@archive.org/download/example_librivox/letter_01.mp3',
+    `https://${credentials.username}:${credentials.password}@archive.org/download/example_librivox/letter_01.mp3`,
     'https://archive.org:444/download/example_librivox/letter_01.mp3',
     'https://archive.org/download/example_librivox/letter_01.mp3#fragment',
     'https://blog.archive.org/0/items/example_librivox/letter_01.mp3',

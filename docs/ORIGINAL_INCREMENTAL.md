@@ -73,7 +73,7 @@ npx tsx --test tests/unit/original-incremental.test.ts tests/unit/original.test.
 最终桌面验证使用独立预览 `cache/preview-builds/2026-10-23T05-28-31.892Z/app`（0.13.0-dev.5），原 `out` 未修改：
 
 ```powershell
-$env:RALB_APP_ROOT='D:\Code\ReadAndListenBook\cache\preview-builds\2026-10-23T05-28-31.892Z\app'
+$env:RALB_APP_ROOT='<appRoot>' # 替换为上方历史预览在本机的实际路径
 npx playwright test tests/desktop/original-incremental.spec.ts tests/desktop/original.spec.ts tests/desktop/reading-tools.spec.ts --output cache/optimization/final-original-desktop-results/rerun-1
 ```
 

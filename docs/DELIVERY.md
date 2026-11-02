@@ -1,8 +1,10 @@
 # 自包含 Windows 目录版
 
+当前目录版为 `0.35.0-dev.4`，补齐 MIT 元数据和发行许可文件，应用功能与 `0.35.0-dev.2` 相同。目录及同名 ZIP 为 `release/ReadAndListenBook-0.35.0-dev.4-2026-11-02T02-59-48.687Z-win-x64`，ZIP SHA-256 为 `06d380a2c4dc2b42ce79ce2ee120bdd3103fa4566dea9c0bfba006283d25fa05`；604 项逻辑检查、隔离构建及两种打包的静态校验通过。本轮未重新运行桌面、模型或干净设备验收，范围见 [本版记录](releases/0.35.0-dev.4.md)。程序目录与 ZIP 继续仅保留在本机，没有上传 GitHub Release 资产。
+
 文档维护版本 `0.35.0-dev.3` 更新 GitHub README 和合成界面截图，不替换下述 `0.35.0-dev.2` 程序；无需重新安装。文档验证见 [维护记录](releases/0.35.0-dev.3.md)。
 
-当前目录版为 `0.35.0-dev.2`，修复听十三搜索原封面遗漏，并统一放大两类来源的搜索／详情封面。目录及同名 ZIP 为 `release/ReadAndListenBook-0.35.0-dev.2-2026-11-01T22-26-22.139Z-win-x64`，ZIP SHA-256 为 `ea9e16fc12a6b57c79f3638b8f7a2180b7369a507d2e3cf336627f1d435afb69`；验证与限制见 [交付记录](releases/0.35.0-dev.2.md)。
+历史目录版 `0.35.0-dev.2` 修复听十三搜索原封面遗漏，并统一放大两类来源的搜索／详情封面。目录及同名 ZIP 为 `release/ReadAndListenBook-0.35.0-dev.2-2026-11-01T22-26-22.139Z-win-x64`，ZIP SHA-256 为 `ea9e16fc12a6b57c79f3638b8f7a2180b7369a507d2e3cf336627f1d435afb69`；验证与限制见 [交付记录](releases/0.35.0-dev.2.md)。
 
 上一版 `0.35.0-dev.1` 新增来源状态保留、原封面离线保存、分章续读、多源搜索、插件健康与更新、备份恢复及未来生成物保留策略。目录及同名 ZIP：`release/ReadAndListenBook-0.35.0-dev.1-2026-11-01T15-50-07.040Z-win-x64`；ZIP SHA-256 为 `f6a0879b2d22f64141adf41ffe93406fd9446e8ab5d2f7b58bc6d5326e8ecefe`。当时验证和限制见 [交付记录](releases/0.35.0-dev.1.md)，备份与策略见 [使用说明](BACKUP_STORAGE.md)。
 

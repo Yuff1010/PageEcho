@@ -17,6 +17,8 @@ assert.equal(process.argv.length, 4)
 const appRoot = resolve(process.argv[3]!)
 const manifest = JSON.parse(await readFile(resolve(appRoot, '../manifest.json'), 'utf8'))
 const pkg = JSON.parse(await readFile(join(appRoot, 'package.json'), 'utf8'))
+assert.equal(pkg.license, 'MIT', 'Rebuild the preview with the current MIT package metadata')
+const legalFiles = ['LICENSE', 'THIRD_PARTY_NOTICES.md']
 const digest = async (path: string) => {
   const hash = createHash('sha256')
   for await (const chunk of createReadStream(path)) hash.update(chunk)
@@ -35,7 +37,7 @@ try {
   await cp(resolve('scripts/build/package-handoff.ts'), join(staging, 'runner-started.ts'))
   await cp(join(appRoot, 'out'), join(bundle, 'out'), { recursive: true })
   await writeFile(join(bundle, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
-  await cp(resolve('THIRD_PARTY_NOTICES.md'), join(bundle, 'THIRD_PARTY_NOTICES.md'))
+  for (const name of legalFiles) await cp(resolve(name), join(bundle, name))
   const npmCli = process.env.npm_execpath
   assert.ok(npmCli, 'Run through npm run pack:handoff')
   const dependencies = await promisify(execFile)(
@@ -67,6 +69,14 @@ try {
   }
   await checkRegularFiles(bundle)
   await createPackage(bundle, archive)
+  const packedPackage = JSON.parse(extractFile(archive, 'package.json').toString('utf8'))
+  assert.equal(packedPackage.version, pkg.version)
+  assert.equal(packedPackage.license, 'MIT')
+  for (const name of legalFiles)
+    assert.ok(
+      extractFile(archive, name).equals(await readFile(resolve(name))),
+      `Packaged legal document bytes changed: ${name}`,
+    )
   await cp(join(appRoot, 'python'), join(runtime, 'resources/asr'), { recursive: true })
   for (const [path, expected] of Object.entries(manifest.pythonHashes))
     assert.equal(await digest(join(runtime, 'resources/asr', path)), expected)
@@ -98,7 +108,7 @@ try {
     join(destination, 'continue-preview.cmd'),
     launcher('ReadAndListenBook-preview-0.13'),
   )
-  await cp(resolve('THIRD_PARTY_NOTICES.md'), join(destination, 'THIRD_PARTY_NOTICES.md'))
+  for (const name of legalFiles) await cp(resolve(name), join(destination, name))
   await writeFile(
     join(destination, 'README.txt'),
     `听读 ${pkg.version}\r\n\r\n首次使用：解压完整目录，双击 start.cmd。无需安装 Node.js、Python 或工作区依赖。\r\n继续当前预览书架：先退出旧预览，再双击 continue-preview.cmd，沿用原预览数据。请先备份 %APPDATA%\\ReadAndListenBook-preview-0.13。\r\n普通听书、电子书阅读、导入已有字幕不需要模型。AI 字幕仍需在应用中选择离线组件 ZIP 或已解压的组件目录。\r\n这是包含官方 Electron 运行时的完整目录版；保留 electron.exe 原文件名与字节，没有创建 NSIS 安装器或修改系统安全策略。\r\n可移动整个程序目录；移除目录不会删除位于 APPDATA 的书架数据。\r\n本机隔离运行验证与全新 Windows 设备验收分别记录；不将本机测试称为干净设备验收。\r\n`,
@@ -209,6 +219,8 @@ try {
     archiveImplementation:
       'Node.js classic ZIP, UTF-8, deflate, CRC32; every entry SHA-256 checked',
     officialExecutableUnchanged: true,
+    applicationLicense: packedPackage.license,
+    legalDocumentsVerified: legalFiles,
     developmentRuntimeRequired: false,
     packagedApplicationExecuted: false,
     cleanDeviceVerified: false,

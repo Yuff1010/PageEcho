@@ -6,7 +6,7 @@
 
 [功能](#功能) · [开始使用](#开始使用) · [来源与插件](#来源与插件) · [本地开发](#本地开发) · [开发记录](#开发记录)
 
-当前程序为 **Windows x64 开发预览 `0.35.0-dev.2`**。已实现的能力、验证结果和限制记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
+当前程序为 **Windows x64 开发预览 `0.35.0-dev.4`**。已实现的能力、验证结果和限制记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
 
 ![统一电子书书架](docs/images/bookshelf.png)
 
@@ -102,7 +102,7 @@ npm.cmd run dev
 ```powershell
 npm.cmd run check
 New-Item -ItemType Directory -Force out | Out-Null
-npm.cmd run build:preview -- --version 0.35.0-dev.2
+npm.cmd run build:preview -- --version 0.35.0-dev.4
 ```
 
 全新 checkout 不包含 `out/`，上面的命令会在缺失时创建空目录，已有内容继续保留。构建会返回 `appRoot`，写入新的 `cache/managed-generated/` 目录，保留根 `out/`。把返回的实际路径用于桌面回归或自包含打包：
@@ -148,4 +148,6 @@ docs/          使用、设计、架构与版本记录
 
 ## 许可
 
-项目目前标记为 **UNLICENSED**，尚未提供开放源代码许可证。第三方依赖和示例中的独立材料保留各自许可证，见 [第三方说明](THIRD_PARTY_NOTICES.md) 与示例目录。
+本项目源码采用 [MIT 许可证](LICENSE)，允许使用、修改和分发，分发时须保留版权与许可声明。第三方依赖、示例中的独立材料、外部书籍和模型保留各自的许可证与权利，不因本项目采用 MIT 而改变；见 [第三方说明](THIRD_PARTY_NOTICES.md)。
+
+参与开发请阅读 [贡献指南](CONTRIBUTING.md)。安全问题请通过 [安全报告流程](SECURITY.md) 私密提交，普通问题可以使用仓库的 Issue 模板。

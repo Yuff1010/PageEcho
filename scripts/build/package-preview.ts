@@ -34,7 +34,8 @@ try {
   await copyFile(resolve('scripts/build/package-preview.ts'), join(directory, 'runner-started.ts'))
   await cp(join(appRoot, 'out'), join(project, 'out'), { recursive: true })
   await cp(join(appRoot, 'python'), join(project, 'python'), { recursive: true })
-  await copyFile(resolve('THIRD_PARTY_NOTICES.md'), join(project, 'THIRD_PARTY_NOTICES.md'))
+  for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md'])
+    await copyFile(resolve(name), join(project, name))
   const packageJson = JSON.parse(await readFile(join(appRoot, 'package.json'), 'utf8'))
   await writeFile(
     join(project, 'package.json'),
@@ -143,12 +144,13 @@ try {
     const roots = [...new Set(names.map((name) => name.split('/')[0]!))].sort()
     assert.ok(
       roots.every((name) =>
-        ['out', 'node_modules', 'package.json', 'THIRD_PARTY_NOTICES.md'].includes(name),
+        ['out', 'node_modules', 'package.json', 'LICENSE', 'THIRD_PARTY_NOTICES.md'].includes(name),
       ),
       `Unexpected packaged root: ${roots}`,
     )
     const packedPackage = JSON.parse(extractFile(archive, 'package.json').toString('utf8'))
     assert.equal(packedPackage.version, packageJson.version)
+    assert.equal(packedPackage.license, 'MIT')
     for (const [file, digest] of Object.entries(build.outputHashes))
       assert.equal(
         createHash('sha256')
@@ -164,6 +166,7 @@ try {
       'node_modules/opencc-js/THIRD_PARTY_LICENSES.md',
       'node_modules/opencc-js/LICENSES/Apache-2.0.txt',
       'node_modules/@xmldom/xmldom/package.json',
+      'LICENSE',
       'THIRD_PARTY_NOTICES.md',
     ]) {
       const packed = extractFile(archive, path.replaceAll('/', sep)),
@@ -213,6 +216,7 @@ try {
       outputFilesVerified: Object.keys(build.outputHashes).length,
     }
     report.dependenciesAndNotices = dependencyChecks
+    report.applicationLicense = packedPackage.license
     report.asrResources = resources
     report.originalOutUnchanged = true
     report.status = 'passed'

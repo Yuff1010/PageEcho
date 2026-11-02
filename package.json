@@ -3,7 +3,7 @@
   "version": "0.8.4",
   "description": "Windows 听书与同步伴读桌面应用",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": "ReadAndListenBook",
   "type": "module",
   "main": "./out/main/index.js",

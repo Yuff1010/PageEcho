@@ -56,6 +56,7 @@ try {
       {
         name: pkg.name,
         version: previewVersion,
+        license: pkg.license,
         type: 'module',
         main: './out/main/index.js',
         dependencies: pkg.dependencies,
@@ -64,6 +65,8 @@ try {
       2,
     ) + '\n',
   )
+  for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md'])
+    await copyFile(resolve(name), join(appRoot, name))
   await mkdir(join(appRoot, 'python'))
   for (const name of await readdir('python'))
     if (/^asr_.*\.py$/.test(name) || name === 'evaluation-models.json')
