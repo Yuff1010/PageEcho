@@ -77,7 +77,7 @@
     "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "dependencies": {
-    "@xmldom/xmldom": "0.8.15",
+    "@xmldom/xmldom": "0.9.12",
     "cheerio": "1.2.0",
     "opencc-js": "1.4.2",
     "quickjs-emscripten": "0.32.0",
