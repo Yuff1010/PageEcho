@@ -11,6 +11,7 @@
     "node": ">=24.19.0 <25"
   },
   "scripts": {
+    "runtime:install": "node node_modules/electron/install.js",
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",

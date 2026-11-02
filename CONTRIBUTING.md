@@ -8,6 +8,7 @@
 
 ```powershell
 npm.cmd ci
+npm.cmd run runtime:install
 npm.cmd run dev
 ```
 

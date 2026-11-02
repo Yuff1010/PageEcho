@@ -68,6 +68,25 @@ jobs:
           '@ | node --input-type=module
       - name: Install locked dependencies
         run: npm.cmd ci
+      - name: Install Electron runtime
+        run: npm.cmd run runtime:install
+      - name: Verify pinned Electron runtime
+        run: |
+          @'
+          import assert from 'node:assert/strict'
+          import { readFileSync, statSync } from 'node:fs'
+          import { join } from 'node:path'
+
+          const expected = JSON.parse(readFileSync('package.json', 'utf8')).devDependencies.electron
+          const directory = 'node_modules/electron'
+          const installed = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')).version
+          const runtime = readFileSync(join(directory, 'dist/version'), 'utf8').trim().replace(/^v/, '')
+          assert.equal(installed, expected)
+          assert.equal(runtime, expected)
+          assert.equal(readFileSync(join(directory, 'path.txt'), 'utf8').trim(), 'electron.exe')
+          assert.ok(statSync(join(directory, 'dist/electron.exe')).isFile())
+          console.log(JSON.stringify({ electronPackage: installed, electronRuntime: runtime, expected }))
+          '@ | node --input-type=module
       - name: Check types, lint, unit tests and formatting
         run: npm.cmd run check
       - name: Build isolated preview

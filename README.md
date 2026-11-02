@@ -94,6 +94,7 @@ npm.cmd run plugin:pack -- --directory examples/source-plugins/wikisource --outp
 git clone https://github.com/Yuff1010/ReadAndListenBook.git
 cd ReadAndListenBook
 npm ci
+npm.cmd run runtime:install
 npm.cmd run dev
 ```
 
