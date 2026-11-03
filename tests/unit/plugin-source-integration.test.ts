@@ -75,6 +75,7 @@ test('schema16 migrates both built-in origins without losing identities and supp
   store.close()
   const legacy = new DatabaseSync(path)
   legacy.exec(`BEGIN IMMEDIATE;
+    DROP TABLE online_pending_progress;
     CREATE TABLE online_books_v16 (book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE, source_id TEXT NOT NULL CHECK(source_id IN ('ting13','librivox')), source_book_id TEXT NOT NULL, metadata_json TEXT NOT NULL, catalog_complete INTEGER NOT NULL DEFAULT 0, preparation_json TEXT, UNIQUE(source_id,source_book_id)) STRICT;
     INSERT INTO online_books_v16 SELECT * FROM online_books;
     DROP TABLE online_books; ALTER TABLE online_books_v16 RENAME TO online_books;

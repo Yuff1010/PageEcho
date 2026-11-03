@@ -195,6 +195,9 @@ export const CHANNELS = {
   removeBook: 'library:remove-book',
   importRemembered: 'library:import-remembered',
   openEpisode: 'player:open-episode',
+  playbackSourceState: 'player:source-state',
+  playbackSourceChanged: 'player:source-changed',
+  releasePlayback: 'player:release-source',
   cancelEpisodeOpen: 'player:cancel-open',
   saveProgress: 'player:save-progress',
   quitApp: 'app:quit',
@@ -306,6 +309,24 @@ export interface PlaybackSource {
   url: string
   episode: Episode
   library?: AppState
+  /** Empty episode hash stays empty until the complete audio is authenticated. */
+  pending?: { receivedBytes: number; totalBytes: number }
+}
+
+export type PlaybackSourceChange =
+  | {
+      sessionId: string
+      episodeId: string
+      status: 'pending'
+      receivedBytes: number
+      totalBytes: number
+    }
+  | { sessionId: string; episodeId: string; status: 'ready'; episode: Episode; library: AppState }
+  | { sessionId: string; episodeId: string; status: 'failed'; message: string }
+
+export interface OpenEpisodeRequest {
+  id: string
+  requestId?: string
 }
 
 export interface ProgressUpdate {
@@ -451,8 +472,13 @@ export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi, Ba
   cancelImport(request: { id: string }): Promise<Result<void>>
   removeBook(request: { id: string }): Promise<Result<AppState>>
   importRemembered(request: { id: string }): Promise<Result<AppState>>
-  openEpisode(request: { id: string }): Promise<Result<PlaybackSource>>
-  cancelEpisodeOpen(request: { id: string }): Promise<Result<void>>
+  openEpisode(request: OpenEpisodeRequest): Promise<Result<PlaybackSource>>
+  cancelEpisodeOpen(request: OpenEpisodeRequest): Promise<Result<void>>
+  getPlaybackSourceState(request: {
+    sessionId: string
+  }): Promise<Result<PlaybackSourceChange | null>>
+  onPlaybackSourceChanged(callback: (change: PlaybackSourceChange) => void): () => void
+  releasePlayback(request: { sessionId: string }): Promise<Result<void>>
   saveProgress(request: ProgressUpdate): Promise<Result<void>>
   quitApp(): Promise<Result<void>>
   onFlush(callback: (requestId: string) => void): () => void

@@ -36,7 +36,7 @@ test('creates separate directories and persists metadata across database reopen'
   assert.deepEqual(store.listFiles(), [])
   store.close()
   const db = new DatabaseSync(paths.database)
-  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 17)
+  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 18)
   db.close()
 })
 

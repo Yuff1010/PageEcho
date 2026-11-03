@@ -109,7 +109,7 @@ test('schema 11 migrates to 12 with old four-thread jobs, configuration identity
   t.store.close()
   const old = new DatabaseSync(t.filename)
   old.exec(
-    'DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; DROP TABLE processing_resources; ALTER TABLE transcription_jobs DROP COLUMN cpu_threads; PRAGMA user_version=11;',
+    'DROP TABLE online_pending_progress; DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; DROP TABLE processing_resources; ALTER TABLE transcription_jobs DROP COLUMN cpu_threads; PRAGMA user_version=11;',
   )
   assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 11)
   assert.equal(
@@ -135,7 +135,7 @@ test('schema 11 migrates to 12 with old four-thread jobs, configuration identity
       paused: false,
     })
     const check = new DatabaseSync(t.filename)
-    assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 17)
+    assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 18)
     check.close()
   } finally {
     migrated.close()

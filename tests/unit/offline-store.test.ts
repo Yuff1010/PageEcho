@@ -127,7 +127,7 @@ test('schema 12 upgrades atomically without changing book, player, manual text o
   const reopened = f.reopen(() => {
     const db = new DatabaseSync(f.filename)
     db.exec(
-      'DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; PRAGMA user_version=12;',
+      'DROP TABLE online_pending_progress; DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; PRAGMA user_version=12;',
     )
     db.close()
   })
@@ -140,7 +140,7 @@ test('schema 12 upgrades atomically without changing book, player, manual text o
   assert.equal(reopened.processingResources().policy.lowPriority, true)
   assert.equal(reopened.offlinePlans().total, 0)
   const check = new DatabaseSync(f.filename)
-  assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 17)
+  assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 18)
   assert.equal(
     check
       .prepare(

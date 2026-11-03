@@ -1,5 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
+import { LIBRARY_SCHEMA_VERSION } from './database-schema'
+import {
+  PENDING_ONLINE_PROGRESS_SCHEMA,
+  PendingOnlineProgressStore,
+} from './pending-online-progress-store'
+import type {
+  PendingOnlineCommit,
+  PendingOnlinePosition,
+  PendingOnlineProof,
+} from '../shared/pending-online-progress'
 import type { Book, Episode, ProgressUpdate, SelectedFile } from '../shared/contracts'
 import type { ScannedBook } from './files'
 import {
@@ -83,7 +93,7 @@ export interface FileMetadata {
   modifiedAt: number
 }
 
-const SCHEMA_VERSION = 17
+const SCHEMA_VERSION = LIBRARY_SCHEMA_VERSION
 
 export interface StoredTranscriptionJob extends TranscriptionJob {
   configurationHash: string | null
@@ -111,6 +121,7 @@ export class LibraryStore {
   private readonly offline: OfflineStore
   private readonly editing: TranscriptEditStore
   private readonly subtitleImports: SubtitleImportStore
+  private readonly pendingOnline: PendingOnlineProgressStore
   private readSnapshotDepth = 0
   private readSnapshotVersion?: number
   private readonly coverageCache = new Map<
@@ -340,6 +351,11 @@ export class LibraryStore {
           PRAGMA user_version=17;
           COMMIT;
         `)
+      if (version < 18)
+        this.db.exec(
+          `BEGIN IMMEDIATE; ${PENDING_ONLINE_PROGRESS_SCHEMA} PRAGMA user_version=18; COMMIT;`,
+        )
+      this.pendingOnline = new PendingOnlineProgressStore(this.db, (id) => this.getEpisode(id))
       this.offline = new OfflineStore(this.db, {
         getEpisode: (id) => this.getEpisode(id),
         getAudio: (id) => this.getAudio(id),
@@ -706,10 +722,12 @@ export class LibraryStore {
       FROM episodes e WHERE NOT EXISTS (SELECT 1 FROM online_episodes o WHERE o.id=e.id)
       UNION ALL
       SELECT o.id, o.book_id, o.title, o.sort_order, coalesce(e.size_bytes,0),
-        coalesce(e.modified_at,0), coalesce(e.content_hash,''), e.duration_ms,
-        coalesce(e.position_ms,0), b.source_book_id, o.source_episode_id, o.cache_available, b.source_id
+        coalesce(e.modified_at,0), coalesce(e.content_hash,''),
+        CASE WHEN e.id IS NULL THEN p.duration_ms ELSE e.duration_ms END,
+        coalesce(e.position_ms,p.position_ms,0), b.source_book_id, o.source_episode_id, o.cache_available, b.source_id
       FROM online_episodes o JOIN online_books b ON b.book_id=o.book_id
         LEFT JOIN episodes e ON e.id=o.id
+        LEFT JOIN online_pending_progress p ON p.episode_id=o.id
     ) WHERE ${field}=? ORDER BY "order"`,
       )
       .all(value)
@@ -802,10 +820,31 @@ export class LibraryStore {
     }
   }
 
-  cacheSourceEpisode(id: string, audio: FileMetadata & { contentHash: string }): void {
+  getPendingOnlineProgress(id: string): PendingOnlinePosition | null {
+    return this.pendingOnline.read(id)
+  }
+  beginPendingOnlinePlayback(
+    id: string,
+    sessionId: string,
+  ): { resume: PendingOnlinePosition | null } {
+    return this.pendingOnline.begin(id, sessionId)
+  }
+  savePendingOnlineProgress(progress: ProgressUpdate, proof: PendingOnlineProof): void {
+    this.pendingOnline.save(progress, proof)
+  }
+  endPendingOnlinePlayback(sessionId: string): void {
+    this.pendingOnline.end(sessionId)
+  }
+
+  cacheSourceEpisode(
+    id: string,
+    audio: FileMetadata & { contentHash: string },
+    pendingCommit?: PendingOnlineCommit,
+  ): void {
     this.db.exec('BEGIN IMMEDIATE')
     try {
       this.writeSourceEpisode(id, audio)
+      if (pendingCommit) this.pendingOnline.transfer(id, audio, pendingCommit)
       this.db.exec('COMMIT')
     } catch (error) {
       if (this.db.isTransaction) this.db.exec('ROLLBACK')
@@ -1012,9 +1051,10 @@ export class LibraryStore {
   }
 
   private clearOrphanedCurrent(): void {
-    this.db
-      .exec(`UPDATE books SET current_episode_id = NULL WHERE current_episode_id NOT IN (SELECT id FROM episodes);
-      UPDATE player_settings SET current_episode_id = NULL WHERE current_episode_id NOT IN (SELECT id FROM episodes);`)
+    this.db.exec(`UPDATE books SET current_episode_id = NULL WHERE current_episode_id NOT IN
+        (SELECT id FROM episodes UNION SELECT id FROM online_episodes);
+      UPDATE player_settings SET current_episode_id = NULL WHERE current_episode_id NOT IN
+        (SELECT id FROM episodes UNION SELECT id FROM online_episodes);`)
   }
 
   saveProgress(progress: ProgressUpdate): void {

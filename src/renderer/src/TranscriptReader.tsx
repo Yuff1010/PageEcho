@@ -20,7 +20,7 @@ import { TranscriptEditingPanel } from './TranscriptEditingPanel'
 import { SubtitleImportPanel } from './SubtitleImportPanel'
 import { ProcessingPauseNotice } from './ProcessingResourcesPanel'
 import { ReadingBody, type ReadingSettings } from './CompanionTranscriptBody'
-import { player } from './player'
+import { player, pendingAudioNotice } from './player'
 import { TranscriptionActivity } from './TranscriptionActivity'
 import { transcriptionActivityModel } from './transcription-activity'
 import {
@@ -106,6 +106,8 @@ export const TranscriptReader = memo(function TranscriptReader(props: ReaderProp
         </div>
       </section>
     )
+  if (!/^[0-9a-f]{64}$/.test(props.episode.contentHash))
+    return <PendingReader {...props} episode={props.episode} />
   return (
     <ReaderForEpisode
       key={`${props.episode.id}:${props.episode.contentHash}`}
@@ -114,6 +116,66 @@ export const TranscriptReader = memo(function TranscriptReader(props: ReaderProp
     />
   )
 })
+
+/** A provisional stream has no transcript target. Reuse the shared reading chrome. */
+function PendingReader({
+  episode,
+  book,
+  visible,
+  onOpenLibrary,
+  onOpenLinkedReading,
+}: ReaderProps & { episode: Episode }) {
+  const playback = useSyncExternalStore(player.subscribe, player.getSnapshot)
+  const notice = pendingAudioNotice(playback.audioPending) ?? '完整缓存后即可准备字幕。'
+  return (
+    <section className="reader-panel companion-page" aria-label="同步伴读" data-theme="paper">
+      <ReaderToolbar className="companion-toolbar" aria-label="阅读工具栏" data-visible="true">
+        <nav className="reader-library-navigation" aria-label="书架切换">
+          <ReaderAction
+            className="reader-button companion-back"
+            label="返回书架"
+            icon="arrow"
+            onClick={onOpenLibrary}
+          />
+          {onOpenLinkedReading && (
+            <ReaderAction
+              className="reader-button companion-open-ebook"
+              label="从当前进度阅读"
+              icon="book"
+              onClick={onOpenLinkedReading}
+            />
+          )}
+        </nav>
+        <div
+          className="companion-title reader-toolbar-title"
+          title={`${book?.title ?? ''} · ${episode.title}`}
+        >
+          <h2>{book?.title ?? '伴读阅读'}</h2>
+          <span>{episode.title}</span>
+        </div>
+        <div className="companion-toolbar-actions reader-toolbar-actions" />
+      </ReaderToolbar>
+      <div className="companion-empty" role="status">
+        <span className="transcription-spinner" aria-hidden="true" />
+        <h2>{playback.error ? '音频获取未完成' : '音频正在获取'}</h2>
+        <p>
+          {playback.error ||
+            (book?.subtitlePreparation?.mode === 'manual'
+              ? '可以继续收听，缓存完成后可导入或生成字幕。'
+              : '可以继续收听，缓存完成后自动准备字幕。')}
+        </p>
+      </div>
+      <ReaderDockSlot name="activity" active={visible}>
+        <SubtitleStatus
+          snapshot={null}
+          variant="icon"
+          checkingNotice={playback.error ? undefined : notice}
+        />
+      </ReaderDockSlot>
+      {visible && <ReaderDockMount />}
+    </section>
+  )
+}
 
 function ReaderForEpisode({
   episode,

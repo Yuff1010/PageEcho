@@ -3,6 +3,7 @@ import type {
   Book,
   Episode,
   PlaybackSource,
+  PlaybackSourceChange,
   ProgressUpdate,
   Result,
 } from '../../shared/contracts'
@@ -45,8 +46,15 @@ export interface PlayerState {
   subtitleStatus: SubtitleStatusSnapshot | null
   subtitleSetupNeeded: boolean
   subtitlePreparationPhase: AutomaticSubtitlesResult['status'] | 'idle' | 'checking' | 'canceling'
+  audioPending: { receivedBytes: number; totalBytes: number } | null
 }
 type PreparedSubtitlesResult = AutomaticSubtitlesResult & { library: AppState }
+
+export function pendingAudioNotice(pending: PlayerState['audioPending']): string | undefined {
+  return pending
+    ? `音频缓存 ${Math.floor((pending.receivedBytes / pending.totalBytes) * 100)}%；可以继续收听。`
+    : undefined
+}
 
 class PlayerController {
   readonly audio = document.createElement('audio')
@@ -55,6 +63,9 @@ class PlayerController {
   private generation = 0
   private navigation = 0
   private openingId: string | null = null
+  private openingRequestId: string | null = null
+  private transferFailed = false
+  private confirmedPendingPositionMs = 0
   private switching = false
   private initialized = false
   private autoplay = false
@@ -104,6 +115,7 @@ class PlayerController {
     subtitleStatus: null,
     subtitleSetupNeeded: false,
     subtitlePreparationPhase: 'idle',
+    audioPending: null,
   }
 
   constructor() {
@@ -137,6 +149,7 @@ class PlayerController {
     })
     this.audio.addEventListener('timeupdate', () => {
       if (!this.state.ready || this.switching) return
+      this.confirmPendingPosition()
       if (this.expireTimer()) return
       this.patch({ positionMs: this.audio.currentTime * 1000, durationMs: this.duration() })
       this.updateSubtitleNotice()
@@ -201,6 +214,68 @@ class PlayerController {
       if (this.source && (this.state.playing || this.requestedSubtitles))
         void this.prepareSubtitles(this.requestedSubtitles)
     })
+    window.desktop.onPlaybackSourceChanged((change) => this.acceptPlaybackSource(change))
+  }
+
+  private cancelOpening() {
+    if (this.openingId)
+      void window.desktop.cancelEpisodeOpen({
+        id: this.openingId,
+        ...(this.openingRequestId ? { requestId: this.openingRequestId } : {}),
+      })
+    this.openingId = null
+    this.openingRequestId = null
+  }
+  private confirmPendingPosition() {
+    if (
+      !this.source?.pending ||
+      this.transferFailed ||
+      this.audio.seeking ||
+      this.audio.readyState < 2
+    )
+      return
+    const time = this.audio.currentTime
+    for (let index = 0; index < this.audio.buffered.length; index++) {
+      if (this.audio.buffered.start(index) <= time && time <= this.audio.buffered.end(index)) {
+        this.confirmedPendingPositionMs = Math.max(0, time * 1000)
+        return
+      }
+    }
+  }
+  private acceptPlaybackSource(change: PlaybackSourceChange) {
+    const source = this.source
+    if (
+      !source ||
+      source.sessionId !== change.sessionId ||
+      source.episode.id !== change.episodeId ||
+      this.switching ||
+      !source.pending
+    )
+      return
+    if (change.status === 'pending') {
+      this.patch({
+        audioPending: { receivedBytes: change.receivedBytes, totalBytes: change.totalBytes },
+      })
+      return
+    }
+    if (change.status === 'failed') {
+      this.transferFailed = true
+      this.audio.pause()
+      this.patch({ error: change.message, playing: false, loading: false, audioPending: null })
+      return
+    }
+    if (!/^[0-9a-f]{64}$/.test(change.episode.contentHash)) return
+    const waiting = this.state.subtitleWaiting
+    // The same audio element/URL keeps playing. Only its authenticated identity changes.
+    this.source = { ...source, episode: change.episode, pending: undefined }
+    this.patch({ episode: change.episode, audioPending: null, subtitleWaiting: false })
+    this.updateLibrary(change.library)
+    this.libraryListeners.forEach((listener) => listener(change.library))
+    void this.save()
+    void this.readSubtitleProgress()
+    if (waiting) void this.play()
+    else if (this.state.playing || this.requestedSubtitles)
+      void this.prepareSubtitles(this.requestedSubtitles)
   }
 
   subscribe = (listener: () => void) => {
@@ -302,7 +377,7 @@ class PlayerController {
     this.subtitleMetrics.reset()
     this.subtitleEstimate = {}
     this.navigation++
-    if (this.openingId) void window.desktop.cancelEpisodeOpen({ id: this.openingId })
+    this.cancelOpening()
     this.completion = null
     this.clearTimer('已定时停止')
     this.autoplay = false
@@ -327,7 +402,11 @@ class PlayerController {
       const current = this.books
         .flatMap((book) => book.episodes)
         .find((episode) => episode.id === this.source!.episode.id)
-      if (!current || current.contentHash !== this.source.episode.contentHash) void this.stop()
+      if (
+        !current ||
+        (!this.source.pending && current.contentHash !== this.source.episode.contentHash)
+      )
+        void this.stop()
       else
         this.patch({
           skipNotice: this.range().skipsDisabled ? '本集短于跳过时长，本集完整播放。' : '',
@@ -353,8 +432,9 @@ class PlayerController {
     const generation = ++this.generation
     this.subtitleCommand++
     this.requestedSubtitles = false
-    if (this.openingId) void window.desktop.cancelEpisodeOpen({ id: this.openingId })
+    this.cancelOpening()
     this.openingId = id
+    const requestId = (this.openingRequestId = crypto.randomUUID())
     this.completion = null
     this.autoplay = autoplay
     this.fromStart = fromStart
@@ -362,8 +442,11 @@ class PlayerController {
     this.switching = true
     this.audio.pause()
     await this.save()
-    if (generation !== this.generation) return
+    if (generation !== this.generation || this.openingRequestId !== requestId) return
+    const previous = this.source
     this.source = null
+    this.transferFailed = false
+    this.confirmedPendingPositionMs = 0
     this.audio.removeAttribute('src')
     this.audio.load()
     const book = this.books.find((item) => item.episodes.some((episode) => episode.id === id))
@@ -383,10 +466,16 @@ class PlayerController {
       subtitleStatus: null,
       subtitleSetupNeeded: false,
       subtitlePreparationPhase: 'idle',
+      audioPending: null,
     })
     try {
-      const result = await window.desktop.openEpisode({ id })
-      if (generation !== this.generation) return
+      if (previous) await window.desktop.releasePlayback({ sessionId: previous.sessionId })
+      if (generation !== this.generation || this.openingRequestId !== requestId) return
+      const result = await window.desktop.openEpisode({ id, requestId })
+      if (generation !== this.generation || this.openingRequestId !== requestId) {
+        if (result.ok) await window.desktop.releasePlayback({ sessionId: result.value.sessionId })
+        return
+      }
       if (!result.ok) {
         this.patch({ loading: false, error: result.error.message })
         return
@@ -397,6 +486,7 @@ class PlayerController {
       }
       if (bookmark && bookmark.audioHash !== result.value.episode.contentHash) {
         this.patch({ loading: false, error: '书签来自旧音频版本，不能跳转到当前音频。' })
+        await window.desktop.releasePlayback({ sessionId: result.value.sessionId })
         return
       }
       this.source = result.value
@@ -407,9 +497,19 @@ class PlayerController {
         positionMs: fromStart ? 0 : result.value.episode.positionMs,
         durationMs: result.value.episode.durationMs ?? 0,
         ready: false,
+        audioPending: result.value.pending ?? null,
       })
+      this.switching = false
       this.audio.src = result.value.url
       this.audio.load()
+      if (result.value.pending) {
+        const latest = await window.desktop
+          .getPlaybackSourceState({
+            sessionId: result.value.sessionId,
+          })
+          .catch(() => null)
+        if (latest?.ok && latest.value) this.acceptPlaybackSource(latest.value)
+      }
       void this.readSubtitleProgress()
     } catch {
       if (generation === this.generation)
@@ -418,6 +518,7 @@ class PlayerController {
       if (generation === this.generation) {
         this.switching = false
         this.openingId = null
+        this.openingRequestId = null
       }
     }
   }
@@ -429,7 +530,7 @@ class PlayerController {
   }
   private async prioritizeSubtitles(positionMs: number) {
     const source = this.source
-    if (!source) return
+    if (!source || source.pending) return
     try {
       await window.desktop.prioritizeTranscription({
         episodeId: source.episode.id,
@@ -486,7 +587,7 @@ class PlayerController {
       do {
         this.subtitleDirty = false
         const source = this.source
-        if (!source) return
+        if (!source || source.pending) return
         const result = await window.desktop.getTranscriptionSummary({
           episodeId: source.episode.id,
           audioHash: source.episode.contentHash,
@@ -505,7 +606,8 @@ class PlayerController {
   }
   private async refreshSubtitleWait(wait: number, supplied?: TranscriptionSummaryState) {
     const source = this.source
-    if (!source || wait !== this.subtitleWait || !this.state.subtitleWaiting) return
+    if (!source || source.pending || wait !== this.subtitleWait || !this.state.subtitleWaiting)
+      return
     const query = ++this.subtitleQuery
     try {
       const result = supplied
@@ -541,6 +643,10 @@ class PlayerController {
     }
   }
   async play(immediate = false) {
+    if (this.source && this.transferFailed) {
+      await this.load(this.source.episode.id, true)
+      return
+    }
     if (!this.source || !this.state.ready) return
     if (this.expireTimer()) return
     if (this.audio.ended || this.completion) this.audio.currentTime = this.range().startMs / 1000
@@ -581,6 +687,7 @@ class PlayerController {
     const source = this.source
     if (!source) return null
     if (explicit) this.requestedSubtitles = true
+    if (source.pending) return null
     if (this.automaticRequest?.sessionId === source.sessionId) {
       const command = this.subtitleCommand
       return explicit && !this.automaticRequest.explicit
@@ -693,7 +800,7 @@ class PlayerController {
     // the native media pause event is delivered asynchronously.
     this.patch({ playing: false, loading: false })
     this.cancelSubtitleWait()
-    if (this.openingId) void window.desktop.cancelEpisodeOpen({ id: this.openingId })
+    this.cancelOpening()
     this.completion = null
     this.autoplay = false
     this.audio.pause()
@@ -737,10 +844,15 @@ class PlayerController {
   }
   async save() {
     if (!this.source) return this.pendingSave
+    this.confirmPendingPosition()
     const update: ProgressUpdate = {
       sessionId: this.source.sessionId,
       episodeId: this.source.episode.id,
-      positionMs: this.state.ready ? this.audio.currentTime * 1000 : this.state.positionMs,
+      positionMs: this.source.pending
+        ? this.confirmedPendingPositionMs
+        : this.state.ready
+          ? this.audio.currentTime * 1000
+          : this.state.positionMs,
       durationMs:
         this.state.ready && this.duration() > 0 ? this.duration() : this.source.episode.durationMs,
       rate: this.state.rate,
@@ -833,12 +945,18 @@ class PlayerController {
   async stop() {
     this.navigation++
     this.cancelSubtitleWait()
-    ++this.generation
-    if (this.openingId) void window.desktop.cancelEpisodeOpen({ id: this.openingId })
-    this.openingId = null
+    const generation = ++this.generation
+    this.cancelOpening()
     this.completion = null
     this.switching = true
     this.audio.pause()
+    const previous = this.source
+    const saved = this.save()
+    this.source = null
+    this.patch({ ready: false, playing: false, loading: false })
+    await saved
+    if (previous) await window.desktop.releasePlayback({ sessionId: previous.sessionId })
+    if (generation !== this.generation) return
     this.source = null
     this.audio.removeAttribute('src')
     this.audio.load()
@@ -857,6 +975,7 @@ class PlayerController {
       subtitleStatus: null,
       subtitleSetupNeeded: false,
       subtitlePreparationPhase: 'idle',
+      audioPending: null,
     })
     this.switching = false
   }

@@ -709,7 +709,7 @@ test('schema14→15 migrates history, old offline plan, originals, player and se
   f.reopen(() => {
     let connection = new DatabaseSync(f.filename)
     connection.exec(
-      "DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; PRAGMA user_version=14; CREATE TABLE subtitle_import_commands(sentinel TEXT); INSERT INTO subtitle_import_commands VALUES('keep old data');",
+      "DROP TABLE online_pending_progress; DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; PRAGMA user_version=14; CREATE TABLE subtitle_import_commands(sentinel TEXT); INSERT INTO subtitle_import_commands VALUES('keep old data');",
     )
     connection.close()
     assert.throws(() => new LibraryStore(f.filename), /already exists/)
@@ -728,7 +728,7 @@ test('schema14→15 migrates history, old offline plan, originals, player and se
     connection.exec('DROP TABLE subtitle_import_commands')
     connection.close()
   })
-  assert.equal(db(f.store).prepare('PRAGMA user_version').get()!.user_version, 17)
+  assert.equal(db(f.store).prepare('PRAGMA user_version').get()!.user_version, 18)
   assert.deepEqual(state(), prior)
   f.reopen()
   assert.deepEqual(state(), prior)

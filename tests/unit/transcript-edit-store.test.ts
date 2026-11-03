@@ -744,7 +744,7 @@ test('schema 13 migration preserves offline plans, bookmarks, manual original po
   f.reopen(() => {
     let db = new DatabaseSync(f.filename)
     db.exec(
-      "DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; PRAGMA user_version=13; CREATE TABLE transcript_edit_groups(sentinel TEXT); INSERT INTO transcript_edit_groups VALUES('keep migration sentinel');",
+      "DROP TABLE online_pending_progress; DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; PRAGMA user_version=13; CREATE TABLE transcript_edit_groups(sentinel TEXT); INSERT INTO transcript_edit_groups VALUES('keep migration sentinel');",
     )
     db.close()
     assert.throws(() => new LibraryStore(f.filename), /already exists/)
@@ -779,7 +779,7 @@ test('schema 13 migration preserves offline plans, bookmarks, manual original po
       },
       prior,
     )
-    assert.equal(sql(f.store).prepare('PRAGMA user_version').get()!.user_version, 17)
+    assert.equal(sql(f.store).prepare('PRAGMA user_version').get()!.user_version, 18)
     assert.equal(f.store.transcriptEditingState(target).historyCount, 0)
   }
   verify()

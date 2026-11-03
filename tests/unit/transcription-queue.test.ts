@@ -772,7 +772,7 @@ test('schema v3 migrates without losing the book, progress, manual transcript or
   t.store.close()
   const old = new DatabaseSync(t.filename)
   old.exec(
-    'DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; DROP TABLE processing_resources; DROP TABLE book_subtitle_settings; DROP TABLE reading_books; DROP TABLE original_alignments; DROP TABLE book_originals; DROP TABLE original_documents; DROP TABLE source_media_files; DROP TABLE online_episodes; DROP TABLE online_books; DROP TABLE transcript_regions; DROP TABLE bookmarks; DROP TABLE book_listening_settings; DROP TABLE transcription_jobs; PRAGMA user_version=3;',
+    'DROP TABLE online_pending_progress; DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; DROP TABLE processing_resources; DROP TABLE book_subtitle_settings; DROP TABLE reading_books; DROP TABLE original_alignments; DROP TABLE book_originals; DROP TABLE original_documents; DROP TABLE source_media_files; DROP TABLE online_episodes; DROP TABLE online_books; DROP TABLE transcript_regions; DROP TABLE bookmarks; DROP TABLE book_listening_settings; DROP TABLE transcription_jobs; PRAGMA user_version=3;',
   )
   old.close()
   const migrated = new LibraryStore(t.filename)

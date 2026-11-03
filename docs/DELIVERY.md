@@ -1,6 +1,8 @@
 # 自包含 Windows 目录版
 
-当前目录版为 **听见书页 · PageEcho 0.37.0-dev.1**。目录与同名 ZIP 为 `release/PageEcho-0.37.0-dev.1-2026-11-02T13-45-37.381Z-win-x64`，兼容补丁组件为 `0.8.0-sec.1`／`0.8.0-cpu-sec.2`。旧组件需升级；原文件、书架及人工文稿保留。摘要、验证和剩余告警见 [本版记录](releases/0.37.0-dev.1.md) 与 [依赖安全](DEPENDENCY_SECURITY.md)。产物保留本机。
+当前目录版为 **听见书页 · PageEcho 0.38.0-dev.1**。首次在线 MP3 支持首段播放，完整校验后准备字幕；暂存位置经前缀证明恢复，数据库升级到 schema 18。目录与同名 ZIP 为 `release/PageEcho-0.38.0-dev.1-2026-11-03T03-32-47.681Z-win-x64`，ZIP SHA-256 为 `d19ff9c13cc17971d51db7ae2e903370009d826a08165c319b9541e73b23fd45`。最终验证及实站提速限制见 [本版记录](releases/0.38.0-dev.1.md)。程序和模型包仍保留本机。
+
+历史目录版为 **听见书页 · PageEcho 0.37.0-dev.1**。目录与同名 ZIP 为 `release/PageEcho-0.37.0-dev.1-2026-11-02T13-45-37.381Z-win-x64`，兼容补丁组件为 `0.8.0-sec.1`／`0.8.0-cpu-sec.2`。旧组件需升级；原文件、书架及人工文稿保留。摘要、验证和剩余告警见 [本版记录](releases/0.37.0-dev.1.md) 与 [依赖安全](DEPENDENCY_SECURITY.md)。产物保留本机。
 
 历史目录版为 **听见书页 · PageEcho `0.36.0-dev.1`**。目录及同名 ZIP 为 `release/PageEcho-0.36.0-dev.1-2026-11-02T04-58-44.051Z-win-x64`，ZIP SHA-256 为 `c5eae68c10e024c5ec4de66a960c84c40d3e984f1729849eb086aec4254b83be`。604 项逻辑测试、7 项相关桌面回归、两种目录打包和本机隔离运行／重启恢复通过，见 [本版记录](releases/0.36.0-dev.1.md)。`continue-preview.cmd` 继续沿用原预览数据；改名不搬动书架、进度、书籍或模型。内部名称与路径的保留规则见 [品牌说明](BRANDING.md)。程序目录与 ZIP 继续仅保留在本机，没有上传 GitHub Release 资产。
 

@@ -9,6 +9,7 @@
 | 导入和编写网站插件               | [SOURCE_PLUGINS](SOURCE_PLUGINS.md)、[MAKE_SOURCE_PLUGIN](MAKE_SOURCE_PLUGIN.md)      |
 | 电子书阅读                       | [NORMAL_READING](NORMAL_READING.md)                                                   |
 | 播放、朗读和自动字幕             | [PLAYBACK_FLOW](PLAYBACK_FLOW.md)、[SUBTITLE_PROGRESS](SUBTITLE_PROGRESS.md)          |
+| 在线首播、临时进度及回退         | [PROGRESSIVE_PLAYBACK](PROGRESSIVE_PLAYBACK.md)                                       |
 | 原文关联、匹配和校正             | [BOOK_LINKS](BOOK_LINKS.md)、[ORIGINAL_TEXT](ORIGINAL_TEXT.md)                        |
 | 界面参数与组件所有权             | [DESIGN_SYSTEM](DESIGN_SYSTEM.md)                                                     |
 | 软件名称、仓库地址与兼容标识     | [BRANDING](BRANDING.md)                                                               |

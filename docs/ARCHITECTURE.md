@@ -8,6 +8,8 @@ M3 通过 SQLite 队列和受限 IPC 接入独立 Python 进程，提供重叠�
 
 ## 1. 进程与模块
 
+在线媒体在 `0.38` 增加明确的临时身份：`OnlineMedia` 仍拥有单 GET、完整哈希与原子缓存注册，`ProgressiveMedia` 只通过独立只读句柄提供已落盘字节的本机 Range，不解析远端地址或伪造哈希。`PendingOnlineProgressStore` 在 schema 18 保存会话限定的前缀证明和位置，完整提交时同事务移交；活动 lease 不持久化。schema 上限由 `database-schema.ts` 供打开数据库与备份恢复共用。renderer 的来源更新只替换已认证身份，保留同一 audio 元素；ASR、映射及书签只接受完整哈希。详细边界见 [在线首播](PROGRESSIVE_PLAYBACK.md)。
+
 ```mermaid
 flowchart TB
     UI[React 界面] <--> PLAYER[长期存活的播放器控制器]

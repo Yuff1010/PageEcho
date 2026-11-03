@@ -50,7 +50,7 @@ function BookTranscriptionActivity({ book }: { book: Book }) {
     playback.episode?.bookId === book.id
       ? playback.episode
       : (book.episodes.find((item) => item.id === book.currentEpisodeId) ?? book.episodes[0])
-  if (!episode) return null
+  if (!episode || !/^[0-9a-f]{64}$/.test(episode.contentHash)) return null
   return (
     <EpisodeTranscriptionActivity
       key={`${episode.id}:${episode.contentHash}`}
@@ -91,6 +91,8 @@ export function sleepText(timer: SleepTimer, remainingMs: number) {
 export async function addCurrentBookmark() {
   const state = player.getSnapshot()
   if (!state.ready || !state.episode) throw new Error('请先打开音频。')
+  if (!/^[0-9a-f]{64}$/.test(state.episode.contentHash))
+    throw new Error('音频完整缓存后即可保存书签。')
   const result = await window.desktop.saveBookmark({
     episodeId: state.episode.id,
     audioHash: state.episode.contentHash,

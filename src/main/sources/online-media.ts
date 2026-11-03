@@ -18,9 +18,15 @@ import { continueSourceCatalog } from './source-continuation'
 import { SourceOperations } from './source-browser'
 import { AudioSourceRegistry } from './source-registry'
 import { audioSourceMediaUrl, audioSourcePageUrl } from './source-policy'
+import { ProgressiveMedia, type ProgressiveMediaSession } from './progressive-media'
+import type {
+  PendingOnlinePosition,
+  PendingOnlineProof,
+} from '../../shared/pending-online-progress'
 
 const MAX_BYTES = 256 * 1024 * 1024
 const RESERVE_BYTES = 32 * 1024 * 1024
+const FIRST_PLAYBACK_BYTES = 32 * 1024
 
 export interface OfflineMediaContext {
   planId: string
@@ -29,6 +35,36 @@ export interface OfflineMediaContext {
   attempt: number
 }
 type RequestKind = 'current' | 'next' | 'maintenance' | 'plan'
+
+export type OnlinePlayback =
+  | { kind: 'complete'; audio: StoredAudio }
+  | { kind: 'progressive'; stream: ProgressiveMediaSession; completed: Promise<StoredAudio> }
+interface PlaybackDownload {
+  sessionId: string
+  leased: boolean
+  resume: PendingOnlinePosition | null
+  allowStream: boolean
+  stream?: ProgressiveMediaSession
+  proof?: PendingOnlineProof
+  done?: Promise<StoredAudio>
+  ready(stream: ProgressiveMediaSession): void
+  progress(proof: PendingOnlineProof): void
+}
+
+async function prefixProof(
+  path: string,
+  bytes: number,
+  totalBytes: number,
+  signal: AbortSignal,
+): Promise<PendingOnlineProof> {
+  const hash = createHash('sha256')
+  let received = 0
+  for await (const chunk of createReadStream(path, { start: 0, end: bytes - 1, signal })) {
+    received += chunk.length
+    hash.update(chunk)
+  }
+  return { bytes: received, sha256: hash.digest('hex'), totalBytes }
+}
 
 async function digest(path: string, signal?: AbortSignal) {
   const hash = createHash('sha256')
@@ -40,6 +76,8 @@ async function digest(path: string, signal?: AbortSignal) {
 // The renderer supplies only a library UUID; temporary provider URLs stay in memory.
 export class OnlineMedia {
   private readonly requests: SourceOperations
+  private readonly streams: ProgressiveMedia
+  private readonly playback = new Map<string, PlaybackDownload>()
   private readonly statistics = new Set<Promise<unknown>>()
   private closed = false
   private active:
@@ -64,6 +102,7 @@ export class OnlineMedia {
       action(),
   ) {
     this.requests = new SourceOperations(closeLoader)
+    this.streams = new ProgressiveMedia(directory)
   }
 
   private adapter(sourceId: SourceId): SourceAdapter {
@@ -78,7 +117,9 @@ export class OnlineMedia {
   }
   async close() {
     this.closed = true
-    await this.requests.close()
+    await Promise.all([this.requests.close(), this.streams.close()])
+    for (const id of this.playback.keys()) this.store.endPendingOnlinePlayback(id)
+    this.playback.clear()
     if (this.adapters instanceof AudioSourceRegistry) await this.adapters.close()
     await Promise.allSettled([...this.statistics])
   }
@@ -182,6 +223,81 @@ export class OnlineMedia {
   prepare(id: string): Promise<StoredAudio> {
     return this.run(id, 'current', (signal) => this.prepareFile(id, signal))
   }
+  /** Only a fresh, unverified episode can be exposed before a complete hash exists. */
+  preparePlayback(
+    id: string,
+    sessionId: string,
+    progress: (proof: PendingOnlineProof) => void,
+  ): Promise<OnlinePlayback> {
+    const episode = this.store.getEpisode(id)
+    if (!episode?.online)
+      return Promise.reject(new SourceError('SOURCE_CHANGED', '在线章节已移除。'))
+    const leased = !episode.contentHash || !!this.store.getPendingOnlineProgress(id)
+    const resume = leased ? this.store.beginPendingOnlinePlayback(id, sessionId).resume : null
+    let offered = false
+    let accept!: (value: OnlinePlayback) => void
+    let reject!: (error: unknown) => void
+    const ready = new Promise<OnlinePlayback>((resolve, fail) => {
+      accept = resolve
+      reject = fail
+    })
+    const download: PlaybackDownload = {
+      sessionId,
+      leased,
+      resume,
+      allowStream:
+        !episode.contentHash &&
+        !resume &&
+        this.store.getSubtitlePreparation(episode.bookId)?.mode !== 'ahead',
+      ready: (stream) => {
+        offered = true
+        accept({ kind: 'progressive', stream, completed: download.done! })
+      },
+      progress,
+    }
+    this.playback.set(sessionId, download)
+    const completed = this.run(
+      id,
+      'current',
+      (signal) => this.prepareFile(id, signal, undefined, download),
+      sessionId,
+    )
+    download.done = completed
+    void completed
+      .then(
+        (audio) => accept({ kind: 'complete', audio }),
+        async (error) => {
+          if (!offered) {
+            try {
+              if (download.stream) await this.streams.release(download.stream.id)
+            } finally {
+              this.playback.delete(sessionId)
+              this.store.endPendingOnlinePlayback(sessionId)
+            }
+          }
+          reject(error)
+        },
+      )
+      .catch(reject)
+    return ready
+  }
+  playbackProof(sessionId: string): PendingOnlineProof | null {
+    const proof = this.playback.get(sessionId)?.proof
+    return proof ? { ...proof } : null
+  }
+  servePlayback(request: Request, rendererOrigin: string): Promise<Response> {
+    return this.streams.serve(request, rendererOrigin)
+  }
+  async releasePlayback(sessionId: string): Promise<void> {
+    const download = this.playback.get(sessionId)
+    if (this.active?.owner === sessionId) this.requests.cancel(this.active.requestId)
+    if (download?.stream) await this.streams.release(download.stream.id)
+    await download?.done?.catch(() => undefined)
+    // Creation may have been in flight when cancellation first checked the map.
+    if (download?.stream) await this.streams.release(download.stream.id)
+    this.playback.delete(sessionId)
+    this.store.endPendingOnlinePlayback(sessionId)
+  }
   prepareForOffline(
     id: string,
     context: OfflineMediaContext,
@@ -254,6 +370,7 @@ export class OnlineMedia {
     id: string,
     canceled: AbortSignal,
     offline?: { context: OfflineMediaContext; remainingBytes: number },
+    playback?: PlaybackDownload,
   ): Promise<StoredAudio> {
     const episode = this.store.getEpisode(id)
     if (!episode?.online) throw new SourceError('SOURCE_CHANGED', '在线章节已移除。')
@@ -269,9 +386,24 @@ export class OnlineMedia {
       if (valid) {
         try {
           canceled.throwIfAborted()
+          const observedProof = playback?.resume
+            ? await prefixProof(
+                cached.path,
+                playback.resume.proof.bytes,
+                cached.sizeBytes,
+                canceled,
+              )
+            : undefined
           await this.mutateCache(async () => {
             canceled.throwIfAborted()
             if (offline) this.store.retainOfflineMedia(offline.context, cached)
+            else if (playback?.resume && observedProof)
+              this.store.cacheSourceEpisode(id, cached, {
+                kind: 'resume',
+                sessionId: playback.sessionId,
+                revision: playback.resume.revision,
+                observedProof,
+              })
             else this.store.touchSourceCache(id)
           })
         } catch (error) {
@@ -354,6 +486,8 @@ export class OnlineMedia {
         if (
           response.status !== 200 ||
           response.headers.has('content-range') ||
+          (response.headers.has('content-encoding') &&
+            response.headers.get('content-encoding') !== 'identity') ||
           type !== 'audio/mpeg' ||
           !response.body ||
           (expected !== null &&
@@ -384,6 +518,8 @@ export class OnlineMedia {
           await this.mutateCache(() => this.cache!.reserve(expected ?? MAX_BYTES, id, !!offline))
         const file = await open(temporary, 'wx')
         const hash = createHash('sha256')
+        const resumeHash = playback?.resume ? createHash('sha256') : undefined
+        let resumeBytes = 0
         let size = 0,
           prefix = Buffer.alloc(0)
         try {
@@ -399,8 +535,42 @@ export class OnlineMedia {
               )
             if (prefix.length < 12)
               prefix = Buffer.concat([prefix, Buffer.from(chunk)]).subarray(0, 12)
-            hash.update(chunk)
             await file.writeFile(chunk)
+            // No proof is observable until the complete chunk has been written.
+            hash.update(chunk)
+            if (resumeHash && playback?.resume) {
+              const part = chunk.subarray(0, Math.max(0, playback.resume.proof.bytes - resumeBytes))
+              resumeHash.update(part)
+              resumeBytes += part.length
+            }
+            const validPrefix =
+              prefix.length >= 12 &&
+              (prefix.subarray(0, 3).toString() === 'ID3' ||
+                (prefix[0] === 255 && (prefix[1]! & 224) === 224))
+            if (
+              playback?.allowStream &&
+              expected !== null &&
+              size >= Math.min(FIRST_PLAYBACK_BYTES, expected) &&
+              validPrefix
+            ) {
+              if (!playback.stream) {
+                playback.stream = await this.streams.create(id, temporary, expected)
+                signal.throwIfAborted()
+                playback.stream.markWritten(size)
+                playback.proof = {
+                  bytes: size,
+                  sha256: hash.copy().digest('hex'),
+                  totalBytes: expected,
+                }
+                playback.ready(playback.stream)
+              } else playback.stream.markWritten(size)
+              playback.proof = {
+                bytes: size,
+                sha256: hash.copy().digest('hex'),
+                totalBytes: expected,
+              }
+              playback.progress(playback.proof)
+            }
           }
           if (
             size < 12 ||
@@ -431,13 +601,33 @@ export class OnlineMedia {
         await this.mutateCache(async () => {
           signal.throwIfAborted()
           if (offline) this.store.retainOfflineMedia(offline.context, audio)
-          else this.store.cacheSourceEpisode(id, audio)
+          else
+            this.store.cacheSourceEpisode(
+              id,
+              audio,
+              playback?.leased
+                ? playback.resume && resumeHash
+                  ? {
+                      kind: 'resume',
+                      sessionId: playback.sessionId,
+                      revision: playback.resume.revision,
+                      observedProof: {
+                        bytes: resumeBytes,
+                        sha256: resumeHash.digest('hex'),
+                        totalBytes: size,
+                      },
+                    }
+                  : { kind: 'live', sessionId: playback.sessionId }
+                : undefined,
+            )
           completed = undefined // The database and any retention reference now own this complete file.
         })
+        await playback?.stream?.complete()
         return this.store.getAudio(id)!
       }
       throw new SourceError('SOURCE_MEDIA_UNAVAILABLE', '音频地址重新解析后仍不可用，请稍后重试。')
     } catch (error) {
+      await playback?.stream?.fail(error)
       if (canceled.aborted) throw new SourceError('SOURCE_CANCELED', '音频缓存已取消。')
       if (deadline.signal.aborted) throw new SourceError('SOURCE_TIMEOUT', '音频缓存超时，请重试。')
       if (error instanceof SourceError || error instanceof AppError) throw error

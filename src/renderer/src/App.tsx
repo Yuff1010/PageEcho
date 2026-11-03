@@ -824,7 +824,7 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                         )}
                         <span className="episode-duration">
                           {episode.online && !episode.online.cached
-                            ? '联网缓存后播放'
+                            ? '在线播放'
                             : episode.durationMs
                               ? formatTime(episode.durationMs)
                               : formatSize(episode.sizeBytes)}
@@ -874,7 +874,7 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
           )}
           <div className="reading-view" hidden={!reading}>
             <TranscriptReader
-              episode={playback.episode?.contentHash ? playback.episode : null}
+              episode={playback.episode}
               book={state?.books.find((item) => item.id === playback.episode?.bookId)}
               visible={reading}
               onLinkBook={() =>

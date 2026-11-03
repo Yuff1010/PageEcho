@@ -226,6 +226,16 @@ const api: DesktopApi = {
   importRemembered: (request) => ipcRenderer.invoke(CHANNELS.importRemembered, request),
   openEpisode: (request) => ipcRenderer.invoke(CHANNELS.openEpisode, request),
   cancelEpisodeOpen: (request) => ipcRenderer.invoke(CHANNELS.cancelEpisodeOpen, request),
+  getPlaybackSourceState: (request) => ipcRenderer.invoke(CHANNELS.playbackSourceState, request),
+  onPlaybackSourceChanged: (callback) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      change: import('../shared/contracts').PlaybackSourceChange,
+    ) => callback(change)
+    ipcRenderer.on(CHANNELS.playbackSourceChanged, listener)
+    return () => ipcRenderer.removeListener(CHANNELS.playbackSourceChanged, listener)
+  },
+  releasePlayback: (request) => ipcRenderer.invoke(CHANNELS.releasePlayback, request),
   saveProgress: (request) => ipcRenderer.invoke(CHANNELS.saveProgress, request),
   quitApp: () => ipcRenderer.invoke(CHANNELS.quitApp),
   onFlush: (callback) => {

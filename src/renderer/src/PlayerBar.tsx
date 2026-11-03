@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { BookCover, Icon } from './Icons'
 import { addCurrentBookmark, sleepText, type ListeningToolsSection } from './ListeningTools'
 import { Popover } from './Popover'
-import { player } from './player'
+import { player, pendingAudioNotice } from './player'
 import { SubtitleStatus } from './UISubtitleStatus'
 import { ReaderDockOutlet, useReaderDock } from './ReaderDock'
 import { readerChromeVariables } from './ReaderToolbar'
@@ -53,11 +53,12 @@ export function PlayerBar({
     playback.subtitlePreparationPhase === 'canceling' ||
     !!playback.skipNotice ||
     playback.loading
-  const checkingNotice =
-    playback.subtitlePreparationPhase === 'checking' &&
-    !playback.subtitleWaiting &&
-    !playback.subtitleSetupNeeded &&
-    !playback.loading
+  const checkingNotice = playback.audioPending
+    ? pendingAudioNotice(playback.audioPending)
+    : playback.subtitlePreparationPhase === 'checking' &&
+        !playback.subtitleWaiting &&
+        !playback.subtitleSetupNeeded &&
+        !playback.loading
       ? playback.subtitleNotice || '正在后台检查字幕…'
       : undefined
   const inlineNoticeText = playback.loading
@@ -291,7 +292,11 @@ export function PlayerBar({
               下一集
             </button>
             <div className="menu-divider" />
-            <button role="menuitem" disabled={!playback.ready} onClick={() => void bookmark()}>
+            <button
+              role="menuitem"
+              disabled={!playback.ready || !!playback.audioPending}
+              onClick={() => void bookmark()}
+            >
               <Icon name="bookmark" />
               添加书签
             </button>

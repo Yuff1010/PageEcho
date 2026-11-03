@@ -274,7 +274,7 @@ test('controlled close and manual restart apply a real backup and restore prefer
     const backup = new BackupService({
       root: data.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
     })
     const preview = await backup.previewFile(destination)
     await backup.stageRestore(preview.previewId)

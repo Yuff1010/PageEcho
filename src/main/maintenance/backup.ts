@@ -12,6 +12,7 @@ import { BACKUP_LIMIT, backupPath, packBackup, unpackBackup } from './archive'
 import { GeneratedStorageService } from './storage-policy'
 import { validateRemoteLibrary } from '../sources/text-service'
 import { sourceCoverMime } from '../sources/source-covers'
+import { LIBRARY_SCHEMA_VERSION } from '../database-schema'
 
 const EXCLUDED = [
   '原音频／原书籍文件、离线模型和可重建缓存',
@@ -588,7 +589,7 @@ export async function applyPendingRestoreAtStartup(
       await assertDirectory(join(resolve(root), 'data'))
       inspectDatabase(
         join(resolve(root), 'data/library.sqlite3'),
-        options.maxSchemaVersion ?? 17,
+        options.maxSchemaVersion ?? LIBRARY_SCHEMA_VERSION,
         true,
       )
     } catch {
@@ -643,7 +644,7 @@ export async function applyPendingRestoreAtStartup(
     }
     const manifest = readManifest(
       JSON.parse((await regularRead(join(staging, 'manifest.json'), 1024 * 1024)).toString('utf8')),
-      options.maxSchemaVersion ?? 17,
+      options.maxSchemaVersion ?? LIBRARY_SCHEMA_VERSION,
     )
     const data = newMoved ? current : newData
     await assertDirectory(data)
@@ -657,7 +658,7 @@ export async function applyPendingRestoreAtStartup(
     validateFileContents(manifest, files)
     const summary = inspectDatabase(
       join(data, 'library.sqlite3'),
-      options.maxSchemaVersion ?? 17,
+      options.maxSchemaVersion ?? LIBRARY_SCHEMA_VERSION,
       true,
     )
     if (

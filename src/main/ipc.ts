@@ -12,6 +12,8 @@ import {
   type AppState,
   type Result,
   type ProgressUpdate,
+  type PlaybackSourceChange,
+  type OpenEpisodeRequest,
 } from '../shared/contracts'
 import { AppError, isTrustedRenderer, validateRequest } from '../shared/validation'
 import { scanBook, type ScannedBook } from './files'
@@ -97,6 +99,14 @@ export function registerIpc(
   let draft: { book: ScannedBook; createdAt: number } | undefined
   let active: { id: string; episodeId: string; hash: string; generation: number } | undefined
   let opening = 0
+  let openingRequest: (OpenEpisodeRequest & { generation: number }) | undefined
+  let playbackSourceState: PlaybackSourceChange | null = null
+  const publishPlaybackSource = (change: PlaybackSourceChange) => {
+    if (active?.id !== change.sessionId || active.episodeId !== change.episodeId) return
+    playbackSourceState = change
+    if (!window.isDestroyed() && !window.webContents.isDestroyed())
+      window.webContents.send(CHANNELS.playbackSourceChanged, change)
+  }
   const componentSetup =
     sharedComponentSetup ??
     new ComponentSetup(
@@ -935,37 +945,169 @@ export function registerIpc(
   handle(CHANNELS.openEpisode, async (request) => {
     automaticSubtitles.cancel()
     const generation = ++opening
-    const id = (request as { id: string }).id
-    const audio = store.getEpisode(id)?.online ? await onlineMedia.prepare(id) : store.getAudio(id)
-    if (!audio) throw new AppError('FILE_UNAVAILABLE', '章节记录已移除，请重新导入。')
-    await checkAudio(audio)
-    if (generation !== opening) throw new AppError('BUSY', '已切换到其他章节。')
-    if (store.getAudio(id)?.contentHash !== audio.contentHash)
-      throw new AppError('FILE_CHANGED', '章节已重新导入，请重新选择后播放。')
-    transcription.reconcile()
-    active = { id: randomUUID(), episodeId: id, hash: audio.contentHash, generation }
-    preparation.opened(id)
-    return {
-      sessionId: active.id,
-      url: `${MEDIA_PREFIX}${id}/${audio.contentHash}`,
-      episode: store.getEpisode(id)!,
-      ...(store.getEpisode(id)?.online ? { library: state() } : {}),
+    const input = request as OpenEpisodeRequest,
+      id = input.id,
+      sessionId = randomUUID()
+    const pending = (openingRequest = { ...input, generation })
+    const previous = active
+    active = undefined
+    playbackSourceState = null
+    let lastNotification = 0
+    try {
+      if (previous) await onlineMedia.releasePlayback(previous.id)
+      if (generation !== opening) throw new AppError('BUSY', '已切换到其他章节。')
+      const online = store.getEpisode(id)?.online
+        ? await onlineMedia.preparePlayback(id, sessionId, (proof) => {
+            if (active?.id !== sessionId || active.hash || generation !== opening) return
+            if (Date.now() - lastNotification < 500) return
+            lastNotification = Date.now()
+            publishPlaybackSource({
+              sessionId,
+              episodeId: id,
+              status: 'pending',
+              receivedBytes: proof.bytes,
+              totalBytes: proof.totalBytes,
+            })
+          })
+        : undefined
+      if (generation !== opening) {
+        await onlineMedia.releasePlayback(sessionId)
+        throw new AppError('BUSY', '已切换到其他章节。')
+      }
+      if (online?.kind === 'progressive') {
+        preparation.pause()
+        onlineMedia.setCurrent(id)
+        active = { id: sessionId, episodeId: id, hash: '', generation }
+        playbackSourceState = {
+          sessionId,
+          episodeId: id,
+          status: 'pending',
+          receivedBytes: online.stream.writtenBytes,
+          totalBytes: online.stream.expectedBytes,
+        }
+        void online.completed
+          .then((audio) => {
+            if (active?.id !== sessionId || generation !== opening) return
+            if (store.getAudio(id)?.contentHash !== audio.contentHash)
+              throw new AppError('FILE_CHANGED', '在线章节已变化，请重新选择。')
+            active.hash = audio.contentHash
+            transcription.reconcile()
+            preparation.opened(id)
+            publishPlaybackSource({
+              sessionId,
+              episodeId: id,
+              status: 'ready',
+              episode: store.getEpisode(id)!,
+              library: state(),
+            })
+          })
+          .catch((error) => {
+            if (active?.id !== sessionId || generation !== opening) return
+            publishPlaybackSource({
+              sessionId,
+              episodeId: id,
+              status: 'failed',
+              message:
+                error instanceof AppError || error instanceof SourceError
+                  ? error.message
+                  : '音频获取未完成，请重试；已保存的位置会保留。',
+            })
+          })
+        return {
+          sessionId,
+          url: online.stream.url,
+          episode: store.getEpisode(id)!,
+          library: state(),
+          pending: {
+            receivedBytes: online.stream.writtenBytes,
+            totalBytes: online.stream.expectedBytes,
+          },
+        }
+      }
+      const audio = online?.kind === 'complete' ? online.audio : store.getAudio(id)
+      if (!audio) throw new AppError('FILE_UNAVAILABLE', '章节记录已移除，请重新导入。')
+      await checkAudio(audio)
+      if (generation !== opening) {
+        await onlineMedia.releasePlayback(sessionId)
+        throw new AppError('BUSY', '已切换到其他章节。')
+      }
+      if (store.getAudio(id)?.contentHash !== audio.contentHash)
+        throw new AppError('FILE_CHANGED', '章节已重新导入，请重新选择后播放。')
+      transcription.reconcile()
+      active = { id: sessionId, episodeId: id, hash: audio.contentHash, generation }
+      playbackSourceState = null
+      preparation.opened(id)
+      return {
+        sessionId,
+        url: `${MEDIA_PREFIX}${id}/${audio.contentHash}`,
+        episode: store.getEpisode(id)!,
+        ...(online ? { library: state() } : {}),
+      }
+    } catch (error) {
+      await onlineMedia.releasePlayback(sessionId)
+      throw error
+    } finally {
+      if (openingRequest === pending) openingRequest = undefined
     }
   })
   handle(CHANNELS.cancelEpisodeOpen, (request) => {
+    const input = request as OpenEpisodeRequest
+    if (
+      !openingRequest ||
+      openingRequest.id !== input.id ||
+      (input.requestId && input.requestId !== openingRequest.requestId)
+    )
+      return
+    ++opening
+    openingRequest = undefined
     automaticSubtitles.cancel()
-    onlineMedia.cancel((request as { id: string }).id)
+    onlineMedia.cancel(input.id)
+  })
+  handle(CHANNELS.playbackSourceState, (request) => {
+    const { sessionId } = request as { sessionId: string }
+    if (active?.id !== sessionId || active.generation !== opening) return null
+    if (playbackSourceState?.sessionId === sessionId) {
+      const proof = onlineMedia.playbackProof(sessionId)
+      if (playbackSourceState.status === 'pending' && proof)
+        return { ...playbackSourceState, receivedBytes: proof.bytes, totalBytes: proof.totalBytes }
+      return playbackSourceState
+    }
+    return {
+      sessionId,
+      episodeId: active.episodeId,
+      status: 'ready',
+      episode: store.getEpisode(active.episodeId)!,
+      library: state(),
+    }
+  })
+  handle(CHANNELS.releasePlayback, async (request) => {
+    const { sessionId } = request as { sessionId: string }
+    if (active?.id === sessionId) {
+      active = undefined
+      playbackSourceState = null
+      automaticSubtitles.cancel()
+      preparation.pause()
+    }
+    await onlineMedia.releasePlayback(sessionId)
   })
   handle(CHANNELS.saveProgress, (request) => {
     const update = request as ProgressUpdate
     const audio = store.getAudio(update.episodeId)
-    if (
-      !active ||
-      active.id !== update.sessionId ||
-      active.episodeId !== update.episodeId ||
-      active.hash !== audio?.contentHash
-    )
+    if (!active || active.id !== update.sessionId || active.episodeId !== update.episodeId)
       throw new AppError('INVALID_REQUEST', '播放会话已变化，忽略旧的播放进度。')
+    if (!active.hash) {
+      const proof = onlineMedia.playbackProof(active.id)
+      if (!proof) throw new AppError('CONFLICT', '音频缓冲尚未就绪，请稍后保存进度。')
+      if (!audio) {
+        store.savePendingOnlineProgress(update, proof)
+        return
+      }
+      if (proof.bytes !== audio.sizeBytes || proof.sha256 !== audio.contentHash)
+        throw new AppError('CONFLICT', '音频身份正在提交，请稍后保存进度。')
+      active.hash = audio.contentHash
+    }
+    if (active.hash !== audio?.contentHash)
+      throw new AppError('INVALID_REQUEST', '音频版本已变化，忽略旧的播放进度。')
     store.saveProgress(update)
   })
   handle(CHANNELS.quitApp, () => {

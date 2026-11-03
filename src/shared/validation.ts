@@ -1015,8 +1015,6 @@ export function validateRequest(channel: string, args: unknown[]): void {
       'library:remove-book',
       'library:import-remembered',
       'library:cancel-import',
-      'player:open-episode',
-      'player:cancel-open',
       'source:continuation',
       'player:flushed',
       'transcription:cancel',
@@ -1028,6 +1026,21 @@ export function validateRequest(channel: string, args: unknown[]): void {
     args.length === 1 &&
     isExactObject(request, 'id') &&
     isId(request.id)
+  )
+    return
+  if (
+    ['player:open-episode', 'player:cancel-open'].includes(channel) &&
+    args.length === 1 &&
+    (isExactObject(request, 'id') ||
+      (isExactObject(request, 'id', 'requestId') && isId(request.requestId))) &&
+    isId(request.id)
+  )
+    return
+  if (
+    ['player:source-state', 'player:release-source'].includes(channel) &&
+    args.length === 1 &&
+    isExactObject(request, 'sessionId') &&
+    isId(request.sessionId)
   )
     return
   if (

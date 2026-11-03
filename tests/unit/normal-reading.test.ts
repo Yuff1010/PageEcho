@@ -113,7 +113,7 @@ test('schema 9 upgrades in place while retaining audio and the companion origina
   store.close()
   const old = new DatabaseSync(file)
   old.exec(
-    'DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; DROP TABLE processing_resources; ALTER TABLE transcription_jobs DROP COLUMN cpu_threads; DROP TABLE book_subtitle_settings; DROP TABLE reading_books; PRAGMA user_version=9;',
+    'DROP TABLE online_pending_progress; DROP TABLE subtitle_import_commands; DROP TABLE subtitle_import_sources; DROP TABLE transcript_edit_commands; DROP TABLE transcript_edit_members; DROP TABLE transcript_edit_heads; DROP TABLE transcript_edit_groups; DROP TABLE offline_media_refs; DROP TABLE offline_plan_items; DROP TABLE offline_job_owners; DROP TABLE offline_plans; DROP TABLE processing_resources; ALTER TABLE transcription_jobs DROP COLUMN cpu_threads; DROP TABLE book_subtitle_settings; DROP TABLE reading_books; PRAGMA user_version=9;',
   )
   old.close()
   store = new LibraryStore(file)
@@ -123,7 +123,7 @@ test('schema 9 upgrades in place while retaining audio and the companion origina
   assert.equal(store.reading.import(novel()).id, before.info!.id)
   store.close()
   const db = new DatabaseSync(file)
-  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 17)
+  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 18)
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), [])
   db.close()
 })

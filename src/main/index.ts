@@ -21,6 +21,7 @@ import { LibraryStore } from './database'
 import { registerIpc } from './ipc'
 import { APP_URL, PRODUCTION_CSP, resolveRendererResource } from './resources'
 import { serveMedia } from './media'
+import { LIBRARY_SCHEMA_VERSION } from './database-schema'
 import { CHANNELS } from '../shared/contracts'
 import { APP_NAME, APP_TITLE } from '../shared/brand'
 import { AppError, isTrustedRenderer } from '../shared/validation'
@@ -227,7 +228,9 @@ async function start() {
     return
   }
   await app.whenReady()
-  const restore = await applyPendingRestoreAtStartup(paths.root, { maxSchemaVersion: 17 })
+  const restore = await applyPendingRestoreAtStartup(paths.root, {
+    maxSchemaVersion: LIBRARY_SCHEMA_VERSION,
+  })
   app.setAppUserModelId('com.readandlistenbook.desktop')
   store = new LibraryStore(paths.database)
   ebookSpeech = new EbookSpeech(store.reading)
@@ -288,6 +291,13 @@ async function start() {
         request,
         developmentUrl ? new URL(developmentUrl).origin : 'readlisten://app',
       )
+    if (new URL(request.url).pathname.startsWith('/stream/'))
+      return onlineMedia
+        ? onlineMedia.servePlayback(
+            request,
+            developmentUrl ? new URL(developmentUrl).origin : 'readlisten://app',
+          )
+        : new Response(null, { status: 404 })
     if (new URL(request.url).pathname.startsWith('/media/'))
       return serveMedia(
         request,
@@ -562,7 +572,7 @@ async function start() {
   const backup = new BackupService({
     root: paths.root,
     version: app.getVersion(),
-    maxSchemaVersion: 17,
+    maxSchemaVersion: LIBRARY_SCHEMA_VERSION,
     generated: generatedStorage,
     isBusy: () =>
       !!store?.activeJobs().length ||

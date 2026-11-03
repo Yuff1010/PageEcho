@@ -115,7 +115,7 @@ test('portable backup snapshots real SQLite progress, manual transcripts and sou
     const service = new BackupService({
       root: original.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
       publicPlugins: () => [{ id: 'sample', name: '合成插件', version: '1.0.0' }],
     })
     const result = await service.exportTo(archive, settings)
@@ -131,7 +131,7 @@ test('portable backup snapshots real SQLite progress, manual transcripts and sou
     const restoring = new BackupService({
       root: destination.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
     })
     const preview = await restoring.previewFile(archive)
     assert.equal(preview.books, 1)
@@ -173,14 +173,14 @@ test('restore rolls back the original SQLite directory when commit rename fails 
     const busy = new BackupService({
       root: original.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
       isBusy: () => true,
     })
     await assert.rejects(busy.exportTo(archive, {}), { code: 'BUSY' })
     const service = new BackupService({
       root: original.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
     })
     await service.exportTo(archive, {})
     const preview = await service.previewFile(archive)
@@ -227,7 +227,7 @@ test('backup ZIP rejects traversal, corrupted bytes, unknown settings and newer 
     const exporter = new BackupService({
       root: original.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
     })
     await exporter.exportTo(archive, {})
     const old = new BackupService({
@@ -247,7 +247,7 @@ test('startup validates staged files again and preserves current installed plugi
     service = new BackupService({
       root: original.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
     })
   try {
     const installed = join(original.paths.data, 'source-plugins')
@@ -295,7 +295,7 @@ test('startup validates staged files again and preserves current installed plugi
     alteredService = new BackupService({
       root: altered.root,
       version: '0.35.0-dev.1',
-      maxSchemaVersion: 17,
+      maxSchemaVersion: 18,
     })
   try {
     await alteredService.exportTo(alteredArchive, {})
@@ -331,7 +331,7 @@ test('startup recovers either interrupted rename phase and applies large prefere
       service = new BackupService({
         root: original.root,
         version: '0.35.0-dev.1',
-        maxSchemaVersion: 17,
+        maxSchemaVersion: 18,
       })
     try {
       const settings: Record<string, string> = {}
