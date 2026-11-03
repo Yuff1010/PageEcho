@@ -68,6 +68,43 @@ export function assertInstallerRunner(environment: NodeJS.ProcessEnv, platform =
   )
 }
 
+/** Read PE/script trust metadata only; never execute the inspected file. */
+export async function inspectInstallerSignature(file: string) {
+  assert.equal(process.platform, 'win32')
+  const { stdout } = await promisify(execFile)(
+    join(process.env.SystemRoot ?? 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe'),
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      '$ErrorActionPreference="Stop"; Import-Module (Join-Path $PSHOME "Modules\\Microsoft.PowerShell.Security\\Microsoft.PowerShell.Security.psd1") -ErrorAction Stop; $s=Get-AuthenticodeSignature -LiteralPath $env:PAGEECHO_SIGNATURE_TARGET -ErrorAction Stop; if($null -eq $s){throw "No signature result"}; [pscustomobject]@{status=[string]$s.Status;subject=if($s.SignerCertificate){$s.SignerCertificate.Subject}else{$null}} | ConvertTo-Json -Compress',
+    ],
+    {
+      windowsHide: true,
+      timeout: 15000,
+      env: { ...process.env, PAGEECHO_SIGNATURE_TARGET: resolve(file) },
+    },
+  )
+  const signature: unknown = JSON.parse(stdout.replace(/^\uFEFF/, ''))
+  assert(
+    object(signature) &&
+      typeof signature.status === 'string' &&
+      [
+        'Valid',
+        'UnknownError',
+        'NotSigned',
+        'HashMismatch',
+        'NotTrusted',
+        'NotSupportedFileFormat',
+        'Incompatible',
+      ].includes(signature.status) &&
+      (signature.subject === null || typeof signature.subject === 'string') &&
+      (signature.status !== 'Valid' || !!signature.subject),
+    'Missing or malformed Authenticode status must not become verified signature evidence',
+  )
+  return { status: signature.status, subject: signature.subject }
+}
+
 async function hash(path: string) {
   const digest = createHash('sha256')
   for await (const bytes of createReadStream(path)) digest.update(bytes)
@@ -582,27 +619,7 @@ async function buildInstallerPreview(args: string[]) {
       info.isFile() && !info.isSymbolicLink() && info.size > 1024 * 1024,
       'NSIS output is missing or incomplete',
     )
-    const { stdout } = await promisify(execFile)(
-      join(
-        process.env.SystemRoot ?? 'C:\\Windows',
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      ),
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        '$s=Get-AuthenticodeSignature -LiteralPath $env:PAGEECHO_SIGNATURE_TARGET; [pscustomobject]@{status=[string]$s.Status;subject=if($s.SignerCertificate){$s.SignerCertificate.Subject}else{$null}} | ConvertTo-Json -Compress',
-      ],
-      {
-        windowsHide: true,
-        timeout: 15000,
-        env: { ...process.env, PAGEECHO_SIGNATURE_TARGET: installer },
-      },
-    )
-    report.signature = JSON.parse(stdout)
+    report.signature = await inspectInstallerSignature(installer)
     report.installer = { path: installer, bytes: info.size, sha256: await hash(installer) }
     report.unpacked = {
       path: unpacked,
