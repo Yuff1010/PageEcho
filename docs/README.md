@@ -23,6 +23,8 @@
 | 每版变更和当时的验证证据         | [CHANGELOG](../CHANGELOG.md)、[releases/](releases/)                                  |
 | MIT 授权、参与开发和私密安全报告 | [LICENSE](../LICENSE)、[CONTRIBUTING](../CONTRIBUTING.md)、[SECURITY](../SECURITY.md) |
 
+安装升级、卸载资料保留和关键桌面 CI 见 [INSTALLER_VALIDATION](INSTALLER_VALIDATION.md)。
+
 最初的功能整理与需求草案保存在 [归档草案](archive/initial-requirements.md)。
 
 `*_VALIDATION.md`、模型测量及 `releases/` 内容是对应版本的历史记录，不把旧结果视为当前验证。当前仍保留测试源码，因为本轮删除操作被执行审批拦截；实际状态见工作区结构和存储记录。
