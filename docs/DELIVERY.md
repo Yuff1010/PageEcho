@@ -1,6 +1,8 @@
 # 自包含 Windows 目录版
 
-当前目录版为 **听见书页 · PageEcho 0.42.0-dev.1**，优化后台批量和单书定向读取，保持完整返回与 schema 18；摘要／详情分离仍待续。目录及同名 ZIP：`release/PageEcho-0.42.0-dev.1-2026-11-03T04-56-08.080Z-win-x64`，ZIP SHA-256 `d5779d61b9caace9b32f69752d83ec40903a7a8699d04f566fb7b5cd971dab76`。测量、验证和剩余限制见 [版本记录](releases/0.42.0-dev.1.md) 与 [性能说明](LIBRARY_PERFORMANCE.md)。程序和 ZIP 保留本机。
+当前目录版为 **听见书页 · PageEcho 0.43.0-dev.1**，使用轻摘要、按需章节和独立播放上下文，两种书架每页最多 100 张卡，并修复后台续页与快速翻页交错时跳段，保持 schema 18。目录及同名 ZIP：`release/PageEcho-0.43.0-dev.1-2026-11-03T14-04-05.537Z-win-x64`，ZIP SHA-256 `d9ca150ab1531768cd47f13e6c2cb6942ac4d683fc81ac294d4920e60f15548e`。最终桌面、本机独立运行、远程安装验收和测量边界见 [版本记录](releases/0.43.0-dev.1.md) 与 [性能说明](LIBRARY_PERFORMANCE.md)。程序和 ZIP 保留本机。
+
+历史目录版 **0.42.0-dev.1** 优化后台批量和定向读取，仍返回完整书架。目录及同名 ZIP：`release/PageEcho-0.42.0-dev.1-2026-11-03T04-56-08.080Z-win-x64`，ZIP SHA-256 `d5779d61b9caace9b32f69752d83ec40903a7a8699d04f566fb7b5cd971dab76`。当版测量和验收见 [版本记录](releases/0.42.0-dev.1.md)。
 
 源码维护版 **0.41.0-dev.1** 补充真实安装升级／卸载重装资料保留和关键桌面 CI，临时安装器只用于云端验收，没有发布程序资产。原目录程序继续沿用 0.39，无需重新安装。签名、干净设备和自动更新源仍待续，见 [版本记录](releases/0.41.0-dev.1.md) 与 [安装说明](INSTALLER_VALIDATION.md)。
 
