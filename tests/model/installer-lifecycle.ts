@@ -594,13 +594,14 @@ async function lifecycle(args: string[]) {
     await choose(app!, audio)
     const selected = await page.evaluate(() => window.desktop.selectAudio({ kind: 'audio' }))
     assert(selected.ok && !selected.value.canceled)
-    const importedBook = await page.evaluate(
-      (id) => window.desktop.getBookDetail({ id }),
-      selected.value.mutation.bookId!,
-    )
-    assert(importedBook.ok && importedBook.value)
-    const book = importedBook.value,
-      episode = book.episodes[0]!
+    // Baseline installers predate compact mutation replies and getBookDetail.
+    // getState is the shared diagnostic contract retained by both real versions.
+    const importedState = await page.evaluate(() => window.desktop.getState())
+    assert(importedState.ok && importedState.value.books.length === 1)
+    const book = importedState.value.books[0]!
+    assert.equal(book.title, basename(audio))
+    assert.equal(book.episodes.length, 1)
+    const episode = book.episodes[0]!
     const transcript = join(work, '合成手工字幕.json')
     await writeFile(
       transcript,
