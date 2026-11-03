@@ -2,7 +2,7 @@ name: Checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -33,39 +33,11 @@ jobs:
           architecture: x64
           package-manager-cache: false
       - name: Use a canonical Windows temporary directory
-        run: |
-          @'
-          import assert from 'node:assert/strict'
-          import { appendFileSync, lstatSync, mkdtempSync, realpathSync, rmdirSync } from 'node:fs'
-          import { realpath } from 'node:fs/promises'
-          import { tmpdir } from 'node:os'
-          import { join, resolve } from 'node:path'
-
-          // Hosted Windows TEMP may use RUNNER~1; keep strict junction guards unchanged.
-          const original = tmpdir()
-          const parent = await realpath(original)
-          const directory = await realpath(mkdtempSync(join(parent, 'ralb-ci-')))
-          async function verifyCanonicalDirectory(path) {
-            assert.equal(await realpath(path), resolve(path))
-            assert.equal(realpathSync.native(path), resolve(path))
-            const info = lstatSync(path)
-            assert.ok(info.isDirectory() && !info.isSymbolicLink())
-          }
-          assert.match(directory, /^C:\\/i, 'Large-file unit fixtures require temporary storage on C:')
-          await verifyCanonicalDirectory(parent)
-          await verifyCanonicalDirectory(directory)
-          process.env.TEMP = directory
-          process.env.TMP = directory
-          assert.equal(resolve(tmpdir()), directory)
-          const probe = mkdtempSync(join(tmpdir(), 'canonical-probe-'))
-          try {
-            await verifyCanonicalDirectory(probe)
-          } finally {
-            rmdirSync(probe)
-          }
-          appendFileSync(process.env.GITHUB_ENV, `TEMP=${directory}\nTMP=${directory}\n`)
-          console.log(JSON.stringify({ originalTemporaryDirectory: original, canonicalTemporaryDirectory: directory }))
-          '@ | node --input-type=module
+        run: node scripts/build/canonical-windows-temp.ts
+      - name: Set up Python for protocol and controlled desktop fixtures
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
       - name: Install locked dependencies
         run: npm.cmd ci
       - name: Install Electron runtime
@@ -89,7 +61,39 @@ jobs:
           '@ | node --input-type=module
       - name: Check types, lint, unit tests and formatting
         run: npm.cmd run check
+      - name: Check worker protocol and Python logic without ML dependencies
+        run: npm.cmd run test:worker
       - name: Build isolated preview
         run: |
           New-Item -ItemType Directory -Force -Path out | Out-Null
-          npm.cmd run build:preview -- --version 0.39.0-dev.1
+          npm.cmd run build:preview -- --version 0.41.0-dev.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $manifests = @(Get-ChildItem -Path 'cache/managed-generated/*/manifest.json')
+          if ($manifests.Count -ne 1) { throw 'Expected one fresh frozen preview' }
+          $preview = Get-Content -LiteralPath $manifests[0].FullName -Raw | ConvertFrom-Json
+          "RALB_APP_ROOT=$($preview.appRoot)" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Verify critical desktop flows
+        run: |
+          New-Item -ItemType Directory -Force -Path cache/critical-desktop | Out-Null
+          npm.cmd run test:desktop:critical -- --reporter=json --output=cache/critical-desktop/artifacts > cache/critical-desktop/playwright.log
+          $testExitCode = $LASTEXITCODE
+          $raw = Get-Content -LiteralPath cache/critical-desktop/playwright.log -Raw
+          # npm writes its command preamble before Playwright JSON.
+          $begin = $raw.IndexOf('{')
+          if ($begin -lt 0) { throw 'No desktop result report' }
+          $result = $raw.Substring($begin) | ConvertFrom-Json
+          $result | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath cache/critical-desktop/results.json -Encoding utf8NoBOM
+          if ($testExitCode -ne 0) { exit $testExitCode }
+          if ($result.stats.expected -ne 21 -or $result.stats.unexpected -ne 0 -or $result.stats.skipped -ne 0 -or $result.stats.flaky -ne 0) { throw 'Critical flows must all pass without skipped cases or retries' }
+      - name: Preserve synthetic desktop evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: critical-desktop-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            cache/critical-desktop/**/*.json
+            cache/critical-desktop/**/*.log
+            cache/critical-desktop/**/*.png
+            cache/critical-desktop/**/*.txt
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,102 @@
+name: Installer lifecycle
+
+on:
+  push:
+    branches: [main, codex/installer-lifecycle]
+    paths:
+      - '.github/workflows/installer-lifecycle.yml'
+      - 'scripts/build/package-installer-preview.ts'
+      - 'tests/model/installer-lifecycle.ts'
+      - 'electron-builder.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lifecycle:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    env:
+      PAGEECHO_INSTALLER_BUILD: '1'
+      PAGEECHO_INSTALLER_LIFECYCLE: '1'
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: current
+          persist-credentials: false
+      - name: Check out actual baseline source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 419923e21e5cb4352d84940bcd6bd2b8c2d9f22b # v0.39.0-dev.1
+          path: baseline
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.19.0
+          architecture: x64
+          package-manager-cache: false
+      - name: Configure canonical Windows TEMP
+        run: node current/scripts/build/canonical-windows-temp.ts
+      - name: Install locked candidate dependencies
+        working-directory: current
+        run: |
+          npm.cmd ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run runtime:install
+      - name: Install locked baseline dependencies
+        working-directory: baseline
+        run: |
+          npm.cmd ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run runtime:install
+      - name: Build actual baseline and candidate installers
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:GITHUB_WORKSPACE 'current/cache/installer-ci-evidence'
+          New-Item -ItemType Directory -Path $evidence | Out-Null
+          $builds = @()
+          foreach ($item in @(@{ path = 'baseline'; version = '0.39.0-dev.1' }, @{ path = 'current'; version = '0.41.0-dev.1' })) {
+            Push-Location $item.path
+            try {
+              New-Item -ItemType Directory -Path out | Out-Null
+              $sourceCommit = (git rev-parse HEAD).Trim()
+              $previewLog = Join-Path $evidence ($item.path + '-preview.log')
+              npm.cmd run build:preview -- --version $item.version 2>&1 | Tee-Object -FilePath $previewLog
+              if ($LASTEXITCODE -ne 0) { throw ('Preview failed: ' + $item.path) }
+              $manifests = @(Get-ChildItem -LiteralPath cache/managed-generated -Filter manifest.json -Recurse | Where-Object { $_.Directory.Name -ne 'jobs' })
+              if ($manifests.Count -ne 1) { throw 'Expected exactly one fresh preview manifest' }
+              $preview = Get-Content -LiteralPath $manifests[0].FullName -Raw | ConvertFrom-Json
+              $packLog = Join-Path $evidence ($item.path + '-builder.log')
+              npm.cmd exec -- tsx "$env:GITHUB_WORKSPACE/current/scripts/build/package-installer-preview.ts" --app-root $preview.appRoot 2>&1 | Tee-Object -FilePath $packLog
+              if ($LASTEXITCODE -ne 0) { throw ('Installer build failed: ' + $item.path) }
+              $reports = @(Get-ChildItem -Path 'cache/managed-generated/*/report.json' | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json } | Where-Object { $_.status -eq 'built-and-statically-verified' })
+              if ($reports.Count -ne 1) { throw 'Expected exactly one verified installer report' }
+              $builds += @{ sourceCommit = $sourceCommit; version = $item.version; report = (Join-Path $reports[0].directory 'report.json') }
+              Copy-Item -LiteralPath $builds[-1].report -Destination (Join-Path $evidence ($item.path + '-package.json'))
+            } finally { Pop-Location }
+          }
+          $builds | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $evidence 'builds.json') -Encoding utf8NoBOM
+      - name: Verify real installed upgrade, uninstall retention and reinstall
+        working-directory: current
+        run: npm.cmd exec -- tsx tests/model/installer-lifecycle.ts --build-list cache/installer-ci-evidence/builds.json --output cache/installer-ci-evidence/lifecycle
+      - name: Preserve synthetic validation evidence only
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer-lifecycle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            current/cache/installer-ci-evidence/**/*.json
+            current/cache/installer-ci-evidence/**/*.log
+            current/cache/installer-ci-evidence/**/*.png
+          if-no-files-found: warn
+          retention-days: 14
