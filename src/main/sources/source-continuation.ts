@@ -10,11 +10,9 @@ export async function continueSourceCatalog(
 ) {
   const current = store.getEpisode(id)
   if (!current?.online) throw new SourceError('INVALID_SOURCE_REQUEST', '这不是已保存的在线章节。')
-  const known = store.listBooks().find((book) => book.id === current.bookId)!
-  if (
-    known.episodes.some((episode) => episode.order > current.order) ||
-    known.online!.catalogComplete
-  )
+  const known = store.getBookMetadata(current.bookId)
+  if (!known?.online) throw new SourceError('SOURCE_CHANGED', '在线书籍已移除。')
+  if (store.hasBookEpisodeAfter(current.bookId, current.order) || known.online.catalogComplete)
     return
   const book = await adapter.getBook(current.online.bookId, signal)
   if (book.sourceId !== current.online.sourceId || book.id !== current.online.bookId)

@@ -191,12 +191,7 @@ export class OnlineMedia {
     return this.run(id, 'next', async (signal) => {
       await this.extend(id, signal)
       const current = this.store.getEpisode(id)
-      const next =
-        current &&
-        this.store
-          .listBooks()
-          .find((book) => book.id === current.bookId)
-          ?.episodes.find((e) => e.order === current.order + 1)
+      const next = current && this.store.getBookEpisodeAtOrder(current.bookId, current.order + 1)
       if (!next) return
       await this.prepareFile(next.id, signal)
       return this.store.getEpisode(next.id)
@@ -318,12 +313,12 @@ export class OnlineMedia {
     canceled: AbortSignal,
   ): Promise<void> {
     if (this.closed) throw new SourceError('SOURCE_CANCELED', '在线音频服务已关闭。')
-    const known = this.store.listBooks().find((book) => book.id === bookId)
+    const known = this.store.getBookMetadata(bookId)
     if (
       !known?.online ||
       known.online.catalogComplete ||
       selection.kind === 'ids' ||
-      (selection.kind === 'range' && known.episodes.length >= selection.to)
+      (selection.kind === 'range' && this.store.countBookEpisodes(bookId) >= selection.to)
     )
       return
     return this.run(bookId, 'maintenance', async (operationSignal) => {
@@ -346,16 +341,8 @@ export class OnlineMedia {
           throw new AppError('INVALID_REQUEST', '目录超过 100,000 集读取上限，请选择已加载的范围。')
         if (!page.nextCursor || (selection.kind === 'range' && episodes.length >= selection.to)) {
           signal.throwIfAborted()
-          if (
-            !this.store
-              .listBooks()
-              .some(
-                (saved) =>
-                  saved.id === bookId &&
-                  saved.online?.bookId === book.id &&
-                  saved.online.sourceId === book.sourceId,
-              )
-          )
+          const saved = this.store.getBookMetadata(bookId)
+          if (saved?.online?.bookId !== book.id || saved.online.sourceId !== book.sourceId)
             throw new SourceError('SOURCE_CHANGED', '书籍已移除，请重新预览。')
           this.store.rememberSourceBook(book, episodes, page.nextCursor === null)
           return

@@ -93,7 +93,10 @@ function fixture(settings?: SubtitlePreparation, legacy?: SourcePreparation) {
   const service = new AutomaticSubtitles(
     {
       getEpisode: () => ({ bookId, contentHash: request.audioHash }) as never,
-      listBooks: () => [{ id: bookId, online: { preparation: legacy } }] as never,
+      getBookMetadata: (id) => {
+        assert.equal(id, bookId)
+        return { id: bookId, online: { preparation: legacy } } as never
+      },
       getSubtitlePreparation: () => saved,
       setSubtitlePreparation: (_id, value) => {
         saved = value

@@ -6,7 +6,7 @@
 
 [功能](#功能) · [开始使用](#开始使用) · [来源与插件](#来源与插件) · [本地开发](#本地开发) · [开发记录](#开发记录)
 
-当前目录程序为 **Windows x64 开发预览 `0.39.0-dev.1`**；源码维护版 `0.41.0-dev.1` 补充[安装升级验证](docs/INSTALLER_VALIDATION.md)与关键桌面 CI，无需重新安装。[字幕质量回归](docs/QUALITY_REGRESSION.md)、变更及边界记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
+当前目录程序为 **Windows x64 开发预览 `0.42.0-dev.1`**，优化[大书架后台读取](docs/LIBRARY_PERFORMANCE.md)。[安装升级验证](docs/INSTALLER_VALIDATION.md)、[字幕质量回归](docs/QUALITY_REGRESSION.md)及当前限制记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
 
 ![统一电子书书架](docs/images/bookshelf.png)
 

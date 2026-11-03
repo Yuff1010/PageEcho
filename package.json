@@ -29,6 +29,7 @@
     "audit:python": "tsx scripts/maintenance/audit-python-dependencies.ts",
     "asr:patch": "python -B -X utf8 python/build_security_component.py",
     "workspace:inventory": "tsx scripts/maintenance/workspace-inventory.ts",
+    "benchmark:library": "tsx scripts/maintenance/benchmark-library.ts",
     "workspace:storage": "tsx scripts/maintenance/generated-storage.ts",
     "test": "tsx --test tests/unit/*.test.ts",
     "test:worker": "tsx --test tests/worker/*.test.ts && python -X utf8 -m unittest discover -s python -p test_*.py",

@@ -173,7 +173,7 @@ export function registerIpc(
   )
   handle(CHANNELS.bookLinksList, () => store.bookLinks.list())
   const bookLinkTargets = (bookId: string): OriginalTarget[] =>
-    (store.listBooks().find((book) => book.id === bookId)?.episodes ?? [])
+    (store.getBook(bookId)?.episodes ?? [])
       .filter((episode) => /^[0-9a-f]{64}$/.test(episode.contentHash))
       .map((episode) => ({ episodeId: episode.id, audioHash: episode.contentHash }))
   const notifyBookLink = (targets: OriginalTarget[]) => {
@@ -293,8 +293,10 @@ export function registerIpc(
   if (linkedBookIds.size) {
     const resume: OriginalTarget[] = []
     let limited = false
-    for (const book of store.listBooks()) {
-      if (!linkedBookIds.has(book.id)) continue
+    for (const bookId of store.listBookIds()) {
+      if (!linkedBookIds.has(bookId)) continue
+      const book = store.getBook(bookId)
+      if (!book) continue
       for (const episode of book.episodes) {
         if (
           !/^[0-9a-f]{64}$/.test(episode.contentHash) ||
@@ -919,7 +921,7 @@ export function registerIpc(
     if (draft?.book.id === (request as { id: string }).id) draft = undefined
   })
   handle(CHANNELS.removeBook, (request) => {
-    const book = store.listBooks().find((book) => book.id === (request as { id: string }).id)
+    const book = store.getBook((request as { id: string }).id)
     if (book) {
       for (const episode of book.episodes) onlineMedia.cancel(episode.id)
       transcription.cancelEpisodes(book.episodes.map((episode) => episode.id))

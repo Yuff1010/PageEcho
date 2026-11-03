@@ -68,7 +68,7 @@ jobs:
       - name: Build isolated preview
         run: |
           New-Item -ItemType Directory -Force -Path out | Out-Null
-          npm.cmd run build:preview -- --version 0.41.0-dev.1
+          npm.cmd run build:preview -- --version 0.42.0-dev.1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $manifests = @(Get-ChildItem -Path 'cache/managed-generated/*/manifest.json')
           if ($manifests.Count -ne 1) { throw 'Expected one fresh frozen preview' }

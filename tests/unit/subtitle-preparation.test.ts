@@ -90,7 +90,15 @@ function setup(online = false, settings?: SubtitlePreparation) {
     measurements.push(id)
   }
   const store = {
-    listBooks: () => [book],
+    listBooks: () => assert.fail('preparation must not expand the entire library'),
+    getBookMetadata: (id: string) => {
+      assert.equal(id, bookId)
+      return { id: book.id, online: book.online, subtitlePreparation: book.subtitlePreparation }
+    },
+    getBookEpisodeAtOrder: (id: string, order: number) => {
+      assert.equal(id, bookId)
+      return episodes.find((episode) => episode.order === order)
+    },
     getEpisode: (id: string) => episodes.find((episode) => episode.id === id),
     latestJob: (id: string) => jobs.get(id) ?? null,
     getTranscript: () => ({ status: 'missing' }),
@@ -215,6 +223,23 @@ test('restoring or opening a saved automatic book never starts ASR until playbac
     } finally {
       await t.preparation.close()
     }
+  }
+})
+
+test('preparation keeps exact next-order behavior when the local directory contains a gap', async () => {
+  const t = setup(false, ahead)
+  t.episodes[1]!.order = 4
+  t.episodes[2]!.order = 8
+  try {
+    t.preparation.opened(t.episodes[0]!.id, true)
+    await until(() => t.calls.length === 1 && t.preparation.state().stage === 'transcribing')
+    assert.deepEqual(t.opened, [{ id: t.episodes[0]!.id, nextId: undefined }])
+    assert.equal(t.calls[0]!.request.episodeId, t.episodes[0]!.id)
+    assert.equal(t.calls[0]!.background, false)
+    assert.equal(t.preparation.state().nextEpisodeId, null)
+    assert.deepEqual(t.downloads, [])
+  } finally {
+    await t.preparation.close()
   }
 })
 

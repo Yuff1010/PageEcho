@@ -108,6 +108,94 @@ const JOB_COLUMNS = `id, episode_id AS episodeId, audio_hash AS audioHash, engin
   typeof(document_json) <> 'null' AS hasPreview, created_at AS createdAt, updated_at AS updatedAt,
   error_text AS error, configuration_hash AS configurationHash, range_end_ms AS rangeEndMs`
 
+const BOOK_ORDER = 'b.last_played_at DESC, b.imported_at DESC, b.rowid DESC'
+const BOOK_METADATA = `SELECT b.id, b.title, b.imported_at AS importedAt,
+  b.last_played_at AS lastPlayedAt, b.current_episode_id AS currentEpisodeId,
+  coalesce(s.intro_ms,0) AS introMs, coalesce(s.outro_ms,0) AS outroMs,
+  o.book_id AS onlineBookId, o.source_id AS sourceId, o.source_book_id AS sourceBookId,
+  o.catalog_complete AS catalogComplete, o.preparation_json AS preparationJson,
+  t.settings_json AS subtitleSettingsJson
+  FROM books b LEFT JOIN book_listening_settings s ON s.book_id=b.id
+  LEFT JOIN online_books o ON o.book_id=b.id
+  LEFT JOIN book_subtitle_settings t ON t.book_id=b.id`
+const LOCAL_EPISODES = `SELECT e.id, e.book_id AS bookId, e.title, e.sort_order AS 'order',
+  e.size_bytes AS sizeBytes, e.modified_at AS modifiedAt, e.content_hash AS contentHash,
+  e.duration_ms AS durationMs, e.position_ms AS positionMs,
+  NULL AS sourceBookId, NULL AS sourceEpisodeId, 1 AS cacheAvailable, NULL AS sourceId
+  FROM episodes e`
+const LOCAL_EPISODE_MEMBERSHIP = 'NOT EXISTS (SELECT 1 FROM online_episodes o WHERE o.id=e.id)'
+const ONLINE_EPISODES = `SELECT o.id, o.book_id AS bookId, o.title, o.sort_order AS 'order',
+  coalesce(e.size_bytes,0) AS sizeBytes, coalesce(e.modified_at,0) AS modifiedAt,
+  coalesce(e.content_hash,'') AS contentHash,
+  CASE WHEN e.id IS NULL THEN p.duration_ms ELSE e.duration_ms END AS durationMs,
+  coalesce(e.position_ms,p.position_ms,0) AS positionMs,
+  b.source_book_id AS sourceBookId, o.source_episode_id AS sourceEpisodeId,
+  o.cache_available AS cacheAvailable, b.source_id AS sourceId
+  FROM online_episodes o JOIN online_books b ON b.book_id=o.book_id
+  LEFT JOIN episodes e ON e.id=o.id
+  LEFT JOIN online_pending_progress p ON p.episode_id=o.id`
+
+function episodeFromRow(row: Record<string, unknown>): Episode {
+  return {
+    id: row.id,
+    bookId: row.bookId,
+    title: row.title,
+    order: row.order,
+    sizeBytes: row.sizeBytes,
+    modifiedAt: row.modifiedAt,
+    contentHash: row.contentHash,
+    durationMs: row.durationMs,
+    positionMs: row.positionMs,
+    ...(row.sourceEpisodeId
+      ? {
+          online: {
+            sourceId: row.sourceId,
+            bookId: String(row.sourceBookId),
+            episodeId: String(row.sourceEpisodeId),
+            cached: Boolean(row.cacheAvailable),
+          },
+        }
+      : {}),
+  } as Episode
+}
+
+function bookMetadataFromRow(row: Record<string, unknown>): Omit<Book, 'episodes'> {
+  const subtitlePreparation =
+    row.subtitleSettingsJson === null ? undefined : JSON.parse(String(row.subtitleSettingsJson))
+  return {
+    id: row.id,
+    title: row.title,
+    importedAt: row.importedAt,
+    lastPlayedAt: row.lastPlayedAt,
+    currentEpisodeId: row.currentEpisodeId,
+    introMs: row.introMs,
+    outroMs: row.outroMs,
+    ...(subtitlePreparation ? { subtitlePreparation } : {}),
+    ...(row.onlineBookId !== null
+      ? {
+          online: {
+            sourceId: row.sourceId,
+            bookId: row.sourceBookId,
+            catalogComplete: Boolean(row.catalogComplete),
+            preparation: row.preparationJson
+              ? JSON.parse(String(row.preparationJson))
+              : { ...DEFAULT_SOURCE_PREPARATION },
+          },
+        }
+      : {}),
+  } as Omit<Book, 'episodes'>
+}
+
+function bookWithEpisodes(metadata: Omit<Book, 'episodes'>, episodes: Episode[]): Book {
+  const { subtitlePreparation, online, ...base } = metadata
+  return {
+    ...base,
+    episodes,
+    ...(subtitlePreparation ? { subtitlePreparation } : {}),
+    ...(online ? { online } : {}),
+  }
+}
+
 export interface StoredAudio extends FileMetadata {
   id: string
   contentHash: string
@@ -675,78 +763,91 @@ export class LibraryStore {
   }
 
   listBooks(): Book[] {
-    const books = this.db
-      .prepare(
-        `SELECT b.id, b.title, b.imported_at AS importedAt,
-      b.last_played_at AS lastPlayedAt, b.current_episode_id AS currentEpisodeId,
-      coalesce(s.intro_ms,0) AS introMs, coalesce(s.outro_ms,0) AS outroMs
-      FROM books b LEFT JOIN book_listening_settings s ON s.book_id=b.id
-      ORDER BY b.last_played_at DESC, b.imported_at DESC, b.rowid DESC`,
-      )
+    return this.readSnapshot(() => {
+      const books = this.db
+        .prepare(`${BOOK_METADATA} ORDER BY ${BOOK_ORDER}`)
+        .all()
+        .map((row) => bookWithEpisodes(bookMetadataFromRow(row), []))
+      if (!books.length) return books
+      const byId = new Map(books.map((book) => [book.id, book]))
+      // Stream raw rows instead of retaining a second million-row array alongside the DTOs.
+      // The local membership index also preserves the old per-book input order for equal ordinals.
+      for (const row of this.db
+        .prepare(
+          `${LOCAL_EPISODES} WHERE ${LOCAL_EPISODE_MEMBERSHIP}
+      ORDER BY e.book_id,e.locator COLLATE NOCASE`,
+        )
+        .iterate())
+        byId.get(String(row.bookId))?.episodes.push(episodeFromRow(row))
+      for (const row of this.db
+        .prepare(`${ONLINE_EPISODES} ORDER BY o.book_id,o.sort_order`)
+        .iterate())
+        byId.get(String(row.bookId))?.episodes.push(episodeFromRow(row))
+      // Stable sort keeps local/online branch precedence without inventing an id tie-break.
+      for (const book of books) book.episodes.sort((a, b) => a.order - b.order)
+      return books
+    })
+  }
+
+  listBookIds(): string[] {
+    return this.db
+      .prepare(`SELECT b.id FROM books b ORDER BY ${BOOK_ORDER}`)
       .all()
-    return books.map((book) => {
-      const online = this.db.prepare('SELECT * FROM online_books WHERE book_id=?').get(book.id!)
-      const subtitlePreparation = this.getSubtitlePreparation(String(book.id))
-      return {
-        ...book,
-        episodes: this.episodeRows('bookId', String(book.id)),
-        ...(subtitlePreparation ? { subtitlePreparation } : {}),
-        ...(online
-          ? {
-              online: {
-                sourceId: online.source_id,
-                bookId: online.source_book_id,
-                catalogComplete: Boolean(online.catalog_complete),
-                preparation: online.preparation_json
-                  ? JSON.parse(String(online.preparation_json))
-                  : { ...DEFAULT_SOURCE_PREPARATION },
-              },
-            }
-          : {}),
-      }
-    }) as unknown as Book[]
+      .map((row) => String(row.id))
+  }
+
+  getBookMetadata(id: string): Omit<Book, 'episodes'> | undefined {
+    const row = this.db.prepare(`${BOOK_METADATA} WHERE b.id=?`).get(id)
+    return row ? bookMetadataFromRow(row) : undefined
+  }
+
+  getBook(id: string): Book | undefined {
+    return this.readSnapshot(() => {
+      const metadata = this.getBookMetadata(id)
+      return metadata ? bookWithEpisodes(metadata, this.episodeRows('bookId', id)) : undefined
+    })
+  }
+
+  countBookEpisodes(bookId: string): number {
+    const row = this.db
+      .prepare(
+        `SELECT
+      (SELECT count(*) FROM episodes e WHERE e.book_id=? AND ${LOCAL_EPISODE_MEMBERSHIP}) +
+      (SELECT count(*) FROM online_episodes WHERE book_id=?) AS count`,
+      )
+      .get(bookId, bookId)!
+    return Number(row.count)
+  }
+
+  hasBookEpisodeAfter(bookId: string, order: number): boolean {
+    return !!this.db
+      .prepare(
+        `SELECT 1 FROM episodes e
+      WHERE e.book_id=? AND e.sort_order>? AND ${LOCAL_EPISODE_MEMBERSHIP}
+      UNION ALL SELECT 1 FROM online_episodes o WHERE o.book_id=? AND o.sort_order>? LIMIT 1`,
+      )
+      .get(bookId, order, bookId, order)
+  }
+
+  getBookEpisodeAtOrder(bookId: string, order: number): Episode | undefined {
+    return this.episodeRows('bookId', bookId, order)[0]
   }
 
   getEpisode(id: string): Episode | undefined {
     return this.episodeRows('id', id)[0]
   }
 
-  private episodeRows(field: 'id' | 'bookId', value: string): Episode[] {
-    const rows = this.db
-      .prepare(
-        `SELECT * FROM (
-      SELECT e.id, e.book_id AS bookId, e.title, e.sort_order AS 'order',
-        e.size_bytes AS sizeBytes, e.modified_at AS modifiedAt, e.content_hash AS contentHash,
-        e.duration_ms AS durationMs, e.position_ms AS positionMs,
-        NULL AS sourceBookId, NULL AS sourceEpisodeId, 1 AS cacheAvailable, NULL AS sourceId
-      FROM episodes e WHERE NOT EXISTS (SELECT 1 FROM online_episodes o WHERE o.id=e.id)
-      UNION ALL
-      SELECT o.id, o.book_id, o.title, o.sort_order, coalesce(e.size_bytes,0),
-        coalesce(e.modified_at,0), coalesce(e.content_hash,''),
-        CASE WHEN e.id IS NULL THEN p.duration_ms ELSE e.duration_ms END,
-        coalesce(e.position_ms,p.position_ms,0), b.source_book_id, o.source_episode_id, o.cache_available, b.source_id
-      FROM online_episodes o JOIN online_books b ON b.book_id=o.book_id
-        LEFT JOIN episodes e ON e.id=o.id
-        LEFT JOIN online_pending_progress p ON p.episode_id=o.id
-    ) WHERE ${field}=? ORDER BY "order"`,
-      )
-      .all(value)
-    return rows.map(
-      ({ sourceBookId, sourceEpisodeId, cacheAvailable, sourceId, ...row }) =>
-        ({
-          ...row,
-          ...(sourceEpisodeId
-            ? {
-                online: {
-                  sourceId,
-                  bookId: String(sourceBookId),
-                  episodeId: String(sourceEpisodeId),
-                  cached: Boolean(cacheAvailable),
-                },
-              }
-            : {}),
-        }) as unknown as Episode,
-    )
+  private episodeRows(field: 'id' | 'bookId', value: string, order?: number): Episode[] {
+    const column = field === 'id' ? 'id' : 'book_id'
+    const values = order === undefined ? [value] : [value, order]
+    const statement = this.db.prepare(`${LOCAL_EPISODES}
+      WHERE ${LOCAL_EPISODE_MEMBERSHIP} AND e.${column}=? ${order === undefined ? '' : 'AND e.sort_order=?'}
+      UNION ALL ${ONLINE_EPISODES}
+      WHERE o.${column}=? ${order === undefined ? '' : 'AND o.sort_order=?'}
+      ORDER BY "order" ${field === 'id' || order !== undefined ? 'LIMIT 1' : ''}`)
+    const episodes: Episode[] = []
+    for (const row of statement.iterate(...values, ...values)) episodes.push(episodeFromRow(row))
+    return episodes
   }
 
   rememberSourceBook(book: SourceBook, episodes: SourceEpisode[], complete: boolean): string {

@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { setTimeout as delay } from 'node:timers/promises'
 import test, { type TestContext } from 'node:test'
 import { LibraryStore, type StoredTranscriptionJob } from '../../src/main/database'
@@ -336,6 +337,29 @@ test('preview tokens expire, are single-use and reject changed media identity wi
   assert.equal(f.store.offlinePlans().total, 0)
   assert.equal(f.store.activeJobs().length, 0)
   assert.equal(f.store.offlineMediaReferences().length, 0)
+})
+
+test('offline ranges remain sorted array positions with sparse orders and never expand unrelated books', async (t) => {
+  const f = await fixture(t, { count: 4 })
+  const db = new DatabaseSync(f.filename)
+  try {
+    db.prepare('UPDATE episodes SET sort_order=sort_order*10 WHERE book_id=?').run(f.book.id)
+  } finally {
+    db.close()
+  }
+  f.store.listBooks = () => assert.fail('single-book previews must not read the full library')
+  const preview = await f.service.preview(f.request({ kind: 'range', from: 2, to: 3 }))
+  assert.deepEqual(
+    preview.items.map((item) => item.episodeId),
+    f.episodes.slice(1, 3).map((episode) => episode.id),
+  )
+  assert.deepEqual(
+    preview.items.map((item) => item.order),
+    [11, 21],
+  )
+  assert.equal(preview.totalItems, 2)
+  assert.equal(f.store.offlinePlans().total, 0)
+  assert.equal(f.starts.length + f.downloads.length, 0)
 })
 
 test('canceling a catalog preview waits for cleanup and invalidates a completed token delivered late', async (t) => {

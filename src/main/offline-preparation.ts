@@ -148,7 +148,7 @@ export class OfflinePreparation {
     if (library) this.options.libraryChanged()
   }
   private book(id: string): Book {
-    const book = this.store.listBooks().find((value) => value.id === id)
+    const book = this.store.getBook(id)
     if (!book) throw new AppError('FILE_UNAVAILABLE', '书籍已移除，请重新选择。')
     return book
   }

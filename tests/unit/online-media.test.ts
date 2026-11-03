@@ -38,7 +38,8 @@ async function fixture(request: typeof fetch, timeout = 3000) {
     directory = join(root, 'cache')
   const store = new LibraryStore(filename)
   store.rememberSourceBook(book, episodes.slice(0, 2), false)
-  let resolves = 0,
+  let catalogs = 0,
+    resolves = 0,
     closed = 0
   const adapter: SourceAdapter = {
     id: 'ting13',
@@ -46,7 +47,10 @@ async function fixture(request: typeof fetch, timeout = 3000) {
       throw Error('unused')
     },
     getBook: async () => book,
-    getEpisodes: async () => ({ items: episodes, nextCursor: null }),
+    getEpisodes: async () => {
+      catalogs++
+      return { items: episodes, nextCursor: null }
+    },
     resolveAudio: async (_book, id) => {
       resolves++
       return {
@@ -75,8 +79,9 @@ async function fixture(request: typeof fetch, timeout = 3000) {
     directory,
     store,
     media,
+    adapter,
     ids: store.listBooks()[0]!.episodes.map((e) => e.id),
-    counts: () => ({ resolves, closed }),
+    counts: () => ({ catalogs, resolves, closed }),
   }
 }
 
@@ -407,4 +412,83 @@ test('a current episode preempts speculative next-audio transfer and drains its 
   assert.equal((await readdir(f.directory)).length, 1)
   await f.media.close()
   f.store.close()
+})
+
+test('next preparation uses exact order while catalog continuation accepts any later saved order', async (t) => {
+  for (const gap of [false, true]) {
+    const f = await fixture(async () => mp3())
+    t.after(async () => {
+      await f.media.close()
+      f.store.close()
+    })
+    if (gap) {
+      f.store.rememberSourceBook(book, episodes, false)
+      const db = new DatabaseSync(f.filename)
+      try {
+        db.prepare('DELETE FROM online_episodes WHERE id=?').run(f.ids[1]!)
+      } finally {
+        db.close()
+      }
+    }
+    f.store.listBooks = () => assert.fail('next preparation must not expand the full library')
+    f.store.getBook = () => assert.fail('next preparation needs metadata and one exact episode')
+    const next = await f.media.prepareNext(f.ids[0]!)
+    assert.equal(next?.id, gap ? undefined : f.ids[1])
+    assert.equal(f.counts().catalogs, 0)
+    assert.equal(f.counts().resolves, gap ? 0 : 1)
+    if (next) assert.ok(f.store.getAudio(next.id))
+  }
+})
+
+test('offline catalog range completion counts actual rows and rechecks source identity without expanding books', async (t) => {
+  const f = await fixture(async () => mp3())
+  t.after(async () => {
+    await f.media.close()
+    f.store.close()
+  })
+  f.store.rememberSourceBook(book, episodes, false)
+  const db = new DatabaseSync(f.filename)
+  try {
+    db.prepare('DELETE FROM online_episodes WHERE id=?').run(f.ids[1]!)
+  } finally {
+    db.close()
+  }
+  f.store.listBooks = () => assert.fail('catalog completion must not read the full library')
+  f.store.getBook = () => assert.fail('catalog completion only needs metadata and a count')
+  const signal = new AbortController().signal
+  await f.media.completeOfflineCatalog(
+    f.store.getEpisode(f.ids[0]!)!.bookId,
+    { kind: 'range', from: 1, to: 2 },
+    signal,
+  )
+  assert.equal(f.counts().catalogs, 0)
+  await f.media.completeOfflineCatalog(
+    f.store.getEpisode(f.ids[0]!)!.bookId,
+    { kind: 'range', from: 2, to: 3 },
+    signal,
+  )
+  assert.equal(f.counts().catalogs, 1)
+  assert.equal(f.store.countBookEpisodes(f.store.getEpisode(f.ids[0]!)!.bookId), 3)
+})
+
+test('a book removed during offline catalog loading cannot be recreated by the completed page', async (t) => {
+  const f = await fixture(async () => mp3())
+  t.after(async () => {
+    await f.media.close()
+    f.store.close()
+  })
+  const bookId = f.store.getEpisode(f.ids[0]!)!.bookId
+  f.adapter.getEpisodes = async () => {
+    f.store.removeBook(bookId)
+    return { items: episodes, nextCursor: null }
+  }
+  f.store.listBooks = () => assert.fail('catalog identity checks must not read the full library')
+  f.store.getBook = () => assert.fail('catalog identity checks only need metadata')
+  await assert.rejects(
+    f.media.completeOfflineCatalog(bookId, { kind: 'all' }, new AbortController().signal),
+    { code: 'SOURCE_CHANGED' },
+  )
+  assert.equal(f.store.getBookMetadata(bookId), undefined)
+  assert.equal(f.store.countBookEpisodes(bookId), 0)
+  assert.equal(f.store.getEpisode(f.ids[0]!), undefined)
 })

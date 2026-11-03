@@ -23,6 +23,8 @@
 | 每版变更和当时的验证证据         | [CHANGELOG](../CHANGELOG.md)、[releases/](releases/)                                  |
 | MIT 授权、参与开发和私密安全报告 | [LICENSE](../LICENSE)、[CONTRIBUTING](../CONTRIBUTING.md)、[SECURITY](../SECURITY.md) |
 
+大书架读取、实际测量和后续摘要拆分见 [LIBRARY_PERFORMANCE](LIBRARY_PERFORMANCE.md)。
+
 安装升级、卸载资料保留和关键桌面 CI 见 [INSTALLER_VALIDATION](INSTALLER_VALIDATION.md)。
 
 最初的功能整理与需求草案保存在 [归档草案](archive/initial-requirements.md)。

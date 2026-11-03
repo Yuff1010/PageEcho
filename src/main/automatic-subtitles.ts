@@ -41,7 +41,11 @@ export function automaticSubtitleProfile(
 
 type AutomaticStore = Pick<
   LibraryStore,
-  'getEpisode' | 'listBooks' | 'getSubtitlePreparation' | 'setSubtitlePreparation' | 'latestJob'
+  | 'getEpisode'
+  | 'getBookMetadata'
+  | 'getSubtitlePreparation'
+  | 'setSubtitlePreparation'
+  | 'latestJob'
 >
 type AutomaticQueue = Pick<
   TranscriptionQueue,
@@ -157,8 +161,7 @@ export class AutomaticSubtitles {
       const currentSettings = (): SubtitlePreparation | null => {
         const saved = this.store.getSubtitlePreparation(episode.bookId)
         if (saved) return saved
-        const legacy = this.store.listBooks().find((book) => book.id === episode.bookId)
-          ?.online?.preparation
+        const legacy = this.store.getBookMetadata(episode.bookId)?.online?.preparation
         // False is also the database's default for every newly added online book.
         // Only a previously enabled legacy strategy represents an explicit profile.
         return legacy?.transcribeNext

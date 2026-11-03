@@ -57,8 +57,8 @@ export class OnlinePreparation {
     this.current = id
     this.activated = activated
     this.media.setCurrent(id)
-    const book = this.store.listBooks().find((book) => book.episodes.some((e) => e.id === id))
     const current = this.store.getEpisode(id),
+      book = current && this.store.getBookMetadata(current.bookId),
       legacy = book?.online?.preparation,
       settings = book?.subtitlePreparation
     this.automatic = activated && (settings ? settings.mode !== 'manual' : !!legacy?.transcribeNext)
@@ -67,7 +67,7 @@ export class OnlinePreparation {
       nextAutomatic = this.nextAutomatic,
       cacheNext = !!legacy?.cacheNext,
       profile = settings ?? legacy,
-      next = book?.episodes.find((e) => e.order === (current?.order ?? -2) + 1)
+      next = current && this.store.getBookEpisodeAtOrder(current.bookId, current.order + 1)
     this.update({ episodeId: id, nextEpisodeId: null })
     const generation = this.generation
     const valid = () => generation === this.generation && !this.closed
