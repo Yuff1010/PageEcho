@@ -1,8 +1,9 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
-import type { ReadingBook } from '../../shared/reading'
+import type { ReadingBookSummary } from '../../shared/library'
 import type { BookLink } from '../../shared/book-links'
 import { Icon } from './Icons'
-import { ShelfBookCard } from './LibraryShelf'
+import { ShelfBookCard, ShelfPagination } from './LibraryShelf'
+import { useShelfPage } from './useShelfPage'
 import { readingShelfPosition, visibleShelfBooks, type ShelfLayout } from './library-shelf'
 import { RemoveBookConfirmation } from './RemoveBookConfirmation'
 
@@ -45,11 +46,11 @@ export function NormalReading({
   onRemoved?: () => void
   ref?: Ref<ReadingShelfHandle>
 }) {
-  const [books, setBooks] = useState<ReadingBook[]>([])
+  const [books, setBooks] = useState<ReadingBookSummary[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState(false)
-  const [removing, setRemoving] = useState<ReadingBook | null>(null)
+  const [removing, setRemoving] = useState<ReadingBookSummary | null>(null)
   const [removeError, setRemoveError] = useState('')
   const removalTrigger = useRef<HTMLElement | null>(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -64,11 +65,13 @@ export function NormalReading({
     () => visibleShelfBooks(books, query, sort, recentOnly, (book) => book.lastReadAt),
     [books, query, sort, recentOnly],
   )
+  const shelfPage = useShelfPage(visibleBooks, `${query}:${sort}:${recentOnly}`)
+  const linkedIds = useMemo(() => new Set(links.map((link) => link.readingBookId)), [links])
   useEffect(() => {
     if (!visible) return
     let alive = true
     void window.desktop
-      .getReadingBooks()
+      .getReadingSummaries()
       .then((result) => {
         if (!alive) return
         if (result.ok) {
@@ -102,7 +105,7 @@ export function NormalReading({
     }
   }
   useImperativeHandle(ref, () => ({ importBook }))
-  async function remove(book: ReadingBook) {
+  async function remove(book: ReadingBookSummary) {
     setBusy(true)
     setRemoveError('')
     try {
@@ -169,8 +172,8 @@ export function NormalReading({
           className={`file-list bookshelf bookshelf-${layout} ebook-shelf`}
           aria-label="电子书列表"
         >
-          {visibleBooks.map((item) => {
-            const linked = links.some((link) => link.readingBookId === item.id)
+          {shelfPage.items.map((item) => {
+            const linked = linkedIds.has(item.id)
             return (
               <ShelfBookCard
                 key={item.id}
@@ -186,7 +189,7 @@ export function NormalReading({
                   icon: 'book',
                   onClick: () => onOpenBook(item.id),
                 }}
-                metadata={`${item.format.toUpperCase()} · ${item.chapters.length} 章`}
+                metadata={`${item.format.toUpperCase()} · ${item.chapterCount} 章`}
                 position={readingShelfPosition(item)}
                 availability={linked ? '已关联有声书' : '电子书 · 可朗读'}
                 linked={linked}
@@ -249,6 +252,12 @@ export function NormalReading({
           })}
         </ul>
       )}
+      <ShelfPagination
+        page={shelfPage.page}
+        pages={shelfPage.pages}
+        onPage={shelfPage.setPage}
+        label="电子书书架分页"
+      />
       {removing && (
         <RemoveBookConfirmation
           book={removing}

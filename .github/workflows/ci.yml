@@ -68,7 +68,7 @@ jobs:
       - name: Build isolated preview
         run: |
           New-Item -ItemType Directory -Force -Path out | Out-Null
-          npm.cmd run build:preview -- --version 0.42.0-dev.1
+          npm.cmd run build:preview -- --version 0.43.0-dev.1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $manifests = @(Get-ChildItem -Path 'cache/managed-generated/*/manifest.json')
           if ($manifests.Count -ne 1) { throw 'Expected one fresh frozen preview' }
@@ -86,7 +86,7 @@ jobs:
           $result = $raw.Substring($begin) | ConvertFrom-Json
           $result | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath cache/critical-desktop/results.json -Encoding utf8NoBOM
           if ($testExitCode -ne 0) { exit $testExitCode }
-          if ($result.stats.expected -ne 21 -or $result.stats.unexpected -ne 0 -or $result.stats.skipped -ne 0 -or $result.stats.flaky -ne 0) { throw 'Critical flows must all pass without skipped cases or retries' }
+          if ($result.stats.expected -ne 25 -or $result.stats.unexpected -ne 0 -or $result.stats.skipped -ne 0 -or $result.stats.flaky -ne 0) { throw 'Critical flows must all pass without skipped cases or retries' }
       - name: Preserve synthetic desktop evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

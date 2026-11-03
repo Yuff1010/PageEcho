@@ -18,6 +18,7 @@ import {
 import { AppError, isTrustedRenderer, validateRequest } from '../shared/validation'
 import { scanBook, type ScannedBook } from './files'
 import type { LibraryStore } from './database'
+import type { LibraryOverview, LibraryMutation, PlaybackContext } from '../shared/library'
 import type { PersistentBookCovers } from './sources/persistent-book-covers'
 import { checkAudio, MEDIA_PREFIX } from './media'
 import type { TranscriptRequest } from '../shared/transcript'
@@ -95,6 +96,35 @@ export function registerIpc(
     books: store.listBooks().map((book) => savedCovers?.decorate('audio', book) ?? book),
     ...store.getPlayerState(),
   })
+  const overview = (): LibraryOverview => ({
+    version: app.getVersion(),
+    dataLocation,
+    files: store.listFiles(),
+    books: store.listBookSummaries().map((book) => savedCovers?.decorate('audio', book) ?? book),
+    ...store.getPlayerState(),
+  })
+  const context = (id: string): PlaybackContext | null => {
+    const value = store.getPlaybackContext(id)
+    return value
+      ? { ...value, book: savedCovers?.decorate('audio', value.book) ?? value.book }
+      : null
+  }
+  const requiredContext = (id: string): PlaybackContext => {
+    const value = context(id)
+    if (!value) throw new AppError('FILE_UNAVAILABLE', '章节记录已移除，请重新选择。')
+    return value
+  }
+  const mutation = (
+    bookId?: string,
+    episodeId?: string,
+    filesChanged = false,
+  ): LibraryMutation => ({
+    changedBookIds: bookId ? [bookId] : [],
+    removedBookIds: [],
+    filesChanged,
+    ...(bookId ? { bookId } : {}),
+    ...(episodeId ? { episodeId } : {}),
+  })
   let choosing = false
   let draft: { book: ScannedBook; createdAt: number } | undefined
   let active: { id: string; episodeId: string; hash: string; generation: number } | undefined
@@ -168,8 +198,28 @@ export function registerIpc(
   }
 
   handle(CHANNELS.getState, state)
+  handle(CHANNELS.libraryOverview, overview)
+  handle(CHANNELS.bookDetail, (request) => {
+    const book = store.getBook((request as { id: string }).id)
+    return book ? (savedCovers?.decorate('audio', book) ?? book) : null
+  })
+  handle(CHANNELS.bookEpisodes, (request) => {
+    const input = request as { id: string; offset: number; limit: number }
+    const page = store.getBookEpisodes(input.id, input.offset, input.limit)
+    return { ...page, book: savedCovers?.decorate('audio', page.book) ?? page.book }
+  })
+  handle(CHANNELS.playbackContext, (request) =>
+    context((request as { episodeId: string }).episodeId),
+  )
+  handle(CHANNELS.readingBook, (request) => {
+    const book = store.reading.find((request as { id: string }).id)
+    return book ? (savedCovers?.decorate('ebook', book) ?? book) : null
+  })
   handle(CHANNELS.readingList, () =>
     store.reading.list().map((book) => savedCovers?.decorate('ebook', book) ?? book),
+  )
+  handle(CHANNELS.readingSummaries, () =>
+    store.reading.summaries().map((book) => savedCovers?.decorate('ebook', book) ?? book),
   )
   handle(CHANNELS.bookLinksList, () => store.bookLinks.list())
   const bookLinkTargets = (bookId: string): OriginalTarget[] =>
@@ -422,8 +472,9 @@ export function registerIpc(
     })
   })
   handle(CHANNELS.sourceContinuation, async (request) => {
-    await onlineMedia.continueAfter((request as { id: string }).id)
-    return state()
+    const id = (request as { id: string }).id
+    await onlineMedia.continueAfter(id)
+    return mutation(store.getEpisode(id)?.bookId, id)
   })
   handle(CHANNELS.sourcePreparation, (request) => {
     const input = request as { id: string; settings: SourcePreparation }
@@ -432,7 +483,7 @@ export function registerIpc(
       component.runtime(input.settings.engine, input.settings.device)
     store.setSourcePreparation(input.id, input.settings)
     preparation.settingsChanged(input.id)
-    return state()
+    return mutation(input.id)
   })
   handle(CHANNELS.sourcePreparationState, () => preparation.state())
   handle(CHANNELS.sourceCacheState, () => onlineMedia.cacheState())
@@ -482,7 +533,7 @@ export function registerIpc(
     })
   })
   handle(CHANNELS.sourceAdd, (request) => {
-    const input = request as SourceBookRequest
+    const input = request as SourceBookRequest & { episodeId?: string }
     const source = sources.get(input.sourceId)
     return source.run(input.id, async (signal) => {
       let detail = catalogs.get(`${input.sourceId}:${input.bookId}`)
@@ -494,6 +545,11 @@ export function registerIpc(
         rememberCatalog(detail)
       }
       signal.throwIfAborted()
+      if (
+        input.episodeId &&
+        !detail.episodes.items.some((episode) => episode.id === input.episodeId)
+      )
+        throw new SourceError('SOURCE_CHANGED', '该集尚未加入已读取目录，请重新读取目录。')
       const bookId = store.rememberSourceBook(
         detail.book,
         detail.episodes.items,
@@ -501,7 +557,10 @@ export function registerIpc(
       )
       if (savedCovers && covers)
         await savedCovers.remember('audio', bookId, covers.audio(detail.book).coverUrl)
-      return state()
+      return mutation(
+        bookId,
+        input.episodeId ? store.getSourceEpisodeId(bookId, input.episodeId) : undefined,
+      )
     })
   })
   handle(CHANNELS.sourceCancel, (request) => sources.cancel((request as { id: string }).id))
@@ -549,7 +608,7 @@ export function registerIpc(
   handle(CHANNELS.bookSkips, (request) => {
     const target = request as { id: string } & BookSkips
     store.setBookSkips(target.id, target)
-    return state()
+    return mutation(target.id)
   })
   handle(CHANNELS.transcriptionState, (request) => {
     const target = request as TranscriptRequest
@@ -637,7 +696,7 @@ export function registerIpc(
     automaticSubtitles.cancel()
     store.setSubtitlePreparation(input.id, input.settings)
     preparation.settingsChanged(input.id)
-    return state()
+    return mutation(input.id)
   })
   handle(CHANNELS.transcriptRegions, (request) => {
     const target = request as TranscriptRequest
@@ -651,10 +710,13 @@ export function registerIpc(
     if (choosing) throw new AppError('BUSY', '文件选择或导入正在进行，请稍候。')
     return transcription.generate(request as StartTranscription)
   })
-  handle(CHANNELS.startAutomaticSubtitles, async (request) => ({
-    ...(await automaticSubtitles.start(request as StartAutomaticSubtitles)),
-    library: state(),
-  }))
+  handle(CHANNELS.startAutomaticSubtitles, async (request) => {
+    const input = request as StartAutomaticSubtitles
+    const result = await automaticSubtitles.start(input)
+    const current =
+      result.status !== 'stale' && active?.id === input.sessionId ? context(input.episodeId) : null
+    return { ...result, context: current, mutation: mutation(current?.book.id) }
+  })
   handle(CHANNELS.cancelAutomaticSubtitles, (request) =>
     automaticSubtitles.stop(request as CancelAutomaticSubtitles),
   )
@@ -690,7 +752,12 @@ export function registerIpc(
       device: input.settings.device,
     })
     preparation.settingsChanged(episode.bookId)
-    return { library: state(), transcription: result, createdJob: result.job?.id !== before?.id }
+    return {
+      context: context(input.episodeId),
+      mutation: mutation(episode.bookId),
+      transcription: result,
+      createdJob: result.job?.id !== before?.id,
+    }
   })
   handle(CHANNELS.processingResources, () => transcription.resources())
   handle(CHANNELS.processingPolicy, (request) =>
@@ -843,21 +910,28 @@ export function registerIpc(
         throw new AppError('INVALID_REQUEST', '请一次选择一个音频文件。')
       const book = await scanBook(result.filePaths[0]!, 'file')
       const file = book.episodes[0]!
-      store.importBook(book)
+      const bookId = store.importBook(book)
       transcription.reconcile()
       store.rememberFile(file)
-      return { canceled: false, state: state() }
+      return { canceled: false, mutation: mutation(bookId, undefined, true) }
     } finally {
       choosing = false
     }
   })
   handle(CHANNELS.forgetFile, (request) => {
-    const path = store.getRememberedPath((request as { id: string }).id)
-    for (const book of store.listBooks())
-      if (book.episodes.some((episode) => store.getAudio(episode.id)?.path === path))
-        transcription.cancelEpisodes(book.episodes.map((episode) => episode.id))
+    const inputId = (request as { id: string }).id
+    const removedBookId = store.getRememberedBookId(inputId)
+    const path = store.getRememberedPath(inputId)
+    for (const id of path ? store.getBookIdsReferencingAudioPath(path) : []) {
+      const book = store.getBook(id)
+      if (book) transcription.cancelEpisodes(book.episodes.map((episode) => episode.id))
+    }
     store.forgetFile((request as { id: string }).id)
-    return state()
+    return {
+      changedBookIds: [],
+      removedBookIds: removedBookId ? [removedBookId] : [],
+      filesChanged: true,
+    } satisfies LibraryMutation
   })
   handle(CHANNELS.selectFolder, async () => {
     if (choosing) throw new AppError('BUSY', '正在选择或导入音频，请稍候。')
@@ -905,13 +979,13 @@ export function registerIpc(
     choosing = true
     try {
       for (const audio of pending.episodes) await checkAudio(audio)
-      store.importBook({
+      const bookId = store.importBook({
         ...pending,
         episodes: episodeIds.map((episodeId) => byId.get(episodeId)!),
       })
       transcription.reconcile()
       draft = undefined
-      return state()
+      return mutation(bookId)
     } finally {
       choosing = false
     }
@@ -927,7 +1001,11 @@ export function registerIpc(
       transcription.cancelEpisodes(book.episodes.map((episode) => episode.id))
     }
     store.removeBook((request as { id: string }).id)
-    return state()
+    return {
+      changedBookIds: [],
+      removedBookIds: [(request as { id: string }).id],
+      filesChanged: false,
+    } satisfies LibraryMutation
   })
   handle(CHANNELS.importRemembered, async (request) => {
     if (choosing) throw new AppError('BUSY', '正在选择或导入音频，请稍候。')
@@ -936,10 +1014,10 @@ export function registerIpc(
       const path = store.getRememberedPath((request as { id: string }).id)
       if (!path) throw new AppError('FILE_UNAVAILABLE', '选择记录不存在，请重新选择音频。')
       const book = await scanBook(path, 'file')
-      store.importBook(book)
+      const bookId = store.importBook(book)
       transcription.reconcile()
       store.rememberFile(book.episodes[0]!)
-      return state()
+      return mutation(bookId, undefined, true)
     } finally {
       choosing = false
     }
@@ -1000,7 +1078,7 @@ export function registerIpc(
               episodeId: id,
               status: 'ready',
               episode: store.getEpisode(id)!,
-              library: state(),
+              context: requiredContext(id),
             })
           })
           .catch((error) => {
@@ -1019,7 +1097,7 @@ export function registerIpc(
           sessionId,
           url: online.stream.url,
           episode: store.getEpisode(id)!,
-          library: state(),
+          context: requiredContext(id),
           pending: {
             receivedBytes: online.stream.writtenBytes,
             totalBytes: online.stream.expectedBytes,
@@ -1043,7 +1121,7 @@ export function registerIpc(
         sessionId,
         url: `${MEDIA_PREFIX}${id}/${audio.contentHash}`,
         episode: store.getEpisode(id)!,
-        ...(online ? { library: state() } : {}),
+        context: requiredContext(id),
       }
     } catch (error) {
       await onlineMedia.releasePlayback(sessionId)
@@ -1072,14 +1150,16 @@ export function registerIpc(
       const proof = onlineMedia.playbackProof(sessionId)
       if (playbackSourceState.status === 'pending' && proof)
         return { ...playbackSourceState, receivedBytes: proof.bytes, totalBytes: proof.totalBytes }
-      return playbackSourceState
+      return playbackSourceState.status === 'ready'
+        ? { ...playbackSourceState, context: requiredContext(active.episodeId) }
+        : playbackSourceState
     }
     return {
       sessionId,
       episodeId: active.episodeId,
       status: 'ready',
       episode: store.getEpisode(active.episodeId)!,
-      library: state(),
+      context: requiredContext(active.episodeId),
     }
   })
   handle(CHANNELS.releasePlayback, async (request) => {

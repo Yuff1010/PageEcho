@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { ORIGINAL_PAGE_SIZE, type OriginalPage, type ParsedOriginal } from '../shared/original'
 import type { ReadingBook } from '../shared/reading'
+import type { ReadingBookSummary } from '../shared/library'
 import { AppError } from '../shared/validation'
 import { storeOriginalDocument } from './original/documents'
 import { SourceReadingStore, type ParsedSourceChapter } from './source-reading-store'
@@ -43,6 +44,25 @@ export class ReadingStore {
       .all()
       .map((row) => this.fromRow(row))
   }
+  summaries(): ReadingBookSummary[] {
+    return this.db
+      .prepare(
+        `SELECT json_remove(d.info_json,'$.chapters') AS info_json,
+      json_array_length(d.info_json,'$.chapters') AS chapterCount,r.position,r.last_read_at
+      FROM reading_books r JOIN original_documents d ON d.id=r.document_id
+      ORDER BY r.last_read_at DESC,r.rowid DESC`,
+      )
+      .all()
+      .map(
+        (row) =>
+          ({
+            ...JSON.parse(String(row.info_json)),
+            chapterCount: Number(row.chapterCount),
+            position: Number(row.position),
+            lastReadAt: row.last_read_at === null ? null : String(row.last_read_at),
+          }) as ReadingBookSummary,
+      )
+  }
   private fromRow(row: Record<string, unknown>): ReadingBook {
     return {
       ...JSON.parse(String(row.info_json)),
@@ -51,14 +71,18 @@ export class ReadingStore {
     } as ReadingBook
   }
   get(id: string): ReadingBook {
+    const value = this.find(id)
+    if (!value) throw new AppError('FILE_UNAVAILABLE', '电子书已移除，请返回阅读书架。')
+    return value
+  }
+  find(id: string): ReadingBook | null {
     const row = this.db
       .prepare(
         `SELECT d.info_json, r.position, r.last_read_at FROM reading_books r
         JOIN original_documents d ON d.id=r.document_id WHERE r.document_id=?`,
       )
       .get(id)
-    if (!row) throw new AppError('FILE_UNAVAILABLE', '电子书已移除，请返回阅读书架。')
-    return this.fromRow(row)
+    return row ? this.fromRow(row) : null
   }
   import(parsed: ParsedOriginal): ReadingBook {
     this.db.exec('BEGIN IMMEDIATE')

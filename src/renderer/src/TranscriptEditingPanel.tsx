@@ -52,7 +52,7 @@ export function TranscriptEditingPanel({
   onClose,
 }: {
   episode: Episode
-  book: Book | undefined
+  book: Omit<Book, 'episodes'> | undefined
   transcript: StoredTranscript
   initialSegmentId: string | null
   editable: boolean
@@ -97,7 +97,36 @@ export function TranscriptEditingPanel({
     readSerial = useRef(Symbol()),
     ownedAlignment = useRef<string | null>(null),
     refreshRef = useRef<() => Promise<void>>(async () => {})
-  const bookEpisodeIds = useRef(new Set(book?.episodes.map((value) => value.id) ?? [episode.id]))
+  const bookEpisodeIds = useRef(new Set([episode.id]))
+  const [completeBook, setCompleteBook] = useState<Book | null>(null)
+  const [bookReadError, setBookReadError] = useState('')
+  const [bookReadRevision, setBookReadRevision] = useState(0)
+  const detailBookId = book?.id ?? episode.bookId
+  useEffect(() => {
+    let current = true
+    void Promise.resolve().then(async () => {
+      if (!current) return
+      bookEpisodeIds.current = new Set([episode.id])
+      setCompleteBook(null)
+      setBookReadError('')
+      try {
+        const result = await window.desktop.getBookDetail({ id: detailBookId })
+        if (!current) return
+        if (!result.ok) throw new Error(result.error.message)
+        if (!result.value || result.value.id !== detailBookId)
+          throw new Error('本书已移除，暂时不能使用整书纠错。')
+        setCompleteBook(result.value)
+        bookEpisodeIds.current = new Set(result.value.episodes.map((value) => value.id))
+        void refreshRef.current()
+      } catch (error) {
+        if (current)
+          setBookReadError(error instanceof Error ? error.message : '无法读取完整目录，请重试。')
+      }
+    })
+    return () => {
+      current = false
+    }
+  }, [detailBookId, episode.id, bookReadRevision])
   const audition = useTranscriptAudition(target),
     auditionStop = useRef(audition.stop)
   useEffect(() => {
@@ -529,7 +558,10 @@ export function TranscriptEditingPanel({
         <TranscriptReplacementEditor
           key={`${base.id}:${base.revision}`}
           target={{ ...target, revision: base.revision }}
-          book={book}
+          book={completeBook?.id === detailBookId ? completeBook : undefined}
+          bookLoading={!completeBook && !bookReadError}
+          bookError={bookReadError}
+          retryBook={() => setBookReadRevision((value) => value + 1)}
           locked={locked}
           execute={execute}
           saved={saved}

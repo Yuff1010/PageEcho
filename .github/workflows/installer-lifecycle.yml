@@ -2,7 +2,7 @@ name: Installer lifecycle
 
 on:
   push:
-    branches: [main, codex/installer-lifecycle]
+    branches: [main, codex/installer-lifecycle, codex/library-overview]
     paths:
       - '.github/workflows/installer-lifecycle.yml'
       - 'scripts/build/package-installer-preview.ts'
@@ -65,7 +65,7 @@ jobs:
           $evidence = Join-Path $env:GITHUB_WORKSPACE 'current/cache/installer-ci-evidence'
           New-Item -ItemType Directory -Path $evidence | Out-Null
           $builds = @()
-          foreach ($item in @(@{ path = 'baseline'; version = '0.39.0-dev.1' }, @{ path = 'current'; version = '0.41.0-dev.1' })) {
+          foreach ($item in @(@{ path = 'baseline'; version = '0.39.0-dev.1' }, @{ path = 'current'; version = '0.43.0-dev.1' })) {
             Push-Location $item.path
             try {
               New-Item -ItemType Directory -Path out | Out-Null

@@ -1,7 +1,9 @@
 import type { Book } from '../../shared/contracts'
 import type { SubtitlePreparation } from '../../shared/transcription'
 
-export function effectiveSubtitleProfile(book: Book): SubtitlePreparation | null {
+export function effectiveSubtitleProfile(
+  book: Pick<Book, 'subtitlePreparation' | 'online'>,
+): SubtitlePreparation | null {
   if (book.subtitlePreparation) return book.subtitlePreparation
   const legacy = book.online?.preparation
   return legacy?.transcribeNext

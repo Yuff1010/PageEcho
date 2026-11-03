@@ -21,12 +21,18 @@ export function TranscriptReplacementEditor({
   locked,
   execute,
   saved,
+  bookLoading = false,
+  bookError = '',
+  retryBook,
 }: {
   target: TranscriptEditTarget
   book: Book | undefined
   locked: boolean
   execute: TranscriptEditorAction
   saved: (result: TranscriptEditResult) => void
+  bookLoading?: boolean
+  bookError?: string
+  retryBook?: () => void
 }) {
   const [scope, setScope] = useState<'episode' | 'book'>('episode'),
     [find, setFind] = useState(''),
@@ -143,6 +149,17 @@ export function TranscriptReplacementEditor({
         按每句原文字面匹配，不跨句、不自动转换繁简体。先预览全部计数，再明确应用；时间与句子 ID
         保留。
       </p>
+      {bookLoading && <p role="status">正在读取完整目录，整书纠错就绪后可选。</p>}
+      {bookError && (
+        <p className="error-message" role="alert">
+          {bookError}
+          {retryBook && (
+            <button className="text-button" onClick={retryBook}>
+              重试读取目录
+            </button>
+          )}
+        </p>
+      )}
       <fieldset disabled={locked || canceling}>
         <div className="tools-form">
           <label>

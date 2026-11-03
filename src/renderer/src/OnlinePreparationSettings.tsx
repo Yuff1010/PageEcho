@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { AppState, Book } from '../../shared/contracts'
+import type { Book } from '../../shared/contracts'
+import type { LibraryMutation } from '../../shared/library'
 import type { SourcePreparationStatus } from '../../shared/sources'
 import './settings-disclosure.css'
 
@@ -7,11 +8,14 @@ export function OnlinePreparationSettings({
   book,
   onUpdated,
 }: {
-  book: Book
-  onUpdated: (state: AppState) => void
+  book: Omit<Book, 'episodes'>
+  onUpdated: (mutation: LibraryMutation) => void
 }) {
   const [settings, setSettings] = useState(book.online!.preparation)
   const [status, setStatus] = useState<SourcePreparationStatus | null>(null)
+  const [statusBook, setStatusBook] = useState<{ episodeId: string; bookId: string | null } | null>(
+    null,
+  )
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('')
@@ -29,6 +33,26 @@ export function OnlinePreparationSettings({
       stop()
     }
   }, [])
+  useEffect(() => {
+    let current = true
+    const id = status?.episodeId
+    if (!id) return
+    void window.desktop
+      .getPlaybackContext({ episodeId: id })
+      .then((result) => {
+        if (current)
+          setStatusBook({
+            episodeId: id,
+            bookId: result.ok ? (result.value?.book.id ?? null) : null,
+          })
+      })
+      .catch(() => {
+        if (current) setStatusBook({ episodeId: id, bookId: null })
+      })
+    return () => {
+      current = false
+    }
+  }, [status?.episodeId])
   return (
     <section className="settings-select-scope" aria-label="在线预处理">
       <h3>
@@ -71,9 +95,9 @@ export function OnlinePreparationSettings({
       <p className="tools-hint">
         字幕方案、引擎与下一集字幕统一在上方“字幕与伴读”中设置。这里仅控制在线音频缓存。
       </p>
-      {status?.episodeId && book.episodes.some((e) => e.id === status.episodeId) && (
-        <p role="status">{status.message}</p>
-      )}
+      {status?.episodeId &&
+        statusBook?.episodeId === status.episodeId &&
+        statusBook.bookId === book.id && <p role="status">{status.message}</p>}
       {notice && <p role="status">{notice}</p>}
       {error && (
         <p className="error-message" role="alert">

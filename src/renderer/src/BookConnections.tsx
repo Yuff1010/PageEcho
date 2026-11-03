@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AppState, Book } from '../../shared/contracts'
+import type { BookSummary, LibraryOverview, ReadingBookSummary } from '../../shared/library'
 import type {
   BookLink,
   LinkedListeningCandidate,
   ResolveLinkedListeningResult,
 } from '../../shared/book-links'
-import type { ReadingBook } from '../../shared/reading'
 import { player } from './player'
 import { storeReaderAnchor } from './reader-layout'
 import { parseAppRoute } from './app-navigation'
@@ -24,7 +23,7 @@ const titleKey = (title: string) =>
     .toLocaleLowerCase()
 
 export function useBookConnections(
-  state: AppState | null,
+  state: LibraryOverview | null,
   read: (id: string) => void,
   listen: () => void,
 ) {
@@ -237,7 +236,7 @@ export function useBookConnections(
           }
           openBook={async (id) => {
             const book = state?.books.find((item) => item.id === id)
-            const episodeId = book?.currentEpisodeId ?? book?.episodes[0]?.id
+            const episodeId = book?.currentEpisodeId ?? book?.firstEpisodeId
             if (!episodeId) return
             setChoice(null)
             listen()
@@ -276,14 +275,14 @@ function BookLinkDialog({
   close,
   linked,
 }: {
-  books: Book[]
+  books: BookSummary[]
   links: BookLink[]
   target: LinkTarget
   close: () => void
   linked: (removed?: boolean) => Promise<void>
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [ebooks, setEbooks] = useState<ReadingBook[]>([])
+  const [ebooks, setEbooks] = useState<ReadingBookSummary[]>([])
   const [audioId, setAudioId] = useState(target.bookId ?? '')
   const [ebookId, setEbookId] = useState(target.readingBookId ?? '')
   const [busy, setBusy] = useState(false)
@@ -298,7 +297,7 @@ function BookLinkDialog({
   useEffect(() => {
     let alive = true
     void window.desktop
-      .getReadingBooks()
+      .getReadingSummaries()
       .then((result) => {
         if (!alive) return
         if (!result.ok) {
@@ -424,7 +423,8 @@ function BookLinkDialog({
                   const result = await window.desktop.importReadingBook()
                   if (!result.ok) throw new Error(result.error.message)
                   if (!result.value.canceled) {
-                    const added = result.value.book
+                    const { chapters, ...metadata } = result.value.book
+                    const added: ReadingBookSummary = { ...metadata, chapterCount: chapters.length }
                     setEbooks((current) => [
                       ...current.filter((item) => item.id !== added.id),
                       added,
@@ -496,7 +496,7 @@ function ListeningChoice({
   openBook,
 }: {
   value: { result: ResolveLinkedListeningResult; links: BookLink[] }
-  books: Book[]
+  books: BookSummary[]
   close: () => void
   choose: (candidate: LinkedListeningCandidate) => Promise<void>
   openBook: (id: string) => Promise<void>

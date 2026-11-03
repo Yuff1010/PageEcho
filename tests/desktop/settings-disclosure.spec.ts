@@ -193,9 +193,10 @@ for (const theme of ['light', 'dark'] as const) {
       await installSummary.focus()
       await installSummary.press('Enter')
       await expect(installation).toHaveAttribute('open', '')
+      await expect(installSummary.locator('.settings-disclosure-collapse')).toBeVisible()
       expect(
         await installSummary.evaluate((element) => getComputedStyle(element, '::after').content),
-      ).toContain('收起')
+      ).toBe('none')
       await installSummary.press('Space')
       await expect(installation).not.toHaveAttribute('open', '')
     } finally {

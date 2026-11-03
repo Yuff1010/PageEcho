@@ -295,6 +295,15 @@ test('the low-occupancy preset reaches the worker; resource pause preserves part
     expect((await resources(page)).policy).toMatchObject({ cpuThreads: 1, lowPriority: true })
     await dialog.getByRole('button', { name: '关闭缓存与任务', exact: true }).click()
     await page.getByRole('button', { name: '播放', exact: true }).click()
+    // Establish actual native playback before attributing a later pause to the
+    // resource scheduler; click completion alone does not await audio.play().
+    await expect
+      .poll(() =>
+        page
+          .locator('audio')
+          .evaluate((element: HTMLAudioElement) => !element.paused && element.currentTime > 0),
+      )
+      .toBe(true)
     const job = await start(page, t.targets[0]!)
     await expect.poll(() => t.requests().length).toBe(1)
     expect(t.requests()[0]).toMatchObject({
@@ -324,6 +333,7 @@ test('the low-occupancy preset reaches the worker; resource pause preserves part
       completedChunks: 1,
     })
     await expect.poll(async () => (await resources(page)).worker).toBeNull()
+
     expect(
       await page.locator('audio').evaluate((element: HTMLAudioElement) => element.paused),
     ).toBe(false)

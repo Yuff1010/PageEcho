@@ -4,6 +4,49 @@ import { Popover } from './Popover'
 import { Tooltip } from './Tooltip'
 import './library-shelf.css'
 
+export function ShelfPagination({
+  page,
+  pages,
+  onPage,
+  label,
+}: {
+  page: number
+  pages: number
+  onPage: (page: number) => void
+  label: string
+}) {
+  if (pages <= 1) return null
+  return (
+    <nav className="shelf-pagination" aria-label={label}>
+      <Tooltip content="上一页">
+        <button
+          className="icon-button"
+          aria-label={`${label}上一页`}
+          disabled={page === 0}
+          onClick={() => onPage(page - 1)}
+        >
+          <Icon name="arrow" />
+        </button>
+      </Tooltip>
+      <span aria-live="polite">
+        {page + 1} / {pages}
+      </span>
+      <Tooltip content="下一页">
+        <button
+          className="icon-button"
+          aria-label={`${label}下一页`}
+          disabled={page + 1 >= pages}
+          onClick={() => onPage(page + 1)}
+        >
+          <span className="shelf-pagination-next">
+            <Icon name="arrow" />
+          </span>
+        </button>
+      </Tooltip>
+    </nav>
+  )
+}
+
 interface ShelfAction {
   label: string
   icon: IconName

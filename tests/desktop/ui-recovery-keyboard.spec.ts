@@ -54,7 +54,7 @@ for (const failure of ['result', 'rejection'] as const) {
             }
           })
         },
-        { channel: CHANNELS.readingList, failure },
+        { channel: CHANNELS.readingSummaries, failure },
       )
       await page.getByRole('button', { name: '电子书', exact: true }).click()
       const shelf = page.getByRole('region', { name: '正常阅读', exact: true })
@@ -111,7 +111,7 @@ test('a late reading shelf response cannot replace the newer shelf after navigat
         })
         return result
       })
-    }, CHANNELS.readingList)
+    }, CHANNELS.readingSummaries)
     await page.getByRole('button', { name: '电子书', exact: true }).click()
     await expect(page.getByText('正在加载阅读书架…', { exact: true })).toBeVisible()
     await expect

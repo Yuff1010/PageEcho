@@ -41,12 +41,17 @@ export function ReaderPage({
   useEffect(() => {
     let current = true
     void window.desktop
-      .getReadingBooks()
+      .getReadingBook({ id: bookId })
       .then((result) => {
         if (!current) return
-        if (!result.ok) setError(result.error.message)
+        if (!result.ok)
+          setError(
+            result.error.code === 'INVALID_REQUEST'
+              ? '这本电子书已移除，请返回书架重新选择。'
+              : result.error.message,
+          )
         else {
-          const found = result.value.find((item) => item.id === bookId)
+          const found = result.value
           if (found) setBook(found)
           else setError('这本电子书已移除，请返回书架重新选择。')
         }

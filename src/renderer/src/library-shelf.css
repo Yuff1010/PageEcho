@@ -174,3 +174,15 @@
   :is(.card-play, .shelf-cross-action):disabled {
   box-shadow: none;
 }
+:is(.library-section, .normal-reading) > .shelf-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--shelf-card-info-gap);
+  padding-block: var(--shelf-card-info-gap);
+  color: var(--ui-muted);
+}
+.shelf-pagination-next {
+  display: inline-flex;
+  transform: rotate(180deg);
+}

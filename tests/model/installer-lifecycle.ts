@@ -594,7 +594,12 @@ async function lifecycle(args: string[]) {
     await choose(app!, audio)
     const selected = await page.evaluate(() => window.desktop.selectAudio({ kind: 'audio' }))
     assert(selected.ok && !selected.value.canceled)
-    const book = selected.value.state.books[0]!,
+    const importedBook = await page.evaluate(
+      (id) => window.desktop.getBookDetail({ id }),
+      selected.value.mutation.bookId!,
+    )
+    assert(importedBook.ok && importedBook.value)
+    const book = importedBook.value,
       episode = book.episodes[0]!
     const transcript = join(work, '合成手工字幕.json')
     await writeFile(

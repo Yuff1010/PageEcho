@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppState } from '../../shared/contracts'
+import type { LibraryOverview } from '../../shared/library'
 import { APP_TITLE } from '../../shared/brand'
 import { Icon } from './Icons'
 import { useAppAppearance, type AppTheme, type AppVisualStyle } from './app-appearance'
@@ -26,7 +26,7 @@ export function AppInfo({
   onRetry,
   onClose,
 }: {
-  state: AppState | null
+  state: LibraryOverview | null
   panel: AppInfoPanel
   busy: boolean
   error?: string

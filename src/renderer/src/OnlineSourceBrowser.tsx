@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { AppState, Result } from '../../shared/contracts'
+import type { Result } from '../../shared/contracts'
+import type { LibraryMutation, LibraryOverview } from '../../shared/library'
 import {
   type SourceBook,
   type SourceBookDetail,
@@ -44,8 +45,8 @@ export function OnlineSourceBrowser({
   onLibrary,
   onReadBook,
 }: {
-  state: AppState | null
-  onLibrary: (state: AppState) => void
+  state: LibraryOverview | null
+  onLibrary: (mutation: LibraryMutation) => void
   onReadBook?: (id: string) => void
 }) {
   const [category, setCategory] = useSourceSession<Category>('sources.category', 'audio')
@@ -106,8 +107,8 @@ function AudioSourcePanel({
   state,
   onLibrary,
 }: {
-  state: AppState | null
-  onLibrary: (state: AppState) => void
+  state: LibraryOverview | null
+  onLibrary: (mutation: LibraryMutation) => void
 }) {
   const [sourceId, setSourceId] = useSourceSession<SourceId | typeof ALL_SOURCES>(
     'sources.audio.selected',
@@ -307,18 +308,12 @@ function AudioSourcePanel({
           id,
           sourceId: book.sourceId,
           bookId: book.id,
+          ...(episodeId ? { episodeId } : {}),
         })
         if (!result.ok) return result
         onLibrary(result.value)
         if (episodeId && active.current === id) {
-          const episode = result.value.books
-            .find(
-              (item) => item.online?.sourceId === book.sourceId && item.online.bookId === book.id,
-            )
-            ?.episodes.find(
-              (item) =>
-                item.online?.sourceId === book.sourceId && item.online.episodeId === episodeId,
-            )
+          const episode = result.value.episodeId
           if (!episode)
             return {
               ok: false as const,
@@ -327,18 +322,16 @@ function AudioSourcePanel({
                 message: '该集尚未加入书架，请重新读取目录。',
               },
             }
-          openingEpisode.current = episode.id
+          openingEpisode.current = episode
           try {
-            await player.load(episode.id)
+            await player.load(episode)
           } finally {
             openingEpisode.current = null
           }
-          return window.desktop.getState()
         }
         return result
       },
-      (value) => {
-        onLibrary(value)
+      () => {
         setStatus(episodeId ? '' : '已保存到有声书架。')
       },
     )

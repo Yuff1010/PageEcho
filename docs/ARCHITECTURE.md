@@ -8,6 +8,8 @@ M3 通过 SQLite 队列和受限 IPC 接入独立 Python 进程，提供重叠�
 
 ## 1. 进程与模块
 
+`0.43` 将书架摘要、章节页和播放上下文分开：Main `LibraryStore` 的摘要聚合不物化全库章节，章节页有 100 项硬上限；`getPlaybackContext` 依据同一 canonical 排序返回真实前后邻居和零基目录位置。renderer 的 `player.ts` 不再持有整个 `Book[]`，普通变更与媒体完成事件不附带完整 `AppState`；旧 `getState` 独立保留。电子书摘要先在 SQLite 移除章节数组后解析，Reader 仅读目标单本。分页、会话隔离及测量限制见 [大书架性能](LIBRARY_PERFORMANCE.md)。
+
 在线媒体在 `0.38` 增加明确的临时身份：`OnlineMedia` 仍拥有单 GET、完整哈希与原子缓存注册，`ProgressiveMedia` 只通过独立只读句柄提供已落盘字节的本机 Range，不解析远端地址或伪造哈希。`PendingOnlineProgressStore` 在 schema 18 保存会话限定的前缀证明和位置，完整提交时同事务移交；活动 lease 不持久化。schema 上限由 `database-schema.ts` 供打开数据库与备份恢复共用。renderer 的来源更新只替换已认证身份，保留同一 audio 元素；ASR、映射及书签只接受完整哈希。详细边界见 [在线首播](PROGRESSIVE_PLAYBACK.md)。
 
 ```mermaid

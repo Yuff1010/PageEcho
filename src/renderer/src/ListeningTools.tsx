@@ -8,7 +8,8 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import type { AppState, Book } from '../../shared/contracts'
+import type { Episode } from '../../shared/contracts'
+import type { BookSummary, LibraryMutation } from '../../shared/library'
 import type { Bookmark, SleepTimer } from '../../shared/listening'
 import { player } from './player'
 import { OnlinePreparationSettings } from './OnlinePreparationSettings'
@@ -44,12 +45,31 @@ function PanelMessages({ value }: { value: PanelMessage }) {
   )
 }
 
-function BookTranscriptionActivity({ book }: { book: Book }) {
+function BookTranscriptionActivity({ book }: { book: BookSummary }) {
   const playback = useSyncExternalStore(player.subscribe, player.getSnapshot)
+  const [savedEpisode, setSavedEpisode] = useState<Episode | null>(null)
+  const targetId = book.currentEpisodeId ?? book.firstEpisodeId
+  useEffect(() => {
+    let current = true
+    if (!targetId || playback.episode?.bookId === book.id) return
+    void window.desktop
+      .getPlaybackContext({ episodeId: targetId })
+      .then((result) => {
+        if (current) setSavedEpisode(result.ok ? (result.value?.episode ?? null) : null)
+      })
+      .catch(() => {
+        if (current) setSavedEpisode(null)
+      })
+    return () => {
+      current = false
+    }
+  }, [targetId, book.id, playback.episode?.bookId])
   const episode =
     playback.episode?.bookId === book.id
       ? playback.episode
-      : (book.episodes.find((item) => item.id === book.currentEpisodeId) ?? book.episodes[0])
+      : savedEpisode?.id === targetId
+        ? savedEpisode
+        : null
   if (!episode || !/^[0-9a-f]{64}$/.test(episode.contentHash)) return null
   return (
     <EpisodeTranscriptionActivity
@@ -109,9 +129,9 @@ export function ListeningTools({
   onUpdated,
   onClose,
 }: {
-  book: Book
+  book: BookSummary
   initialSection?: ListeningToolsSection
-  onUpdated: (state: AppState) => void
+  onUpdated: (mutation: LibraryMutation) => void
   onClose: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)

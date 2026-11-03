@@ -1,5 +1,12 @@
 import type { TranscriptRequest, TranscriptState } from './transcript'
 import type { EbookSpeechApi } from './ebook-speech'
+import type {
+  BookEpisodePage,
+  LibraryOverview,
+  LibraryMutation,
+  PlaybackContext,
+  ReadingBookSummary,
+} from './library'
 import type { TextSourceApi } from './text-source-api'
 import type { PluginApi } from './plugins'
 import type { BackupStorageApi } from './backup-storage'
@@ -155,6 +162,8 @@ export const CHANNELS = {
   listeningReviewPrepare: 'listening:review-prepare',
   listeningReviewSave: 'listening:review-save',
   readingList: 'reading:list',
+  readingBook: 'reading:book',
+  readingSummaries: 'reading:summaries',
   bookLinksList: 'book-links:list',
   bookLinksLink: 'book-links:link',
   bookLinksUnlink: 'book-links:unlink',
@@ -187,6 +196,10 @@ export const CHANNELS = {
   sourceCachePreview: 'source:cache-preview',
   sourceCacheClear: 'source:cache-clear',
   getState: 'app:get-state',
+  libraryOverview: 'library:overview',
+  bookDetail: 'library:book-detail',
+  bookEpisodes: 'library:book-episodes',
+  playbackContext: 'player:context',
   selectAudio: 'files:select-audio',
   forgetFile: 'files:forget',
   selectFolder: 'library:select-folder',
@@ -308,7 +321,7 @@ export interface PlaybackSource {
   sessionId: string
   url: string
   episode: Episode
-  library?: AppState
+  context: PlaybackContext
   /** Empty episode hash stays empty until the complete audio is authenticated. */
   pending?: { receivedBytes: number; totalBytes: number }
 }
@@ -321,7 +334,13 @@ export type PlaybackSourceChange =
       receivedBytes: number
       totalBytes: number
     }
-  | { sessionId: string; episodeId: string; status: 'ready'; episode: Episode; library: AppState }
+  | {
+      sessionId: string
+      episodeId: string
+      status: 'ready'
+      episode: Episode
+      context: PlaybackContext
+    }
   | { sessionId: string; episodeId: string; status: 'failed'; message: string }
 
 export interface OpenEpisodeRequest {
@@ -353,7 +372,7 @@ export type ErrorCode =
   | 'RUNTIME_UNAVAILABLE'
 export type Result<T> =
   { ok: true; value: T } | { ok: false; error: { code: ErrorCode; message: string } }
-export type AudioSelection = { canceled: true } | { canceled: false; state: AppState }
+export type AudioSelection = { canceled: true } | { canceled: false; mutation: LibraryMutation }
 
 export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi, BackupStorageApi {
   getTranscriptEditingState(request: TranscriptRequest): Promise<Result<TranscriptEditingState>>
@@ -422,6 +441,8 @@ export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi, Ba
   prepareListeningReview(request: ListeningReviewPrepare): Promise<Result<ListeningReviewState>>
   saveListeningReview(request: ListeningReviewSave): Promise<Result<ListeningReviewState>>
   getReadingBooks(): Promise<Result<ReadingBook[]>>
+  getReadingSummaries(): Promise<Result<ReadingBookSummary[]>>
+  getReadingBook(request: { id: string }): Promise<Result<ReadingBook | null>>
   getBookLinks(): Promise<Result<BookLink[]>>
   linkReadingBook(request: LinkReadingBookRequest): Promise<Result<BookLink>>
   unlinkReadingBook(request: { bookId: string }): Promise<Result<void>>
@@ -453,25 +474,35 @@ export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi, Ba
   getSourceBook(request: SourceBookRequest): Promise<Result<SourceBookDetail>>
   getSourceEpisodes(request: SourceEpisodesRequest): Promise<Result<SourcePage<SourceEpisode>>>
   cancelSourceRequest(request: { id: string }): Promise<Result<void>>
-  addSourceBook(request: SourceBookRequest): Promise<Result<AppState>>
-  continueSourceBook(request: { id: string }): Promise<Result<AppState>>
+  addSourceBook(
+    request: SourceBookRequest & { episodeId?: string },
+  ): Promise<Result<LibraryMutation>>
+  continueSourceBook(request: { id: string }): Promise<Result<LibraryMutation>>
   setSourcePreparation(request: {
     id: string
     settings: SourcePreparation
-  }): Promise<Result<AppState>>
+  }): Promise<Result<LibraryMutation>>
   getSourcePreparationState(): Promise<Result<SourcePreparationStatus>>
   onSourceChanged(callback: () => void): () => void
   getSourceCacheState(): Promise<Result<SourceCacheUsage>>
   previewSourceCacheClear(): Promise<Result<SourceCachePreview>>
   clearSourceCache(request: { token: string }): Promise<Result<SourceCacheUsage>>
   getState(): Promise<Result<AppState>>
+  getLibraryOverview(): Promise<Result<LibraryOverview>>
+  getBookDetail(request: { id: string }): Promise<Result<Book | null>>
+  getBookEpisodes(request: {
+    id: string
+    offset: number
+    limit: number
+  }): Promise<Result<BookEpisodePage>>
+  getPlaybackContext(request: { episodeId: string }): Promise<Result<PlaybackContext | null>>
   selectAudio(request: { kind: 'audio' }): Promise<Result<AudioSelection>>
-  forgetFile(request: { id: string }): Promise<Result<AppState>>
+  forgetFile(request: { id: string }): Promise<Result<LibraryMutation>>
   selectFolder(): Promise<Result<{ canceled: true } | { canceled: false; draft: ImportDraft }>>
-  confirmImport(request: { id: string; episodeIds: string[] }): Promise<Result<AppState>>
+  confirmImport(request: { id: string; episodeIds: string[] }): Promise<Result<LibraryMutation>>
   cancelImport(request: { id: string }): Promise<Result<void>>
-  removeBook(request: { id: string }): Promise<Result<AppState>>
-  importRemembered(request: { id: string }): Promise<Result<AppState>>
+  removeBook(request: { id: string }): Promise<Result<LibraryMutation>>
+  importRemembered(request: { id: string }): Promise<Result<LibraryMutation>>
   openEpisode(request: OpenEpisodeRequest): Promise<Result<PlaybackSource>>
   cancelEpisodeOpen(request: OpenEpisodeRequest): Promise<Result<void>>
   getPlaybackSourceState(request: {
@@ -505,15 +536,20 @@ export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi, Ba
   setSubtitlePreparation(request: {
     id: string
     settings: SubtitlePreparation
-  }): Promise<Result<AppState>>
+  }): Promise<Result<LibraryMutation>>
   startTranscription(request: StartTranscription): Promise<Result<TranscriptionState>>
   startAutomaticSubtitles(
     request: StartAutomaticSubtitles,
-  ): Promise<Result<AutomaticSubtitlesResult & { library: AppState }>>
+  ): Promise<
+    Result<
+      AutomaticSubtitlesResult & { context: PlaybackContext | null; mutation: LibraryMutation }
+    >
+  >
   cancelAutomaticSubtitles(request: CancelAutomaticSubtitles): Promise<Result<TranscriptionState>>
   prepareAndStartTranscription(request: StartPreparedTranscription): Promise<
     Result<{
-      library: AppState
+      context: PlaybackContext | null
+      mutation: LibraryMutation
       transcription: TranscriptionState
       createdJob: boolean
     }>
@@ -539,7 +575,7 @@ export interface DesktopApi extends EbookSpeechApi, TextSourceApi, PluginApi, Ba
   saveBookmark(request: SaveBookmark): Promise<Result<Bookmark>>
   editBookmark(request: { id: string; note: string }): Promise<Result<void>>
   removeBookmark(request: { id: string }): Promise<Result<void>>
-  setBookSkips(request: { id: string } & BookSkips): Promise<Result<AppState>>
+  setBookSkips(request: { id: string } & BookSkips): Promise<Result<LibraryMutation>>
   getMaintenanceState(): Promise<Result<MaintenanceState>>
   getTranscriptionJobs(request: TaskQuery): Promise<Result<TaskPage>>
   prepareCacheClear(): Promise<Result<CacheClearPreview>>

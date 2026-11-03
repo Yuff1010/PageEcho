@@ -15,7 +15,15 @@ import {
   type ElectronApplication,
   type Page,
 } from '@playwright/test'
-import { mkdtempSync, mkdirSync, readFileSync, rmdirSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmdirSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
@@ -40,13 +48,13 @@ if (!process.env.RALB_EXECUTABLE) {
     /* Optional source-only worker fault test; no Python required for ordinary playback. */
   }
 }
-const launch = (root: string) => {
+const launch = (root: string, appRoot = process.env.RALB_APP_ROOT ?? '.') => {
   const env = { ...process.env, RALB_USER_DATA: root }
   Reflect.deleteProperty(env, 'ELECTRON_RUN_AS_NODE')
   return electron.launch({
     ...(process.env.RALB_EXECUTABLE
       ? { executablePath: resolve(process.env.RALB_EXECUTABLE), args: [] }
-      : { args: [resolve(process.env.RALB_APP_ROOT ?? '.')] }),
+      : { args: [resolve(appRoot)] }),
     env,
   })
 }
@@ -122,6 +130,48 @@ test('unwritable cache and terminal-status storage failures preserve reading and
     'This source-only fault test requires stdlib Python; it does not load any model.',
   )
   const root = mkdtempSync(join(tmpdir(), '听读 转写存储故障 '))
+  const appRoot = join(root, '受控缓存预检程序')
+  mkdirSync(appRoot)
+  cpSync(resolve(process.env.RALB_APP_ROOT ?? '.', 'out'), join(appRoot, 'out'), {
+    recursive: true,
+  })
+  cpSync(resolve('python'), join(appRoot, 'python'), {
+    recursive: true,
+    filter: (source) => !source.endsWith('__pycache__'),
+  })
+  writeFileSync(
+    join(appRoot, 'package.json'),
+    JSON.stringify({
+      name: 'cache-preflight-fixture',
+      type: 'module',
+      main: './out/main/index.js',
+    }),
+  )
+  symlinkSync(resolve('node_modules'), join(appRoot, 'node_modules'), 'junction')
+  // This fixture exercises the real worker's cache preflight without installing
+  // ML packages. Invented metadata only satisfies its prerequisite-version gate;
+  // it is not evidence of an installed or secure component. The obstructed cache
+  // must fail before any nonexistent ML module can be imported.
+  const versions = JSON.parse(
+    execFileSync(
+      stdlibPython!,
+      [
+        '-B',
+        '-c',
+        'import json,sys;sys.path.insert(0,sys.argv[1]);from asr_security import SECURITY_BASELINE;print(json.dumps(SECURITY_BASELINE))',
+        resolve('python'),
+      ],
+      { encoding: 'utf8', windowsHide: true },
+    ),
+  ) as Record<string, string>
+  for (const [name, version] of Object.entries(versions)) {
+    const directory = join(appRoot, 'python', `${name.replaceAll('-', '_')}-${version}.dist-info`)
+    mkdirSync(directory)
+    writeFileSync(
+      join(directory, 'METADATA'),
+      `Metadata-Version: 2.1\nName: ${name}\nVersion: ${version}\n\nSynthetic test metadata, not an installed package.\n`,
+    )
+  }
   const cache = join(root, 'component-cache')
   mkdirSync(cache)
   const models = join(root, 'models.json'),
@@ -138,7 +188,7 @@ test('unwritable cache and terminal-status storage failures preserve reading and
       ffprobe: stdlibPython,
     }),
   )
-  const app = await launch(root)
+  const app = await launch(root, appRoot)
   let database: DatabaseSync | undefined
   try {
     const page = await app.firstWindow()

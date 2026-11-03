@@ -199,9 +199,7 @@ async function selectAhead(page: Page, bookId: string) {
   })
   expect(saved.ok).toBe(true)
   if (!saved.ok) throw new Error(saved.error.message)
-  expect(saved.value.books.find((book) => book.id === bookId)?.subtitlePreparation).toEqual(
-    settings,
-  )
+  expect(saved.value.changedBookIds).toContain(bookId)
   await page.reload()
   const persisted = await page.evaluate(() => window.desktop.getState())
   expect(persisted.ok && persisted.value.books[0]?.subtitlePreparation).toEqual(settings)

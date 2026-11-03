@@ -65,6 +65,49 @@ test('standalone TXT reading needs no audio, persists exact location and reimpor
   store.close()
 })
 
+test('single reading-book lookup checks shelf membership without listing or loading body text', () => {
+  const store = new LibraryStore(':memory:')
+  try {
+    const book = store.reading.import(novel())
+    store.reading.list = () => assert.fail('single-book lookup must not list the shelf')
+    store.reading.document = () => assert.fail('single-book lookup must not load the body')
+    assert.deepEqual(store.reading.find(book.id), book)
+    store.reading.savePosition(book.id, 3)
+    assert.equal(store.reading.find(book.id)?.position, 3)
+    store.reading.remove(book.id)
+    assert.equal(store.reading.find(book.id), null)
+    assert.throws(() => store.reading.get(book.id), { code: 'FILE_UNAVAILABLE' })
+  } finally {
+    store.close()
+  }
+})
+
+test('reading summaries omit chapter arrays in SQLite while preserving metadata and exact chapter counts', () => {
+  const store = new LibraryStore(':memory:')
+  try {
+    const first = store.reading.import(novel())
+    const second = store.reading.import(
+      parseOriginal(Buffer.from('第1章 开始\n这是另一本文字。'), '另一部.txt'),
+    )
+    store.reading.savePosition(first.id, 5)
+    const expected = store.reading.list().map((book) => {
+      const { chapters, ...metadata } = book
+      return { ...metadata, chapterCount: chapters.length }
+    })
+    store.reading.list = () => assert.fail('summary cannot list full chapter metadata')
+    store.reading.document = () => assert.fail('summary cannot load body text')
+    assert.deepEqual(store.reading.summaries(), expected)
+    for (const book of store.reading.summaries())
+      assert.equal(Object.hasOwn(book, 'chapters'), false)
+    store.reading.remove(second.id)
+    assert.equal(store.reading.summaries().length, 1)
+    validateRequest('reading:summaries', [])
+    assert.throws(() => validateRequest('reading:summaries', [{}]))
+  } finally {
+    store.close()
+  }
+})
+
 test('removing a standalone book revokes cached access and preserves companion text and audio', () => {
   const store = new LibraryStore(':memory:'),
     target = audioBook(store),

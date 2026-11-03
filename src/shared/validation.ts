@@ -41,6 +41,32 @@ function isExactObject(value: unknown, ...keys: string[]): value is Record<strin
 
 export function validateRequest(channel: string, args: unknown[]): void {
   const [request] = args
+  if (['library:overview', 'reading:summaries'].includes(channel) && args.length === 0) return
+  if (
+    ['library:book-detail', 'reading:book'].includes(channel) &&
+    args.length === 1 &&
+    isExactObject(request, 'id') &&
+    isId(request.id)
+  )
+    return
+  if (
+    channel === 'player:context' &&
+    args.length === 1 &&
+    isExactObject(request, 'episodeId') &&
+    isId(request.episodeId)
+  )
+    return
+  if (
+    channel === 'library:book-episodes' &&
+    args.length === 1 &&
+    isExactObject(request, 'id', 'offset', 'limit') &&
+    isId(request.id) &&
+    Number.isSafeInteger(request.offset) &&
+    finiteBetween(request.offset, 0, 1000000) &&
+    Number.isSafeInteger(request.limit) &&
+    finiteBetween(request.limit, 1, 100)
+  )
+    return
   if (channel.startsWith('book-links:')) {
     if (channel === 'book-links:list' && args.length === 0) return
     const integer = (value: unknown, maximum: number) =>
@@ -891,7 +917,14 @@ export function validateRequest(channel: string, args: unknown[]): void {
             !/\p{Cc}/u.test(request.cursor)
           : isId(request.cursor)))) ||
       (['source:book', 'source:add'].includes(channel) &&
-        isExactObject(request, 'id', 'sourceId', 'bookId') &&
+        isExactObject(
+          request,
+          'id',
+          'sourceId',
+          'bookId',
+          ...(channel === 'source:add' && Object.hasOwn(request, 'episodeId') ? ['episodeId'] : []),
+        ) &&
+        (!Object.hasOwn(request, 'episodeId') || isSourceItemId(request.episodeId)) &&
         typeof request.bookId === 'string' &&
         (isPluginSourceId(request.sourceId)
           ? isSourceItemId(request.bookId)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import type { AppState, Book, Result } from '../../shared/contracts'
+import type { Book, Episode, Result } from '../../shared/contracts'
+import type { LibraryMutation } from '../../shared/library'
 import type { TranscriptRequest, TranscriptState } from '../../shared/transcript'
 import {
   ACTIVE_JOB_STATUSES,
@@ -133,10 +134,10 @@ export function TranscriptionControls({
 }: {
   target: TranscriptRequest
   control: ReturnType<typeof useTranscription>
-  book: Book | undefined
+  book: Omit<Book, 'episodes'> | undefined
   openRequest: number
   onOpenSettings: () => void
-  onUpdated: (state: AppState) => void
+  onUpdated: (mutation: LibraryMutation) => void
   showPauseNotice?: boolean
 }) {
   const details = useRef<HTMLDetailsElement>(null)
@@ -160,7 +161,27 @@ export function TranscriptionControls({
   const playback = useSyncExternalStore(player.subscribe, player.getSnapshot)
   const current =
     playback.episode?.id === target.episodeId && playback.episode.contentHash === target.audioHash
-  const episode = book?.episodes.find((item) => item.id === target.episodeId)
+  const [savedEpisode, setSavedEpisode] = useState<Episode | null>(null)
+  useEffect(() => {
+    let alive = true
+    if (current) return
+    void window.desktop
+      .getPlaybackContext({ episodeId: target.episodeId })
+      .then((result) => {
+        if (alive) setSavedEpisode(result.ok ? (result.value?.episode ?? null) : null)
+      })
+      .catch(() => {
+        if (alive) setSavedEpisode(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [current, target.episodeId])
+  const episode = current
+    ? playback.episode
+    : savedEpisode?.id === target.episodeId && savedEpisode.contentHash === target.audioHash
+      ? savedEpisode
+      : null
   const subtitleStatus = state
     ? subtitleStatusFromTranscription(state, {
         ...target,
@@ -211,7 +232,7 @@ export function TranscriptionControls({
       return
     }
     if (!result.ok) throw new Error(result.error.message)
-    onUpdated(result.value.library)
+    onUpdated(result.value.mutation)
     await control.refresh()
     if (!valid()) return
     submission.current = null

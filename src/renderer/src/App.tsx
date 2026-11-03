@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import type { AppState, Book, ImportDraft } from '../../shared/contracts'
+import type { ImportDraft } from '../../shared/contracts'
+import type { LibraryOverview, BookSummary, BookEpisodePage } from '../../shared/library'
 import { APP_NAME } from '../../shared/brand'
-import { player } from './player'
+import { player, type PlayerLibraryMutation } from './player'
 import { TranscriptReader } from './TranscriptReader'
 import { MaintenancePanel } from './MaintenancePanel'
 import { BackupStoragePanel } from './BackupStoragePanel'
@@ -14,7 +15,8 @@ import {
   type ReadingShelfHandle,
   type ReadingShelfImportStatus,
 } from './NormalReading'
-import { ShelfBookCard } from './LibraryShelf'
+import { ShelfBookCard, ShelfPagination } from './LibraryShelf'
+import { useShelfPage } from './useShelfPage'
 import { ShelfHeader, ShelfControls } from './ShelfHeader'
 import { visibleShelfBooks } from './library-shelf'
 import { BookCover, Icon } from './Icons'
@@ -50,7 +52,7 @@ function readLayout(): 'grid' | 'list' {
 
 export function App({ startupNotice = '' }: { startupNotice?: string }) {
   useAppAppearance()
-  const [state, setState] = useState<AppState | null>(null)
+  const [state, setState] = useState<LibraryOverview | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState(startupNotice)
@@ -114,9 +116,15 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
   }, [route])
   const search = useRef<HTMLInputElement>(null)
   const playback = useSyncExternalStore(player.subscribe, player.getSnapshot)
-  const update = useCallback((value: AppState) => {
-    setState(value)
-    player.updateLibrary(value)
+  const overviewLoading = useRef<Promise<void> | null>(null)
+  const overviewAgain = useRef(false)
+  const progressOverlay = useRef<PlayerLibraryMutation['progress']>(undefined)
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
   }, [])
   const connections = useBookConnections(
     state,
@@ -132,26 +140,132 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
       .then(refreshConnections)
       .catch(() => {})
   }, [refreshConnections, readerId, normalReading])
-  const load = useCallback(async () => {
-    try {
-      const result = await window.desktop.getState()
-      if (result.ok) update(result.value)
-      else setError(result.error.message)
-    } catch {
-      setError('无法连接桌面服务，请关闭并重新打开应用。')
+  const load = useCallback((): Promise<void> => {
+    if (overviewLoading.current) {
+      overviewAgain.current = true
+      return overviewLoading.current
     }
-  }, [update])
-  useEffect(() => {
-    void Promise.resolve().then(load)
-  }, [load])
-  useEffect(() => player.subscribeLibrary(setState), [])
-  useEffect(
-    () =>
-      window.desktop.onSourceChanged(() => {
-        void load()
-      }),
+    const operation = (async () => {
+      do {
+        overviewAgain.current = false
+        try {
+          const result = await window.desktop.getLibraryOverview()
+          if (!alive.current) return
+          if (result.ok) {
+            const value = result.value
+            const progress = progressOverlay.current
+            if (progress) {
+              const book = value.books.find((item) => item.id === progress.bookId)
+              if (
+                !book ||
+                (book.currentEpisodeId === progress.episodeId &&
+                  book.resumeEpisode?.positionMs === progress.positionMs &&
+                  (book.lastPlayedAt ?? '') >= progress.updatedAt)
+              ) {
+                progressOverlay.current = undefined
+              } else {
+                value.books = value.books.map((item) =>
+                  item.id === progress.bookId
+                    ? {
+                        ...item,
+                        currentEpisodeId: progress.episodeId,
+                        lastPlayedAt: progress.updatedAt,
+                        resumeEpisode: {
+                          id: progress.episodeId,
+                          title:
+                            player.getSnapshot().episode?.id === progress.episodeId
+                              ? player.getSnapshot().episode!.title
+                              : (item.resumeEpisode?.title ?? '第一集'),
+                          positionMs: progress.positionMs,
+                          durationMs: progress.durationMs,
+                        },
+                      }
+                    : item,
+                )
+                value.currentEpisodeId = progress.episodeId
+                value.preferences = { rate: progress.rate, volume: progress.volume }
+              }
+            }
+            setState(value)
+            player.initializeOverview(result.value)
+          } else setError(result.error.message)
+        } catch {
+          if (alive.current) setError('无法连接桌面服务，请关闭并重新打开应用。')
+        }
+      } while (overviewAgain.current && alive.current)
+    })().finally(() => {
+      overviewLoading.current = null
+    })
+    overviewLoading.current = operation
+    return operation
+  }, [])
+  const [libraryRevision, setLibraryRevision] = useState(0)
+  const update = useCallback(
+    (mutation: PlayerLibraryMutation) => {
+      if (mutation.progress) {
+        const progress = mutation.progress
+        progressOverlay.current = progress
+        setState((value) =>
+          value
+            ? {
+                ...value,
+                currentEpisodeId: progress.episodeId,
+                preferences: { rate: progress.rate, volume: progress.volume },
+                books: value.books.map((book) =>
+                  book.id === progress.bookId
+                    ? {
+                        ...book,
+                        currentEpisodeId: progress.episodeId,
+                        lastPlayedAt: progress.updatedAt,
+                        resumeEpisode: {
+                          id: progress.episodeId,
+                          title:
+                            player.getSnapshot().episode?.id === progress.episodeId
+                              ? player.getSnapshot().episode!.title
+                              : (book.resumeEpisode?.title ?? '第一集'),
+                          positionMs: progress.positionMs,
+                          durationMs: progress.durationMs,
+                        },
+                      }
+                    : book,
+                ),
+              }
+            : value,
+        )
+        return
+      }
+      if (
+        progressOverlay.current &&
+        [...mutation.changedBookIds, ...mutation.removedBookIds].includes(
+          progressOverlay.current.bookId,
+        )
+      )
+        progressOverlay.current = undefined
+      setLibraryRevision((value) => value + 1)
+      void player.refreshContext([...mutation.changedBookIds, ...mutation.removedBookIds])
+      void load()
+    },
     [load],
   )
+  useEffect(() => {
+    void load()
+  }, [load])
+  useEffect(() => player.subscribeLibraryMutation(update), [update])
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const stop = window.desktop.onSourceChanged(() => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        setLibraryRevision((value) => value + 1)
+        void player.refreshContext()
+        void load()
+      }, 120)
+    })
+    return () => {
+      clearTimeout(timer)
+      stop()
+    }
+  }, [load])
 
   async function selectAudio(folder = false) {
     setBusy(true)
@@ -165,7 +279,7 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
       } else {
         const result = await window.desktop.selectAudio({ kind: 'audio' })
         if (!result.ok) setError(result.error.message)
-        else if (!result.value.canceled) update(result.value.state)
+        else if (!result.value.canceled) update(result.value.mutation)
       }
     } catch {
       setError('导入未完成，请重试。')
@@ -293,12 +407,39 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
     chapterPagination.bookId === book?.id
       ? Math.min(
           chapterPagination.page,
-          Math.max(0, Math.ceil((book?.episodes.length ?? 0) / 100) - 1),
+          Math.max(0, Math.ceil((book?.episodeCount ?? 0) / 100) - 1),
         )
       : 0
+  const [chapterResult, setChapterResult] = useState<{
+    key: string
+    result: BookEpisodePage | null
+    error: string
+  } | null>(null)
+  const chapterKey = `${selectedBook ?? ''}:${chapterPage}:${libraryRevision}`
+  useEffect(() => {
+    if (!selectedBook) return
+    let current = true
+    void window.desktop
+      .getBookEpisodes({ id: selectedBook, offset: chapterPage * 100, limit: 100 })
+      .then((result) => {
+        if (current)
+          setChapterResult({
+            key: chapterKey,
+            result: result.ok ? result.value : null,
+            error: result.ok ? '' : result.error.message,
+          })
+      })
+      .catch(() => {
+        if (current)
+          setChapterResult({ key: chapterKey, result: null, error: '目录读取未完成，请重试。' })
+      })
+    return () => {
+      current = false
+    }
+  }, [selectedBook, chapterPage, chapterKey])
   const chapterEpisodes = useMemo(
-    () => book?.episodes.slice(chapterPage * 100, (chapterPage + 1) * 100) ?? [],
-    [book, chapterPage],
+    () => (chapterResult?.key === chapterKey ? (chapterResult.result?.episodes ?? []) : []),
+    [chapterResult, chapterKey],
   )
   const statusTargets = useMemo(
     () =>
@@ -324,12 +465,15 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
         : book
           ? '章节目录'
           : '我的书架'
-  const visibleBooks = visibleShelfBooks(
-    state?.books ?? [],
-    query,
-    sort,
-    recentOnly,
-    (item) => item.lastPlayedAt,
+  const visibleBooks = useMemo(
+    () =>
+      visibleShelfBooks(state?.books ?? [], query, sort, recentOnly, (item) => item.lastPlayedAt),
+    [state?.books, query, sort, recentOnly],
+  )
+  const shelfPage = useShelfPage(visibleBooks, `${query}:${sort}:${recentOnly}`)
+  const linkedBooks = useMemo(
+    () => new Map(connections.links.map((link) => [link.audioBookId, link])),
+    [connections.links],
   )
   function navigateTo(next: AppRoute) {
     setRoute(next)
@@ -372,18 +516,20 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
   }
   function openChapters(id: string) {
     navigateTo({ view: 'chapters', bookId: id })
-    const episodes = state?.books.find((item) => item.id === id)?.episodes ?? []
-    const current = episodes.findIndex((episode) => episode.id === playback.episode?.id)
-    if (current >= 0) setChapterPagination({ bookId: id, page: Math.floor(current / 100) })
+    const context = player.getContext()
+    setChapterPagination({
+      bookId: id,
+      page: context?.book.id === id ? Math.floor((context.episodeIndex ?? 0) / 100) : 0,
+    })
   }
-  function toggleBookPlayback(item: Book) {
+  function toggleBookPlayback(item: BookSummary) {
     if (playback.episode?.bookId === item.id) {
       if (playback.playing || playback.subtitleWaiting || playback.loading) player.pause()
       else if (playback.ready) void player.play()
       else if (playback.episode) void player.load(playback.episode.id)
       return
     }
-    const id = item.currentEpisodeId ?? item.episodes[0]?.id
+    const id = item.currentEpisodeId ?? item.firstEpisodeId
     if (id) void player.load(id)
   }
   const playerHidden = normalReading && !playback.episode && !playback.loading && !playback.error
@@ -640,14 +786,12 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                 <ul
                   className={`file-list bookshelf ${layout === 'grid' ? 'bookshelf-grid' : 'bookshelf-list'}`}
                 >
-                  {visibleBooks.map((item) => {
-                    const linked = connections.links.find((link) => link.audioBookId === item.id)
+                  {shelfPage.items.map((item) => {
+                    const linked = linkedBooks.get(item.id)
                     const current = playback.episode?.bookId === item.id
                     const playing =
                       current && (playback.playing || playback.subtitleWaiting || playback.loading)
-                    const episode = current
-                      ? playback.episode
-                      : item.episodes.find((entry) => entry.id === item.currentEpisodeId)
+                    const episode = current ? playback.episode : item.resumeEpisode
                     const position =
                       current || item.lastPlayedAt
                         ? `${episode?.title ?? '第一集'} · ${formatTime(current ? playback.positionMs : (episode?.positionMs ?? 0))}`
@@ -665,10 +809,10 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                           label: playing ? '暂停播放' : '继续播放',
                           title: playing ? `暂停 ${item.title}` : `收听 ${item.title}`,
                           icon: playing ? 'pause' : 'play',
-                          disabled: !item.episodes.length,
+                          disabled: !item.episodeCount,
                           onClick: () => toggleBookPlayback(item),
                         }}
-                        metadata={`${item.episodes.length} 集`}
+                        metadata={`${item.episodeCount} 集`}
                         source={{
                           label: item.online ? '在线音频' : '本地音频',
                           icon: item.online ? 'globe' : 'folder',
@@ -728,6 +872,12 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                   })}
                 </ul>
               )}
+              <ShelfPagination
+                page={shelfPage.page}
+                pages={shelfPage.pages}
+                onPage={shelfPage.setPage}
+                label="有声书书架分页"
+              />
             </section>
           )}
           {book && !reading && !normalReading && !sourceOpen && (
@@ -741,7 +891,7 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                 <div>
                   <h2 title={book.title}>{book.title}</h2>
                   <p>
-                    {book.episodes.length} 集
+                    {book.episodeCount} 集
                     {book.online && !book.online.catalogComplete ? ' · 目录未完整加载' : ''}
                   </p>
                 </div>
@@ -769,6 +919,14 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                   离线准备
                 </button>
               </div>
+              {chapterResult?.key === chapterKey && chapterResult.error ? (
+                <p role="alert">
+                  {chapterResult.error}
+                  <button onClick={() => setLibraryRevision((value) => value + 1)}>重试</button>
+                </p>
+              ) : chapterResult?.key !== chapterKey ? (
+                <p role="status">正在读取目录…</p>
+              ) : null}
               <ol className="episode-list">
                 {chapterEpisodes.map((episode, localIndex) => {
                   const index = chapterPage * 100 + localIndex
@@ -842,7 +1000,7 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                   )
                 })}
               </ol>
-              {book.episodes.length > 100 && (
+              {book.episodeCount > 100 && (
                 <nav className="subtitle-status-pages" aria-label="章节分页">
                   <button
                     className="text-button"
@@ -852,11 +1010,11 @@ export function App({ startupNotice = '' }: { startupNotice?: string }) {
                     上一页章节
                   </button>
                   <span>
-                    {chapterPage + 1} / {Math.ceil(book.episodes.length / 100)}
+                    {chapterPage + 1} / {Math.ceil(book.episodeCount / 100)}
                   </span>
                   <button
                     className="text-button"
-                    disabled={(chapterPage + 1) * 100 >= book.episodes.length}
+                    disabled={(chapterPage + 1) * 100 >= book.episodeCount}
                     onClick={() => setChapterPagination({ bookId: book.id, page: chapterPage + 1 })}
                   >
                     下一页章节

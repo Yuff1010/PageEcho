@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
-import type { Book } from '../../shared/contracts'
-import type { ReadingBook } from '../../shared/reading'
+import type { BookSummary, ReadingBookSummary } from '../../shared/library'
 
 export function RemoveBookConfirmation({
   book,
@@ -9,7 +8,7 @@ export function RemoveBookConfirmation({
   onCancel,
   onConfirm,
 }: {
-  book: Book | ReadingBook
+  book: BookSummary | ReadingBookSummary
   busy: boolean
   error: string
   onCancel: () => void
@@ -37,9 +36,9 @@ export function RemoveBookConfirmation({
     >
       <h2>移除《{book.title}》？</h2>
       <div id={description}>
-        {'episodes' in book ? (
+        {'episodeCount' in book ? (
           <p>
-            将删除本书 {book.episodes.length} 集的章节记录、收听进度、字幕（含人工修改）、书签、
+            将删除本书 {book.episodeCount} 集的章节记录、收听进度、字幕（含人工修改）、书签、
             片段标注和相关任务记录。此操作暂不支持撤销。
           </p>
         ) : (
@@ -49,7 +48,9 @@ export function RemoveBookConfirmation({
           </p>
         )}
         <p>
-          {'episodes' in book ? '原音频文件仍保留在原位置。' : '原 TXT / EPUB 文件仍保留在原位置。'}
+          {'episodeCount' in book
+            ? '原音频文件仍保留在原位置。'
+            : '原 TXT / EPUB 文件仍保留在原位置。'}
         </p>
       </div>
       {error && (

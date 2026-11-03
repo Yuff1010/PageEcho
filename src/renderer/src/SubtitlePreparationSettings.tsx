@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppState, Book } from '../../shared/contracts'
+import type { Book } from '../../shared/contracts'
+import type { LibraryMutation } from '../../shared/library'
 import { DEFAULT_SUBTITLE_PREPARATION, type SubtitlePreparation } from '../../shared/transcription'
 import { ComponentSetup, componentCapability, useComponentSetup } from './ComponentSetup'
 import { effectiveSubtitleProfile, subtitleProfileLabel } from './subtitle-profile'
@@ -10,8 +11,8 @@ export function SubtitlePreparationSettings({
   book,
   onUpdated,
 }: {
-  book: Book
-  onUpdated: (state: AppState) => void
+  book: Omit<Book, 'episodes'>
+  onUpdated: (mutation: LibraryMutation) => void
 }) {
   const component = useComponentSetup()
   return (
@@ -39,7 +40,7 @@ export function SubtitlePreparationForm({
   requireComponent = false,
   onCancel,
 }: {
-  book: Book
+  book: Omit<Book, 'episodes'>
   component: ReturnType<typeof useComponentSetup>
   onSubmit: (settings: SubtitlePreparation) => Promise<string | void>
   disabled?: boolean

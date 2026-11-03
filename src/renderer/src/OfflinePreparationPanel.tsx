@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { AppState, Book } from '../../shared/contracts'
+import type { Episode } from '../../shared/contracts'
+import type { BookSummary, LibraryMutation } from '../../shared/library'
 import { effectiveSubtitleProfile } from './subtitle-profile'
 import {
   MAX_OFFLINE_ITEMS,
@@ -21,9 +22,9 @@ export function OfflinePreparationPanel({
   onUpdated,
   onClose,
 }: {
-  books: Book[]
+  books: BookSummary[]
   initialBookId?: string | null
-  onUpdated: (state: AppState) => void
+  onUpdated: (mutation: LibraryMutation) => void
   onClose: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -32,11 +33,64 @@ export function OfflinePreparationPanel({
   const [view, setView] = useState<'new' | 'plans'>(initialBookId ? 'new' : 'plans')
   const [bookId, setBookId] = useState(initialBookId ?? books[0]?.id ?? '')
   const book = books.find((item) => item.id === bookId)
+  const selectedBookId = book?.id
   const [selection, setSelection] = useState<'all' | 'range' | 'selected'>('all')
   const [first, setFirst] = useState('1'),
-    [last, setLast] = useState(String(book?.episodes.length ?? 1))
+    [last, setLast] = useState(String(book?.episodeCount ?? 1))
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
+  const [chapterPage, setChapterPage] = useState<{
+    bookId: string
+    page: number
+    episodes: Episode[]
+    loading: boolean
+    error: string
+  } | null>(null)
+  const [chapterRefresh, setChapterRefresh] = useState(0)
+  useEffect(() => {
+    let current = true
+    if (view !== 'new' || selection !== 'selected' || !selectedBookId) return
+    const id = selectedBookId
+    void Promise.resolve()
+      .then(() => {
+        if (!current) return null
+        setChapterPage({ bookId: id, page, episodes: [], loading: true, error: '' })
+        return window.desktop.getBookEpisodes({ id, offset: page * 100, limit: 100 })
+      })
+      .then((result) => {
+        if (!current || !result) return
+        setChapterPage({
+          bookId: id,
+          page,
+          episodes: result.ok ? result.value.episodes : [],
+          loading: false,
+          error: result.ok ? '' : result.error.message,
+        })
+      })
+      .catch(() => {
+        if (current)
+          setChapterPage({
+            bookId: id,
+            page,
+            episodes: [],
+            loading: false,
+            error: '无法读取选集目录，请重试。',
+          })
+      })
+    return () => {
+      current = false
+    }
+  }, [
+    view,
+    selection,
+    selectedBookId,
+    book?.episodeCount,
+    book?.online?.catalogComplete,
+    page,
+    chapterRefresh,
+  ])
+  const currentChapters =
+    chapterPage?.bookId === bookId && chapterPage.page === page ? chapterPage : null
   const [engine, setEngine] = useState<'whisperx' | 'paraformer' | ''>(() =>
     book ? (effectiveSubtitleProfile(book)?.engine ?? '') : '',
   )
@@ -125,7 +179,7 @@ export function OfflinePreparationPanel({
         to < from ||
         to > 100000 ||
         to - from + 1 > MAX_OFFLINE_ITEMS ||
-        (!book.online && to > book.episodes.length)
+        (!book.online && to > book.episodeCount)
       ) {
         setError('请填写有效的起止集数，单次最多 1,000 集。')
         return
@@ -158,14 +212,10 @@ export function OfflinePreparationPanel({
       if (mounted.current && request.current?.token === pending.token) {
         if (catalogOnly) {
           // Even a >1,000-item rejection can have safely completed the catalog.
-          // Read the persisted library; never infer completeness from an error.
-          try {
-            const library = await window.desktop.getState()
-            if (mounted.current && request.current?.token === pending.token && library.ok)
-              onUpdated(library.value)
-          } catch {
-            // The sourceChanged event also refreshes the app library.
-          }
+          // Refresh the affected persisted summary/page; a preview error alone
+          // never proves that the catalog remained incomplete or unchanged.
+          onUpdated({ changedBookIds: [book.id], removedBookIds: [], filesChanged: false })
+          setChapterRefresh((value) => value + 1)
         }
       }
       if (mounted.current && request.current?.token === pending.token) {
@@ -208,7 +258,7 @@ export function OfflinePreparationPanel({
     const profile = target ? effectiveSubtitleProfile(target) : undefined
     setBookId(id)
     setFirst('1')
-    setLast(String(target?.episodes.length ?? 1))
+    setLast(String(target?.episodeCount ?? 1))
     setSelected(new Set())
     setPage(0)
     setEngine(profile?.engine ?? '')
@@ -319,7 +369,7 @@ export function OfflinePreparationPanel({
           </div>
           {book && (
             <p className="tools-hint">
-              当前目录 {book.episodes.length} 集
+              当前目录 {book.episodeCount} 集
               {book.online && !book.online.catalogComplete
                 ? '，目录尚未完整，整书预览需先联网补全。'
                 : '。'}
@@ -379,8 +429,22 @@ export function OfflinePreparationPanel({
                   </p>
                 </div>
               )}
+              {(!currentChapters || currentChapters.loading) && (
+                <p role="status">正在读取选集目录…</p>
+              )}
+              {currentChapters?.error && (
+                <p role="alert" className="error-message">
+                  {currentChapters.error}
+                  <button
+                    className="text-button"
+                    onClick={() => setChapterRefresh((value) => value + 1)}
+                  >
+                    重试
+                  </button>
+                </p>
+              )}
               <ul className="offline-episode-choices">
-                {book.episodes.slice(page * 100, (page + 1) * 100).map((episode, index) => (
+                {(currentChapters?.episodes ?? []).map((episode, index) => (
                   <li key={episode.id}>
                     <label>
                       <input
@@ -402,7 +466,7 @@ export function OfflinePreparationPanel({
                   </li>
                 ))}
               </ul>
-              {book.episodes.length > 100 && (
+              {book.episodeCount > 100 && (
                 <nav className="tools-form" aria-label="离线选集分页">
                   <button
                     className="text-button"
@@ -412,11 +476,11 @@ export function OfflinePreparationPanel({
                     上一页选集
                   </button>
                   <span>
-                    {page + 1} / {Math.ceil(book.episodes.length / 100)}
+                    {page + 1} / {Math.ceil(book.episodeCount / 100)}
                   </span>
                   <button
                     className="text-button"
-                    disabled={(page + 1) * 100 >= book.episodes.length}
+                    disabled={(page + 1) * 100 >= book.episodeCount}
                     onClick={() => setPage(page + 1)}
                   >
                     下一页选集

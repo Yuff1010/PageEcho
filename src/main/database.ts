@@ -11,6 +11,7 @@ import type {
   PendingOnlineProof,
 } from '../shared/pending-online-progress'
 import type { Book, Episode, ProgressUpdate, SelectedFile } from '../shared/contracts'
+import type { BookSummary, BookEpisodePage, PlaybackContext } from '../shared/library'
 import type { ScannedBook } from './files'
 import {
   validateTranscript,
@@ -134,6 +135,12 @@ const ONLINE_EPISODES = `SELECT o.id, o.book_id AS bookId, o.title, o.sort_order
   FROM online_episodes o JOIN online_books b ON b.book_id=o.book_id
   LEFT JOIN episodes e ON e.id=o.id
   LEFT JOIN online_pending_progress p ON p.episode_id=o.id`
+
+const EPISODE_KEYS = `SELECT e.id,e.book_id AS bookId,e.sort_order AS ordinal,
+  0 AS branch,e.locator AS tie FROM episodes e WHERE ${LOCAL_EPISODE_MEMBERSHIP}
+  UNION ALL SELECT o.id,o.book_id,o.sort_order,1,'' FROM online_episodes o
+  JOIN online_books b ON b.book_id=o.book_id`
+const EPISODE_KEY_ORDER = 'ordinal,branch,tie COLLATE NOCASE'
 
 function episodeFromRow(row: Record<string, unknown>): Episode {
   return {
@@ -762,6 +769,26 @@ export class LibraryStore {
       string | undefined
   }
 
+  getRememberedBookId(id: string): string | undefined {
+    const row = this.db
+      .prepare(
+        "SELECT id FROM books WHERE kind='file' AND source_locator=(SELECT locator FROM selected_files WHERE id=?)",
+      )
+      .get(id)
+    return row ? String(row.id) : undefined
+  }
+
+  getBookIdsReferencingAudioPath(path: string): string[] {
+    return this.db
+      .prepare(
+        `SELECT DISTINCT coalesce(o.book_id,e.book_id) AS bookId
+      FROM episodes e LEFT JOIN online_episodes o ON o.id=e.id
+      WHERE e.locator=? COLLATE BINARY`,
+      )
+      .all(path)
+      .map((row) => String(row.bookId))
+  }
+
   listBooks(): Book[] {
     return this.readSnapshot(() => {
       const books = this.db
@@ -808,6 +835,147 @@ export class LibraryStore {
     })
   }
 
+  listBookSummaries(): BookSummary[] {
+    return this.readSnapshot(() => {
+      const metadata = this.db.prepare(`${BOOK_METADATA} ORDER BY ${BOOK_ORDER}`).all()
+      if (!metadata.length) return []
+      const statistics = new Map(
+        this.db
+          .prepare(
+            `WITH keys AS (${EPISODE_KEYS}), ranked AS (
+          SELECT id,bookId,count(*) OVER (PARTITION BY bookId) AS total,
+          row_number() OVER (PARTITION BY bookId ORDER BY ${EPISODE_KEY_ORDER}) AS position
+          FROM keys) SELECT id,bookId,total FROM ranked WHERE position=1`,
+          )
+          .all()
+          .map((row) => [String(row.bookId), row]),
+      )
+      const resumes = new Map<string, Episode>()
+      for (const row of this.db
+        .prepare(
+          `${LOCAL_EPISODES}
+        JOIN books r ON r.current_episode_id=e.id AND r.id=e.book_id
+        WHERE ${LOCAL_EPISODE_MEMBERSHIP}
+        UNION ALL ${ONLINE_EPISODES}
+        JOIN books r ON r.current_episode_id=o.id AND r.id=o.book_id`,
+        )
+        .iterate()) {
+        const episode = episodeFromRow(row)
+        resumes.set(episode.bookId, episode)
+      }
+      return metadata.map((row) => {
+        const book = bookMetadataFromRow(row),
+          stat = statistics.get(book.id)
+        return this.summary(
+          book,
+          Number(stat?.total ?? 0),
+          stat ? String(stat.id) : null,
+          resumes.get(book.id),
+        )
+      })
+    })
+  }
+
+  private summary(
+    book: Omit<Book, 'episodes'>,
+    count: number,
+    first: string | null,
+    resume?: Episode,
+  ): BookSummary {
+    return {
+      ...book,
+      episodeCount: count,
+      firstEpisodeId: first,
+      resumeEpisode: resume
+        ? {
+            id: resume.id,
+            title: resume.title,
+            positionMs: resume.positionMs,
+            durationMs: resume.durationMs,
+          }
+        : null,
+    }
+  }
+
+  getBookSummary(id: string): BookSummary | undefined {
+    return this.readSnapshot(() => {
+      const book = this.getBookMetadata(id)
+      if (!book) return undefined
+      const first = this.db
+        .prepare(
+          `SELECT id FROM (${EPISODE_KEYS}) WHERE bookId=? ORDER BY ${EPISODE_KEY_ORDER} LIMIT 1`,
+        )
+        .get(id)
+      const resume = book.currentEpisodeId ? this.getEpisode(book.currentEpisodeId) : undefined
+      return this.summary(
+        book,
+        this.countBookEpisodes(id),
+        first ? String(first.id) : null,
+        resume?.bookId === id ? resume : undefined,
+      )
+    })
+  }
+
+  getBookEpisodes(id: string, offset: number, limit: number): BookEpisodePage {
+    if (
+      !Number.isSafeInteger(offset) ||
+      offset < 0 ||
+      offset > 1000000 ||
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    )
+      throw new AppError('INVALID_REQUEST', '章节分页范围无效。')
+    return this.readSnapshot(() => {
+      const book = this.getBookSummary(id)
+      if (!book) throw new AppError('FILE_UNAVAILABLE', '书籍已移除，请返回书架。')
+      const local = LOCAL_EPISODES.replace(
+        'FROM episodes e',
+        ',0 AS branch,e.locator AS tie FROM episodes e',
+      )
+      const online = ONLINE_EPISODES.replace(
+        'FROM online_episodes o',
+        ",1 AS branch,'' AS tie FROM online_episodes o",
+      )
+      const rows = this.db.prepare(`${local}
+        WHERE ${LOCAL_EPISODE_MEMBERSHIP} AND e.book_id=?
+        UNION ALL ${online}
+        WHERE o.book_id=? ORDER BY "order",branch,tie COLLATE NOCASE LIMIT ? OFFSET ?`)
+      return {
+        book,
+        episodes: rows.all(id, id, limit, offset).map(episodeFromRow),
+        offset,
+        total: book.episodeCount,
+      }
+    })
+  }
+
+  getPlaybackContext(id: string): PlaybackContext | undefined {
+    return this.readSnapshot(() => {
+      const episode = this.getEpisode(id)
+      if (!episode) return undefined
+      const book = this.getBookMetadata(episode.bookId)
+      if (!book) return undefined
+      const neighbors = this.db
+        .prepare(
+          `WITH keys AS (${EPISODE_KEYS}), adjacent AS (
+        SELECT id,lag(id) OVER (ORDER BY ${EPISODE_KEY_ORDER}) AS previous,
+        lead(id) OVER (ORDER BY ${EPISODE_KEY_ORDER}) AS next,
+        row_number() OVER (ORDER BY ${EPISODE_KEY_ORDER})-1 AS position
+        FROM keys WHERE bookId=?) SELECT previous,next,position FROM adjacent WHERE id=?`,
+        )
+        .get(episode.bookId, id)
+      return {
+        book,
+        episode,
+        previousEpisodeId:
+          neighbors?.previous === null || !neighbors ? null : String(neighbors.previous),
+        nextEpisodeId: neighbors?.next === null || !neighbors ? null : String(neighbors.next),
+        episodeIndex: Number(neighbors?.position ?? 0),
+      }
+    })
+  }
+
   countBookEpisodes(bookId: string): number {
     const row = this.db
       .prepare(
@@ -831,6 +999,13 @@ export class LibraryStore {
 
   getBookEpisodeAtOrder(bookId: string, order: number): Episode | undefined {
     return this.episodeRows('bookId', bookId, order)[0]
+  }
+
+  getSourceEpisodeId(bookId: string, sourceEpisodeId: string): string | undefined {
+    const row = this.db
+      .prepare('SELECT id FROM online_episodes WHERE book_id=? AND source_episode_id=?')
+      .get(bookId, sourceEpisodeId)
+    return row ? String(row.id) : undefined
   }
 
   getEpisode(id: string): Episode | undefined {
@@ -1081,7 +1256,7 @@ export class LibraryStore {
     }
   }
 
-  importBook(book: ScannedBook): void {
+  importBook(book: ScannedBook): string {
     this.db.exec('BEGIN IMMEDIATE')
     try {
       const oldBook = this.db
@@ -1125,6 +1300,7 @@ export class LibraryStore {
       this.editing.pruneOrphans()
       this.clearOrphanedCurrent()
       this.db.exec('COMMIT')
+      return id
     } catch (error) {
       // SQLITE_FULL may already have rolled back the transaction.
       if (this.db.isTransaction) this.db.exec('ROLLBACK')

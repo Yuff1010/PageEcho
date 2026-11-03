@@ -561,7 +561,13 @@ test('LibriVox selection routes real search, catalog, cache and playback indepen
     const audio = page.locator('audio[data-player="persistent"]')
     await expect
       .poll(() => audio.evaluate((element: HTMLAudioElement) => element.currentSrc))
-      .toContain(libri.episodes[0]!.id)
+      .toMatch(/^readlisten:\/\/app\/(?:stream\/|media\/)/)
+    await expect
+      .poll(async () => {
+        const current = await page.evaluate(() => window.desktop.getLibraryOverview())
+        return current.ok ? current.value.currentEpisodeId : null
+      })
+      .toBe(libri.episodes[0]!.id)
     await expect
       .poll(() => audio.evaluate((element: HTMLAudioElement) => element.currentTime))
       .toBeGreaterThan(0.2)

@@ -120,7 +120,12 @@ try {
     randomUUID(),
   )
   assert.ok(added.ok, JSON.stringify(added))
-  const book = added.value.books.find((item) => item.online?.bookId === '39941')!
+  const saved = await page.evaluate(
+    (id) => window.desktop.getBookDetail({ id }),
+    added.value.bookId!,
+  )
+  assert(saved.ok && saved.value)
+  const book = saved.value
   assert.ok(book.episodes.length >= 3)
   const episodes = book.episodes.slice(0, 3)
   report.sourceBook = detail.value.book

@@ -7,6 +7,7 @@ import { test, type TestContext } from 'node:test'
 import { LibraryStore } from '../../src/main/database'
 import type { Book, Episode } from '../../src/shared/contracts'
 import { DEFAULT_SOURCE_PREPARATION } from '../../src/shared/sources'
+import { validateRequest } from '../../src/shared/validation'
 
 const uuid = (kind: number, number: number) =>
   `${kind}0000000-0000-4000-8000-${String(number).padStart(12, '0')}`
@@ -564,4 +565,185 @@ test('composite reads keep a caller-owned transaction open until its caller roll
     f.db.exec('ROLLBACK')
   }
   assert.equal(f.db.isTransaction, false)
+})
+
+test('overview summaries project complete legacy metadata, counts and resume identities without episode arrays', async (t) => {
+  const f = await fixture(t),
+    expected = originalBooks(f.reference)
+  f.store.listBooks = () => assert.fail('summaries must not materialize full books')
+  f.store.getBook = () => assert.fail('summaries must not materialize a full book')
+  assert.deepEqual(
+    f.store.listBookSummaries(),
+    expected.map((book) => {
+      const { episodes, ...metadata } = book
+      const resume = episodes.find((episode) => episode.id === book.currentEpisodeId)
+      return {
+        ...metadata,
+        episodeCount: episodes.length,
+        firstEpisodeId: episodes[0]?.id ?? null,
+        resumeEpisode: resume
+          ? {
+              id: resume.id,
+              title: resume.title,
+              positionMs: resume.positionMs,
+              durationMs: resume.durationMs,
+            }
+          : null,
+      }
+    }),
+  )
+  for (const book of f.store.listBookSummaries()) {
+    assert.equal(Object.hasOwn(book, 'episodes'), false)
+    assert.deepEqual(f.store.getBookSummary(book.id), book)
+  }
+  assert.equal(f.store.getBookSummary(bookId(999)), undefined)
+})
+
+test('bounded chapter pages preserve canonical gap and hybrid tie order without changing full book semantics', async (t) => {
+  const f = await fixture(t),
+    expected = originalBooks(f.reference)
+  f.store.listBooks = () => assert.fail('chapter pages must not materialize the library')
+  f.store.getBook = () => assert.fail('chapter pages must not materialize the full book')
+  for (const book of expected) {
+    for (const offset of [0, 1, 2, 100]) {
+      const page = f.store.getBookEpisodes(book.id, offset, 2)
+      assert.deepEqual(page.episodes, book.episodes.slice(offset, offset + 2))
+      assert.equal(page.total, book.episodes.length)
+      assert.equal(page.offset, offset)
+      assert.equal(Object.hasOwn(page.book, 'episodes'), false)
+    }
+  }
+  assert.throws(() => f.store.getBookEpisodes(bookId(999), 0, 100), { code: 'FILE_UNAVAILABLE' })
+  for (const [offset, limit] of [
+    [-1, 1],
+    [0, 0],
+    [0, 101],
+    [0.5, 2],
+    [0, Infinity],
+  ])
+    assert.throws(() => f.store.getBookEpisodes(bookId(1), offset!, limit!), {
+      code: 'INVALID_REQUEST',
+    })
+})
+
+test('playback contexts use true sorted neighbors including duplicate ordinals without full-book reads', async (t) => {
+  const f = await fixture(t),
+    expected = originalBooks(f.reference)
+  f.store.listBooks = () => assert.fail('playback context must not expand the library')
+  f.store.getBook = () => assert.fail('playback context must not materialize a whole book')
+  for (const book of expected) {
+    const { episodes, ...metadata } = book
+    for (const [index, episode] of episodes.entries())
+      assert.deepEqual(f.store.getPlaybackContext(episode.id), {
+        book: metadata,
+        episode,
+        previousEpisodeId: episodes[index - 1]?.id ?? null,
+        nextEpisodeId: episodes[index + 1]?.id ?? null,
+        episodeIndex: index,
+      })
+  }
+  assert.equal(f.store.getPlaybackContext(episodeId(999)), undefined)
+})
+
+test('summary, chapter and context IPC permits only bounded explicit identities', () => {
+  validateRequest('library:overview', [])
+  for (const channel of ['library:book-detail', 'reading:book']) {
+    validateRequest(channel, [{ id: bookId(1) }])
+    assert.throws(() => validateRequest(channel, [{ id: bookId(1), episodes: [] }]))
+  }
+  validateRequest('player:context', [{ episodeId: episodeId(1) }])
+  validateRequest('library:book-episodes', [{ id: bookId(1), offset: 100000, limit: 100 }])
+  for (const args of [
+    [{}],
+    [{ id: bookId(1), offset: -1, limit: 1 }],
+    [{ id: bookId(1), offset: 0, limit: 101 }],
+    [{ id: bookId(1), offset: 0, limit: 1, path: 'D:/injected' }],
+  ])
+    assert.throws(() => validateRequest('library:book-episodes', args))
+  assert.throws(() => validateRequest('library:overview', [{}]))
+  assert.throws(() => validateRequest('player:context', [{ episodeId: 'D:/injected' }]))
+  validateRequest('source:add', [
+    { id: session, sourceId: 'ting13', bookId: '38229', episodeId: '38229_1_123' },
+  ])
+  assert.throws(() =>
+    validateRequest('source:book', [
+      { id: session, sourceId: 'ting13', bookId: '38229', episodeId: '38229_1_123' },
+    ]),
+  )
+  assert.throws(() =>
+    validateRequest('source:add', [
+      { id: session, sourceId: 'ting13', bookId: '38229', episodeId: 'bad\u0000' },
+    ]),
+  )
+})
+
+test('overview, page and playback context remain coherent across a concurrent WAL writer', async (t) => {
+  for (const kind of ['overview', 'page', 'context'] as const) {
+    const f = await fixture(t)
+    const read = () =>
+      kind === 'overview'
+        ? f.store.listBookSummaries()
+        : kind === 'page'
+          ? f.store.getBookEpisodes(bookId(3), 0, 100)
+          : f.store.getPlaybackContext(episodeId(12))
+    const before = read(),
+      writer = new DatabaseSync(join(f.root, 'synthetic.sqlite'))
+    let wrote = false
+    const capture = captureQueries(f.store, (call) => {
+      if (wrote || !/FROM books b\b/.test(call.sql)) return
+      wrote = true
+      writer.exec('BEGIN IMMEDIATE')
+      writer.prepare('UPDATE books SET title=? WHERE id=?').run('已并发改名', bookId(3))
+      writer.prepare('DELETE FROM online_episodes WHERE id=?').run(episodeId(14))
+      writer.exec('COMMIT')
+    })
+    try {
+      assert.deepEqual(read(), before)
+      assert.equal(wrote, true)
+      assert.equal(f.db.isTransaction, false)
+      capture.restore()
+      assert.notDeepEqual(read(), before)
+    } finally {
+      capture.restore()
+      writer.close()
+    }
+  }
+})
+
+test('chapter page hard limit materializes only the requested hundred entries and neighbors cross that boundary', async (t) => {
+  const f = await fixture(t)
+  f.db
+    .prepare(
+      `WITH RECURSIVE n(value) AS (SELECT 1 UNION ALL SELECT value+1 FROM n WHERE value<205)
+    INSERT INTO episodes(id,book_id,title,sort_order,locator,size_bytes,modified_at,content_hash)
+    SELECT 'bounded-'||value,?, '有限测试'||value,value,'D:/synthetic/page/'||value,1,1,? FROM n`,
+    )
+    .run(bookId(5), '8'.repeat(64))
+  f.store.getBook = () => assert.fail('a page or context cannot read a complete chapter array')
+  f.store.listBooks = () => assert.fail('a page or context cannot read the whole library')
+  const page = f.store.getBookEpisodes(bookId(5), 100, 100)
+  assert.equal(page.total, 205)
+  assert.equal(page.episodes.length, 100)
+  assert.equal(page.episodes[0]!.id, 'bounded-101')
+  assert.equal(page.episodes.at(-1)!.id, 'bounded-200')
+  assert.equal(f.store.getPlaybackContext('bounded-100')!.nextEpisodeId, 'bounded-101')
+  assert.equal(f.store.getPlaybackContext('bounded-101')!.previousEpisodeId, 'bounded-100')
+  assert.equal(f.store.getPlaybackContext('bounded-101')!.episodeIndex, 100)
+})
+
+test('path targeting preserves exact remembered-path matching and includes cached source ownership', async (t) => {
+  const f = await fixture(t),
+    path = f.store.getAudio(episodeId(12))!.path
+  f.db
+    .prepare(
+      `INSERT INTO episodes(id,book_id,title,sort_order,locator,size_bytes,modified_at,content_hash)
+    VALUES (?,?,?,7,?,1,1,?)`,
+    )
+    .run(episodeId(31), bookId(1), '同路径其他书', path, '7'.repeat(64))
+  assert.deepEqual(
+    f.store.getBookIdsReferencingAudioPath(path).sort(),
+    [bookId(1), bookId(3)].sort(),
+  )
+  assert.deepEqual(f.store.getBookIdsReferencingAudioPath(path.toUpperCase()), [])
+  assert.deepEqual(f.store.getBookIdsReferencingAudioPath('D:/missing'), [])
 })

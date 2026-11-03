@@ -1,12 +1,11 @@
 import type {
-  AppState,
-  Book,
   Episode,
   PlaybackSource,
   PlaybackSourceChange,
   ProgressUpdate,
   Result,
 } from '../../shared/contracts'
+import type { LibraryOverview, LibraryMutation, PlaybackContext } from '../../shared/library'
 import { listeningRange, type Bookmark, type SleepTimer } from '../../shared/listening'
 import {
   subtitleBufferState,
@@ -48,7 +47,22 @@ export interface PlayerState {
   subtitlePreparationPhase: AutomaticSubtitlesResult['status'] | 'idle' | 'checking' | 'canceling'
   audioPending: { receivedBytes: number; totalBytes: number } | null
 }
-type PreparedSubtitlesResult = AutomaticSubtitlesResult & { library: AppState }
+/** A successful progress save can update a shelf summary without another Main read. */
+export interface PlayerLibraryMutation extends LibraryMutation {
+  progress?: {
+    bookId: string
+    episodeId: string
+    positionMs: number
+    durationMs: number | null
+    rate: number
+    volume: number
+    updatedAt: string
+  }
+}
+type PreparedSubtitlesResult = AutomaticSubtitlesResult & {
+  context: PlaybackContext | null
+  mutation: LibraryMutation
+}
 
 export function pendingAudioNotice(pending: PlayerState['audioPending']): string | undefined {
   return pending
@@ -56,10 +70,11 @@ export function pendingAudioNotice(pending: PlayerState['audioPending']): string
     : undefined
 }
 
-class PlayerController {
+export class PlayerController {
   readonly audio = document.createElement('audio')
   private source: PlaybackSource | null = null
-  private books: Book[] = []
+  private context: PlaybackContext | null = null
+  private contextQuery = 0
   private generation = 0
   private navigation = 0
   private openingId: string | null = null
@@ -77,7 +92,7 @@ class PlayerController {
   private pendingSave = Promise.resolve()
   private listeners = new Set<() => void>()
   private clockListeners = new Set<() => void>()
-  private libraryListeners = new Set<(state: AppState) => void>()
+  private libraryListeners = new Set<(mutation: PlayerLibraryMutation) => void>()
   private clockFrame: number | null = null
   private subtitleWait = 0
   private subtitleQuery = 0
@@ -267,10 +282,17 @@ class PlayerController {
     if (!/^[0-9a-f]{64}$/.test(change.episode.contentHash)) return
     const waiting = this.state.subtitleWaiting
     // The same audio element/URL keeps playing. Only its authenticated identity changes.
-    this.source = { ...source, episode: change.episode, pending: undefined }
+    this.source = {
+      ...source,
+      episode: change.episode,
+      context: change.context,
+      pending: undefined,
+    }
+    this.contextQuery++
+    this.context = change.context
     this.patch({ episode: change.episode, audioPending: null, subtitleWaiting: false })
-    this.updateLibrary(change.library)
-    this.libraryListeners.forEach((listener) => listener(change.library))
+    this.updateContextPresentation()
+    this.publishMutation(this.progressMutation(change.episode))
     void this.save()
     void this.readSubtitleProgress()
     if (waiting) void this.play()
@@ -286,11 +308,24 @@ class PlayerController {
   }
   getSnapshot = () => this.state
   getSessionId = () => this.source?.sessionId ?? null
-  subscribeLibrary = (listener: (state: AppState) => void) => {
+  subscribeLibraryMutation = (listener: (mutation: PlayerLibraryMutation) => void) => {
     this.libraryListeners.add(listener)
     return () => {
       this.libraryListeners.delete(listener)
     }
+  }
+  getContext = () => this.context
+  private progressMutation(episode: Episode): LibraryMutation {
+    return {
+      changedBookIds: [episode.bookId],
+      removedBookIds: [],
+      filesChanged: false,
+      bookId: episode.bookId,
+      episodeId: episode.id,
+    }
+  }
+  private publishMutation(mutation: PlayerLibraryMutation) {
+    this.libraryListeners.forEach((listener) => listener(mutation))
   }
   getPosition = () => (this.state.ready ? this.audio.currentTime * 1000 : this.state.positionMs)
   subscribeClock = (listener: () => void) => {
@@ -335,8 +370,7 @@ class PlayerController {
     return Number.isFinite(this.audio.duration) ? this.audio.duration * 1000 : this.state.durationMs
   }
   private range(durationMs = this.duration()) {
-    const book = this.books.find((book) => book.id === this.state.episode?.bookId)
-    return listeningRange(durationMs, book ?? { introMs: 0, outroMs: 0 })
+    return listeningRange(durationMs, this.context?.book ?? { introMs: 0, outroMs: 0 })
   }
 
   setSleepTimer(value: number | 'chapter' | null) {
@@ -387,35 +421,70 @@ class PlayerController {
     return true
   }
 
-  updateLibrary(state: AppState) {
-    this.books = state.books
-    const currentBook = this.books.find((book) => book.id === this.state.episode?.bookId)
-    if (this.state.coverUrl !== currentBook?.coverUrl)
-      this.patch({ coverUrl: currentBook?.coverUrl })
-    if (
-      this.state.subtitleWaiting &&
-      this.books.find((book) => book.id === this.source?.episode.bookId)?.subtitlePreparation
-        ?.mode !== 'ahead'
-    )
-      void this.play(true)
-    if (this.source) {
-      const current = this.books
-        .flatMap((book) => book.episodes)
-        .find((episode) => episode.id === this.source!.episode.id)
-      if (
-        !current ||
-        (!this.source.pending && current.contentHash !== this.source.episode.contentHash)
-      )
-        void this.stop()
-      else
-        this.patch({
-          skipNotice: this.range().skipsDisabled ? '本集短于跳过时长，本集完整播放。' : '',
-        })
-    }
+  initializeOverview(overview: LibraryOverview) {
     if (this.initialized) return
     this.initialized = true
-    this.patch(state.preferences)
-    if (state.currentEpisodeId) void this.load(state.currentEpisodeId, false)
+    // A delayed initial shelf request must not replace a user's newer explicit choice.
+    if (this.generation || this.openingId || this.source) return
+    this.patch(overview.preferences)
+    if (overview.currentEpisodeId) void this.load(overview.currentEpisodeId, false)
+  }
+
+  private updateContextPresentation() {
+    this.patch({
+      bookTitle: this.context?.book.title ?? '',
+      coverUrl: this.context?.book.coverUrl,
+      skipNotice: this.range().skipsDisabled ? '本集短于跳过时长，本集完整播放。' : '',
+    })
+    if (this.state.subtitleWaiting && this.context?.book.subtitlePreparation?.mode !== 'ahead')
+      void this.play(true)
+  }
+
+  private async acceptContext(context: PlaybackContext | null, source: PlaybackSource) {
+    if (source !== this.source) return
+    if (
+      !context ||
+      context.episode.id !== source.episode.id ||
+      context.book.id !== source.episode.bookId ||
+      (!source.pending && context.episode.contentHash !== source.episode.contentHash)
+    ) {
+      await this.stop()
+      return
+    }
+    // Only the authenticated ready event transfers a progressive source's identity.
+    this.context = {
+      ...context,
+      episode: {
+        ...(source.pending ? source.episode : context.episode),
+        positionMs: this.state.positionMs,
+      },
+    }
+    source.context = this.context
+    if (!source.pending) {
+      source.episode = this.context.episode
+      this.patch({ episode: this.context.episode })
+    }
+    this.updateContextPresentation()
+  }
+
+  async refreshContext(bookIds?: readonly string[]) {
+    const source = this.source
+    if (this.switching || !source || (bookIds && !bookIds.includes(source.episode.bookId))) return
+    const generation = this.generation,
+      query = ++this.contextQuery
+    try {
+      const result = await window.desktop.getPlaybackContext({ episodeId: source.episode.id })
+      if (
+        this.switching ||
+        source !== this.source ||
+        generation !== this.generation ||
+        query !== this.contextQuery
+      )
+        return
+      if (result.ok) await this.acceptContext(result.value, source)
+    } catch {
+      // A failed metadata refresh does not invalidate a working authenticated audio session.
+    }
   }
 
   async load(
@@ -430,6 +499,7 @@ class PlayerController {
     this.subtitleEstimate = {}
     this.subtitleTranscript = null
     const generation = ++this.generation
+    this.contextQuery++
     this.subtitleCommand++
     this.requestedSubtitles = false
     this.cancelOpening()
@@ -445,19 +515,18 @@ class PlayerController {
     if (generation !== this.generation || this.openingRequestId !== requestId) return
     const previous = this.source
     this.source = null
+    this.context = null
     this.transferFailed = false
     this.confirmedPendingPositionMs = 0
     this.audio.removeAttribute('src')
     this.audio.load()
-    const book = this.books.find((item) => item.episodes.some((episode) => episode.id === id))
-    const episode = book?.episodes.find((item) => item.id === id) ?? null
     this.patch({
-      episode,
-      bookTitle: book?.title ?? '',
-      coverUrl: book?.coverUrl,
+      episode: null,
+      bookTitle: '',
+      coverUrl: undefined,
       ready: false,
-      positionMs: fromStart ? 0 : (episode?.positionMs ?? 0),
-      durationMs: episode?.durationMs ?? 0,
+      positionMs: 0,
+      durationMs: 0,
       loading: true,
       playing: false,
       error: '',
@@ -471,6 +540,23 @@ class PlayerController {
     try {
       if (previous) await window.desktop.releasePlayback({ sessionId: previous.sessionId })
       if (generation !== this.generation || this.openingRequestId !== requestId) return
+      const metadata = await window.desktop.getPlaybackContext({ episodeId: id })
+      if (generation !== this.generation || this.openingRequestId !== requestId) return
+      if (!metadata.ok || !metadata.value) {
+        this.patch({
+          loading: false,
+          error: metadata.ok ? '章节记录已移除，请重新选择。' : metadata.error.message,
+        })
+        return
+      }
+      this.context = metadata.value
+      this.patch({
+        episode: metadata.value.episode,
+        bookTitle: metadata.value.book.title,
+        coverUrl: metadata.value.book.coverUrl,
+        positionMs: fromStart ? 0 : metadata.value.episode.positionMs,
+        durationMs: metadata.value.episode.durationMs ?? 0,
+      })
       const result = await window.desktop.openEpisode({ id, requestId })
       if (generation !== this.generation || this.openingRequestId !== requestId) {
         if (result.ok) await window.desktop.releasePlayback({ sessionId: result.value.sessionId })
@@ -480,20 +566,17 @@ class PlayerController {
         this.patch({ loading: false, error: result.error.message })
         return
       }
-      if (result.value.library) {
-        this.updateLibrary(result.value.library)
-        this.libraryListeners.forEach((listener) => listener(result.value.library!))
-      }
       if (bookmark && bookmark.audioHash !== result.value.episode.contentHash) {
         this.patch({ loading: false, error: '书签来自旧音频版本，不能跳转到当前音频。' })
         await window.desktop.releasePlayback({ sessionId: result.value.sessionId })
         return
       }
       this.source = result.value
+      this.context = result.value.context
       this.patch({
         episode: result.value.episode,
-        bookTitle: book?.title ?? '',
-        coverUrl: this.books.find((item) => item.id === result.value.episode.bookId)?.coverUrl,
+        bookTitle: result.value.context.book.title,
+        coverUrl: result.value.context.book.coverUrl,
         positionMs: fromStart ? 0 : result.value.episode.positionMs,
         durationMs: result.value.episode.durationMs ?? 0,
         ready: false,
@@ -502,6 +585,7 @@ class PlayerController {
       this.switching = false
       this.audio.src = result.value.url
       this.audio.load()
+      this.publishMutation(this.progressMutation(result.value.episode))
       if (result.value.pending) {
         const latest = await window.desktop
           .getPlaybackSourceState({
@@ -552,8 +636,7 @@ class PlayerController {
       !state ||
       this.state.subtitleWaiting ||
       !this.source ||
-      this.books.find((book) => book.id === this.source!.episode.bookId)?.subtitlePreparation
-        ?.mode === 'manual'
+      this.context?.book.subtitlePreparation?.mode === 'manual'
     )
       return
     if (state.job?.autoApply && state.job.status === 'completed') {
@@ -651,11 +734,7 @@ class PlayerController {
     if (this.expireTimer()) return
     if (this.audio.ended || this.completion) this.audio.currentTime = this.range().startMs / 1000
     this.completion = null
-    if (
-      !immediate &&
-      this.books.find((book) => book.id === this.source!.episode.bookId)?.subtitlePreparation
-        ?.mode === 'ahead'
-    ) {
+    if (!immediate && this.context?.book.subtitlePreparation?.mode === 'ahead') {
       if (this.state.subtitleWaiting) return
       this.navigation++
       const wait = ++this.subtitleWait
@@ -729,10 +808,24 @@ class PlayerController {
           return null
         }
         const value = result.value
+        // A manual task or cancellation can invalidate the automatic request
+        // while the same recording keeps playing. Its omitted context is not
+        // evidence that the current media or book has been removed.
+        if (value.status === 'stale') {
+          this.patch({ subtitleNotice: '', subtitlePreparationPhase: 'idle' })
+          void this.readSubtitleProgress()
+          return null
+        }
         if (!['missing-component', 'unavailable'].includes(value.status))
           this.requestedSubtitles = false
-        this.updateLibrary(value.library)
-        this.libraryListeners.forEach((listener) => listener(value.library))
+        await this.acceptContext(value.context, source)
+        if (
+          source !== this.source ||
+          generation !== this.generation ||
+          command !== this.subtitleCommand
+        )
+          return null
+        this.publishMutation(value.mutation)
         this.patch({
           subtitleNotice: value.status === 'disabled' ? '' : value.message,
           subtitleSetupNeeded: ['missing-component', 'unavailable'].includes(value.status),
@@ -819,10 +912,11 @@ class PlayerController {
     this.updateSubtitleNotice()
   }
   async openBookmark(bookmark: Bookmark) {
-    const episode = this.books
-      .flatMap((book) => book.episodes)
-      .find((item) => item.id === bookmark.episodeId)
-    if (bookmark.stale || episode?.contentHash !== bookmark.audioHash) {
+    if (
+      bookmark.stale ||
+      (this.source?.episode.id === bookmark.episodeId &&
+        this.source.episode.contentHash !== bookmark.audioHash)
+    ) {
       this.patch({ error: '书签来自旧音频版本，不能跳转到当前音频。' })
       return
     }
@@ -844,6 +938,14 @@ class PlayerController {
   }
   async save() {
     if (!this.source) return this.pendingSave
+    const source = this.source,
+      generation = this.generation,
+      switching = this.switching
+    const isCurrent = () =>
+      !switching &&
+      !this.switching &&
+      generation === this.generation &&
+      this.source?.sessionId === update.sessionId
     this.confirmPendingPosition()
     const update: ProgressUpdate = {
       sessionId: this.source.sessionId,
@@ -863,23 +965,46 @@ class PlayerController {
       try {
         const result = await window.desktop.saveProgress(update)
         if (!result.ok) {
-          if (this.source?.sessionId === update.sessionId)
-            this.patch({ saveError: `进度保存失败：${result.error.message}` })
+          if (isCurrent()) this.patch({ saveError: `进度保存失败：${result.error.message}` })
         } else {
-          for (const book of this.books) {
-            const episode = book.episodes.find((item) => item.id === update.episodeId)
-            if (episode) {
-              episode.positionMs = update.positionMs
-              episode.durationMs = update.durationMs
-              book.currentEpisodeId = episode.id
-              book.lastPlayedAt = new Date().toISOString()
+          const updatedAt = new Date().toISOString()
+          if (isCurrent() && this.source && this.context?.episode.id === update.episodeId) {
+            const episode = {
+              ...this.context.episode,
+              positionMs: update.positionMs,
+              durationMs: update.durationMs,
             }
+            this.context = {
+              ...this.context,
+              episode,
+              book: {
+                ...this.context.book,
+                currentEpisodeId: episode.id,
+                lastPlayedAt: updatedAt,
+              },
+            }
+            this.source.context = this.context
           }
-          if (this.source?.sessionId === update.sessionId) this.patch({ saveError: '' })
+          this.publishMutation({
+            ...this.progressMutation(source.episode),
+            ...(isCurrent()
+              ? {
+                  progress: {
+                    bookId: source.episode.bookId,
+                    episodeId: update.episodeId,
+                    positionMs: update.positionMs,
+                    durationMs: update.durationMs,
+                    rate: update.rate,
+                    volume: update.volume,
+                    updatedAt,
+                  },
+                }
+              : {}),
+          })
+          if (isCurrent()) this.patch({ saveError: '' })
         }
       } catch {
-        if (this.source?.sessionId === update.sessionId)
-          this.patch({ saveError: '进度保存失败，请检查数据目录或重试。' })
+        if (isCurrent()) this.patch({ saveError: '进度保存失败，请检查数据目录或重试。' })
       }
     })
     return this.pendingSave
@@ -888,38 +1013,67 @@ class PlayerController {
   async next(offset = 1, autoplay = this.state.playing) {
     this.cancelSubtitleWait()
     this.autoplay = false
-    const episode = this.state.episode
-    if (!episode) return
-    let book = this.books.find((book) => book.id === episode.bookId)
-    let episodes = book?.episodes ?? []
-    let next = episodes[episodes.findIndex((item) => item.id === episode.id) + offset]
-    if (!next && offset > 0 && book?.online && !book.online.catalogComplete) {
+    const source = this.source,
+      episode = this.context?.episode ?? this.state.episode
+    // A failed open still has authenticated catalogue metadata. Navigation must
+    // remain available so the user can skip a missing or unreadable recording.
+    if (!episode || !this.context || (offset !== 1 && offset !== -1)) return
+    let nextId = offset > 0 ? this.context.nextEpisodeId : this.context.previousEpisodeId
+    if (
+      !nextId &&
+      offset > 0 &&
+      this.context.book.online &&
+      !this.context.book.online.catalogComplete
+    ) {
       const navigation = ++this.navigation,
         generation = this.generation
       this.openingId = episode.id
       this.patch({ loading: true, error: '' })
       try {
         const result = await window.desktop.continueSourceBook({ id: episode.id })
-        if (navigation !== this.navigation || generation !== this.generation) return
+        if (
+          source !== this.source ||
+          navigation !== this.navigation ||
+          generation !== this.generation
+        )
+          return
         if (!result.ok) {
           this.patch({ loading: false, error: result.error.message })
           return
         }
-        this.updateLibrary(result.value)
-        this.libraryListeners.forEach((listener) => listener(result.value))
-        book = result.value.books.find((book) => book.id === episode.bookId)
-        episodes = book?.episodes ?? []
-        next = episodes[episodes.findIndex((item) => item.id === episode.id) + offset]
+        this.publishMutation(result.value)
+        if (source) await this.refreshContext([episode.bookId])
+        else {
+          const metadata = await window.desktop.getPlaybackContext({ episodeId: episode.id })
+          if (navigation !== this.navigation || generation !== this.generation) return
+          if (metadata.ok) this.context = metadata.value
+        }
+        if (
+          source !== this.source ||
+          navigation !== this.navigation ||
+          generation !== this.generation
+        )
+          return
+        nextId = this.context?.nextEpisodeId ?? null
         this.patch({ loading: false })
       } catch {
-        if (navigation === this.navigation && generation === this.generation)
+        if (
+          source === this.source &&
+          navigation === this.navigation &&
+          generation === this.generation
+        )
           this.patch({ loading: false, error: '后续目录读取未完成，请重试下一集。' })
       } finally {
         if (this.openingId === episode.id) this.openingId = null
       }
-      if (navigation !== this.navigation || generation !== this.generation) return
+      if (
+        source !== this.source ||
+        navigation !== this.navigation ||
+        generation !== this.generation
+      )
+        return
     }
-    if (next) await this.load(next.id, autoplay, true)
+    if (nextId) await this.load(nextId, autoplay, true)
   }
   private async finishChapter() {
     if (this.completion || this.switching || !this.state.ready) return
@@ -946,6 +1100,7 @@ class PlayerController {
     this.navigation++
     this.cancelSubtitleWait()
     const generation = ++this.generation
+    this.contextQuery++
     this.cancelOpening()
     this.completion = null
     this.switching = true
@@ -953,6 +1108,7 @@ class PlayerController {
     const previous = this.source
     const saved = this.save()
     this.source = null
+    this.context = null
     this.patch({ ready: false, playing: false, loading: false })
     await saved
     if (previous) await window.desktop.releasePlayback({ sessionId: previous.sessionId })

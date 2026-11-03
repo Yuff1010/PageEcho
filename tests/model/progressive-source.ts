@@ -185,9 +185,12 @@ try {
   await save()
   if (!added.ok)
     throw Object.assign(new Error('Source catalogue unavailable'), { code: added.error.code })
-  const book = added.value.books.find(
-    (item) => item.online?.sourceId === 'ting13' && item.online.bookId === bookId,
+  const savedBook = await page.evaluate(
+    (id) => window.desktop.getBookDetail({ id }),
+    added.value.bookId!,
   )
+  assert(savedBook.ok && savedBook.value, 'Saved real-source book cannot be read')
+  const book = savedBook.value
   assert(book?.episodes.length, 'Real source returned no episodes')
   const first = book.episodes[0]!
   assert.equal(

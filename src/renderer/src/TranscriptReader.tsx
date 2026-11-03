@@ -8,7 +8,8 @@ import {
   useSyncExternalStore,
   type CSSProperties,
 } from 'react'
-import type { AppState, Book, Episode } from '../../shared/contracts'
+import type { Book, Episode } from '../../shared/contracts'
+import type { LibraryMutation } from '../../shared/library'
 import { OriginalReader } from './OriginalReader'
 import { SubtitleExport } from './SubtitleExport'
 import { TranscriptionControls, useTranscription } from './TranscriptionControls'
@@ -72,11 +73,11 @@ function readLegacySettings(): Partial<ReaderSettings> | null {
 type Panel = 'settings' | 'tools' | null
 interface ReaderProps {
   episode: Episode | null
-  book: Book | undefined
+  book: Omit<Book, 'episodes'> | undefined
   visible: boolean
   onOpenLibrary: () => void
   onOpenSubtitleSettings: () => void
-  onUpdated: (state: AppState) => void
+  onUpdated: (mutation: LibraryMutation) => void
   onLinkBook?: () => void
   onOpenLinkedReading?: () => void
 }
@@ -293,7 +294,7 @@ function ReaderForEpisode({
       const result = await player.prepareSubtitles(true)
       if (attempt !== generationAttempt.current) return
       if (result && ['started', 'reused'].includes(result.status)) {
-        onUpdated(result.library)
+        onUpdated(result.mutation)
         await control.refresh()
         setPanel(null)
       } else openGenerationSettings()

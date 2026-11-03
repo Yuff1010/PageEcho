@@ -67,6 +67,10 @@
 
 ## 软件结构与数据流
 
+书架数据在 `0.43` 分为轻量 `BookSummary`／`ReadingBookSummary` 和明确的完整单书详情；摘要不携带伪造的 `episodes` 或 `chapters` 数组。两种书架共用 `useShelfPage` 与 `ShelfPagination`，筛选／排序沿用中文自然顺序，每页最多渲染 100 张卡；分页用已有图标、Tooltip 和书卡间距参数，不增加格式专属头部或横幅。目录从 `getBookEpisodes` 获取至多 100 集的真实页，迟到页只归属原书／页请求。
+
+播放器持有独立 `PlaybackContext`，包含当前书元信息、当前集、真实排序邻居及目录位置，不把当前书架页当作全库权威。翻页、过滤、切换书架不关闭声音；只有显式停止或重新核实当前资源缺失／变化才释放会话。主流程的修改回复为 `LibraryMutation`，保存进度用小型通知更新目标摘要；完整 `getState` 只保留为明确的旧兼容／诊断入口。打开单本电子书使用 `getReadingBook`，整书纠错工具按需获取真实完整目录，加载前不能启用整书范围。
+
 来源页面由 `OnlineSourceBrowser`／`SourceCenterText` 维护，使用 `SourceCenterAction`、共享 `Tooltip` 和局部 `source-center.css` 参数。有声书、电子书、我的书库是互斥的实际面板，支持方向键与 Home／End；管理动作收在更多菜单。来源页面标题继续使用应用共用头部，导入正文后进入既有普通阅读器，不新增第二套阅读结构或状态栏。协议、导入身份及连接清单的边界见 [来源中心](SOURCE_CENTER.md)。
 
 `source-session.ts` 保存当前进程内各来源的关键词、结果、详情、目录页与选章；互斥面板卸载时取消请求，已完成的界面状态留待返回恢复，不把所有面板同时挂载隐藏。`aggregate-search.ts` 负责三路并发的首批聚合发现，来源面板复用原有结果卡和取消入口，分源错误直接可读；聚合结果不能冒充单一来源的完整分页。
