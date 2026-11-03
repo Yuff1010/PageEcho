@@ -128,7 +128,7 @@ def expected_reference(filename, row):
             'category': 'numeric-characters-only' if re.fullmatch('[一二三四五六七八九十百千万亿零〇幺两洞拐勾]+', row['text']) else 'other-scripted-studio'}
 
 
-def load_studio_manifest(path):
+def load_studio_manifest(path, *, tool_overrides=None):
     path = Path(path).resolve()
     manifest = json.loads(path.read_text(encoding='utf-8'))
     if (manifest.get('version') != 1 or manifest.get('referenceKind') != 'human-studio-text' or
@@ -136,8 +136,16 @@ def load_studio_manifest(path):
         raise ValueError('Unexpected studio reference contract/source')
     archive = verify_archive(manifest['source']['archivePath'])
     tools = manifest['tools']
+    if tool_overrides is not None and (
+            not isinstance(tool_overrides, dict) or
+            set(tool_overrides) - {'ffmpeg', 'ffprobe'} or
+            any(not isinstance(value, str) or not value or '\0' in value or
+                not Path(value).is_absolute() for value in tool_overrides.values())):
+        raise ValueError('Studio tool overrides must be explicit absolute ffmpeg/ffprobe paths')
+    selected_tools = {}
     for name in ('ffmpeg', 'ffprobe'):
-        if digest(tools[name]['path']) != tools[name]['sha256']:
+        selected_tools[name] = (tool_overrides or {}).get(name, tools[name]['path'])
+        if digest(selected_tools[name]) != tools[name]['sha256']:
             raise ValueError('Studio preparation tool changed')
     annotation, rows = source_rows(tools['archiveReader'], archive)
     if hashlib.sha256(annotation).hexdigest() != manifest['source']['annotationSha256'] or len(manifest['samples']) != len(rows):
@@ -151,13 +159,13 @@ def load_studio_manifest(path):
                 digest(original) != hashlib.sha256(member(tools['archiveReader'], archive, row['entry'])).hexdigest() or
                 digest(original) != sample['sourceSha256'] or digest(target) != sample['audioHash']):
             raise ValueError('Studio original/normalized audio version changed')
-        expected_pcm = pcm(tools['ffmpeg']['path'], original)
+        expected_pcm = pcm(selected_tools['ffmpeg'], original)
         with wave.open(str(target), 'rb') as audio:
             if (audio.getnchannels(), audio.getframerate(), audio.getsampwidth(), audio.getcomptype()) != (1, 16000, 2, 'NONE'):
                 raise ValueError('Studio derived audio format changed')
             if audio.readframes(audio.getnframes()) != expected_pcm or audio.getnframes() != sample['frames']:
                 raise ValueError('Studio audio is not the pinned full-utterance resample')
-        if duration_ms(tools['ffprobe']['path'], target) != sample['durationMs']:
+        if duration_ms(selected_tools['ffprobe'], target) != sample['durationMs']:
             raise ValueError('Studio media duration changed')
     return manifest
 

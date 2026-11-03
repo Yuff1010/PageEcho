@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from asr_segments import fingerprint, partial_document, windows
+from asr_jobs import assembled_document
 from continuous_summary import reconstructed_documents
 import film_summary as film
 
@@ -41,7 +42,10 @@ class FilmSummaryTests(unittest.TestCase):
                        "manifestPath": str(manifest), "manifestSha256": film.digest(manifest), "runnerSha256": film.digest(runner), "samples": [measured,
                        {"id": "second", "audioHash": self.other["audioHash"], "sourceVideo": self.other["sourceVideo"], "status": "failed", "code": "ALIGNMENT_FAILED", "error": "invented failure"}]}
         self.path = self.root / "report.json"
-        (self.root / "component.json").write_text(json.dumps({"cache": str(self.external_cache)}), encoding="utf-8")
+        self.component = {"version": 1, "cache": str(self.external_cache),
+                          "python": "recorded-python.exe", "models": "recorded-models.json",
+                          "ffmpeg": "recorded-ffmpeg.exe", "ffprobe": "recorded-ffprobe.exe"}
+        self.save_component()
         mocked = patch.object(film, "load_film_manifest", return_value={"samples": [self.sample, self.other]})
         mocked.start()
         self.addCleanup(mocked.stop)
@@ -49,6 +53,9 @@ class FilmSummaryTests(unittest.TestCase):
     def summarize(self):
         self.path.write_text(json.dumps(self.report), encoding="utf-8")
         return film.summarize(self.path)
+
+    def save_component(self):
+        (self.root / 'component.json').write_text(json.dumps(self.component), encoding='utf-8')
 
     def test_failed_clip_remains_in_denominator_and_corpus_score_is_unavailable(self):
         summary = self.summarize()
@@ -84,6 +91,54 @@ class FilmSummaryTests(unittest.TestCase):
         self.external_cache.rename(local)
         actual, _ = reconstructed_documents(self.root, self.report, measured, self.sample)
         self.assertEqual(actual, self.document)
+
+    def test_v2_summary_uses_settings_owned_local_cache_and_still_reconstructs_native_checkpoints(self):
+        local = self.root / 'cache' / 'asr'
+        local.parent.mkdir()
+        self.external_cache.rename(local)
+        self.component = {key: value for key, value in self.component.items() if key != 'cache'}
+        self.component.update(version=2, resources='recorded-resources')
+        self.save_component()
+        self.report['cache'] = 'untrusted-report-cache-is-ignored'
+        self.assertEqual(film.recorded_cache_root(self.root), local.resolve())
+        self.assertEqual(self.summarize()['completedOnlyCER'], 0.5)
+        checkpoint = local / 'jobs' / self.key / 'chunk-000000.json'
+        value = json.loads(checkpoint.read_text(encoding='utf-8'))
+        value['contextUnits'][0]['text'] = '丙'
+        checkpoint.write_text(json.dumps(value), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'context or ownership'):
+            self.summarize()
+
+    def test_missing_or_malformed_cache_configuration_is_rejected_without_fallback_or_writes(self):
+        original = self.component
+        for changed in ({'cache': str(self.external_cache)}, {**original, 'version': 3},
+                        {**original, 'cache': 'relative-cache'},
+                        {**original, 'version': 2, 'resources': 'recorded-resources'},
+                        {key: value for key, value in original.items() if key != 'python'}):
+            self.component = changed
+            self.save_component()
+            with self.subTest(component=changed), self.assertRaises(ValueError):
+                film.recorded_cache_root(self.root)
+        self.component = {key: value for key, value in original.items() if key != 'cache'}
+        self.component.update(version=2, resources='recorded-resources')
+        self.save_component()
+        with self.assertRaisesRegex(ValueError, 'unavailable'):
+            film.recorded_cache_root(self.root)
+        self.assertFalse((self.root / 'cache').exists())
+
+    def test_current_stable_ids_are_reconstructed_from_checkpoints_and_unknown_saved_ids_are_rejected(self):
+        plan = list(windows(0, self.sample['durationMs']))
+        checkpoint = json.loads(self.checkpoint.read_text(encoding='utf-8'))
+        current, _, issues = assembled_document(self.sample['audioHash'], plan, {0: checkpoint}, 2000)
+        self.assertEqual(issues, [])
+        self.assertNotEqual(current['segments'][0]['id'], self.document['segments'][0]['id'])
+        saved = self.root / 'first.json'
+        saved.write_text(json.dumps(current), encoding='utf-8')
+        self.assertEqual(self.summarize()['completedOnlyCER'], 0.5)
+        current['segments'][0]['id'] = 'asr-100-unknown-content-identity'
+        saved.write_text(json.dumps(current), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'Reconstructed document'):
+            self.summarize()
 
 
 if __name__ == "__main__":

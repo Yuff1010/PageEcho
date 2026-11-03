@@ -46,6 +46,7 @@
     "asr:app": "tsx tests/model/app-transcription.ts",
     "asr:soak": "tsx tests/model/listening-soak.ts",
     "asr:reference": "tsx tests/model/public-reference.ts",
+    "quality:compare": "python -B -X utf8 scripts/compare-quality-reference.py",
     "test:film:app": "tsx tests/model/film-app.ts",
     "test:audiobook": "tsx tests/model/audiobook-playback.ts",
     "test:audiobook:long": "tsx tests/model/long-audiobook.ts",

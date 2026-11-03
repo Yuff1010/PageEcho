@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 from asr_metrics import character_error_rate, normalize_text, timing_issues
+from asr_jobs import assembled_document
 from asr_segments import fingerprint, join_units, join_windows, lexical_units, owned_units, partial_document, windows
 from continuous_reference import load_continuous_manifest
 from public_reference import digest
@@ -86,10 +87,12 @@ def reconstructed_documents(directory, run, measured, sample, *, include_units=F
     if measured['totalChunks'] != len(plan) or len(list(group.glob('chunk-*.json'))) != len(plan):
         raise ValueError('Missing continuous source chunks')
     current, legacy, issues, previous = [], [], [], None
+    checkpoints = {}
     for window in plan:
         checkpoint = json.loads((group / f"chunk-{window['index']:06d}.json").read_text(encoding='utf-8'))
         if checkpoint['cacheKey'] != key or checkpoint['window'] != window:
             raise ValueError('Checkpoint window changed')
+        checkpoints[window['index']] = checkpoint
         context = lexical_units(checkpoint['contextUnits'], window['decodeEndMs'])
         if (context != checkpoint['contextUnits'] or any(unit['startMs'] < window['decodeStartMs'] for unit in context) or
                 owned_units([{**unit, 'startMs': unit['startMs'] - window['decodeStartMs'],
@@ -102,6 +105,15 @@ def reconstructed_documents(directory, run, measured, sample, *, include_units=F
         issues.extend(checkpoint['issues'] + boundary_issues)
     current_document = partial_document(sample['audioHash'], 0, sample['durationMs'], current)
     saved = json.loads((directory / measured['transcript']).read_text(encoding='utf-8'))
+    if current_document != saved:
+        # Historical cohorts used sequence IDs from partial_document; current
+        # production assembly derives stable IDs from actual segment content.
+        # Reconstruct the full alternate document from validated checkpoints,
+        # never accept arbitrary saved IDs or copy saved text/times into it.
+        assembled, prefix, assembled_issues = assembled_document(
+            sample['audioHash'], plan, checkpoints, configuration['overlapMs'])
+        if prefix == sample['durationMs'] and assembled_issues == issues:
+            current_document = assembled
     if current_document != saved or issues != measured['issues'] or timing_issues(saved['segments'], sample['durationMs']):
         raise ValueError('Reconstructed document/warnings differ from the actual worker outcome')
     documents = (saved, partial_document(sample['audioHash'], 0, sample['durationMs'], legacy))

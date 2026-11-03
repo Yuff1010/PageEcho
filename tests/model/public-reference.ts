@@ -66,12 +66,13 @@ await promisify(execFile)(
     filmManifest
       ? 'import sys; sys.path.insert(0, sys.argv[1]); from chsims_reference import load_film_manifest; load_film_manifest(sys.argv[2])'
       : studio
-        ? 'import sys; sys.path.insert(0, sys.argv[1]); from studio_reference import load_studio_manifest; load_studio_manifest(sys.argv[2])'
+        ? 'import sys; sys.path.insert(0, sys.argv[1]); from studio_reference import load_studio_manifest; load_studio_manifest(sys.argv[2], tool_overrides={"ffmpeg": sys.argv[3], "ffprobe": sys.argv[4]})'
         : continuous
           ? 'import sys; sys.path.insert(0, sys.argv[1]); from continuous_reference import load_continuous_manifest; load_continuous_manifest(sys.argv[2])'
           : 'import sys; sys.path.insert(0, sys.argv[1]); from public_reference import load_reference_manifest; load_reference_manifest(sys.argv[2])',
     resolve('python'),
     manifestPath,
+    ...(studio ? [runtime.ffmpeg, runtime.ffprobe] : []),
   ],
   { windowsHide: true, timeout: 30000 },
 )

@@ -13,6 +13,33 @@ from public_reference import digest
 from reference_summary import aggregate, error_operations
 
 
+def recorded_cache_root(directory):
+    """Read diagnostic v1/v2 configuration without creating or changing paths."""
+    directory = Path(directory).resolve()
+    path = directory / 'component.json'
+    if path.stat().st_size > 65536:
+        raise ValueError('Recorded diagnostic component is oversized')
+    component = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(component, dict) or type(component.get('version')) is not int or component['version'] not in (1, 2):
+        raise ValueError('Recorded diagnostic component version is invalid')
+    location = 'cache' if component['version'] == 1 else 'resources'
+    keys = {'version', 'python', 'models', location, 'ffmpeg', 'ffprobe'}
+    if set(component) != keys or any(
+            not isinstance(component[name], str) or not component[name] or '\0' in component[name]
+            for name in keys - {'version'}):
+        raise ValueError('Recorded diagnostic component fields are invalid')
+    if component['version'] == 1:
+        cache = Path(component['cache'])
+        if not cache.is_absolute():
+            raise ValueError('Recorded v1 component must identify its absolute cache root')
+    else:
+        # AsrComponent owns v2 cache relative to its settings file, not models.
+        cache = directory / 'cache' / 'asr'
+    if not cache.is_dir():
+        raise ValueError('Recorded diagnostic cache directory is unavailable')
+    return cache.resolve(strict=True)
+
+
 def summarize(path):
     path = Path(path).resolve()
     report = json.loads(path.read_text(encoding="utf-8"))
@@ -24,9 +51,7 @@ def summarize(path):
     manifest = load_film_manifest(manifest_path)
     if digest(manifest_path) != report.get("manifestSha256"):
         raise ValueError("Film manifest changed after inference")
-    component = json.loads((path.parent / "component.json").read_text(encoding="utf-8"))
-    if not isinstance(component.get("cache"), str) or not Path(component["cache"]).is_absolute():
-        raise ValueError("The recorded diagnostic component must identify its actual cache root")
+    checkpoint_root = recorded_cache_root(path.parent)
     expected = {sample["id"]: sample for sample in manifest["samples"]}
     measured = report["samples"]
     if len(measured) != len(expected) or {sample["id"] for sample in measured} != set(expected):
@@ -43,7 +68,7 @@ def summarize(path):
             continue
         if sample["cacheHits"] != 0 or sample["replayCacheHits"] != sample["totalChunks"] or sample["durationMs"] != reference["durationMs"]:
             raise ValueError("Missing fresh-run or checkpoint replay evidence")
-        document, _ = reconstructed_documents(path.parent, report, sample, reference, checkpoint_root=component["cache"])
+        document, _ = reconstructed_documents(path.parent, report, sample, reference, checkpoint_root=checkpoint_root)
         human = "".join(item["text"] for item in reference["reference"])
         hypothesis = "".join(item["text"] for item in document["segments"])
         if not normalize_text(human):

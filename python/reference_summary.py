@@ -51,7 +51,7 @@ def aggregate(scores, expected_samples):
             'corpusCER': completed_only if len(scores) == expected_samples else None}
 
 
-def summarize(report_path):
+def summarize(report_path, *, tool_overrides=None):
     report_path = Path(report_path).resolve()
     report = json.loads(report_path.read_text(encoding='utf-8'))
     if report['status'] not in ('passed', 'failed'):
@@ -60,8 +60,10 @@ def summarize(report_path):
     studio = report.get('referenceKind') == 'human-studio-text'
     if studio and adapter:
         raise ValueError('Studio reference requires an actual application-worker report')
+    if tool_overrides is not None and not studio:
+        raise ValueError('Tool overrides apply only to studio reference verification')
     manifest_path = report['referenceManifest']['path'] if adapter else report['manifestPath']
-    manifest = load_studio_manifest(manifest_path) if studio else load_reference_manifest(manifest_path)
+    manifest = load_studio_manifest(manifest_path, tool_overrides=tool_overrides) if studio else load_reference_manifest(manifest_path)
     if adapter and digest(manifest_path) != report['referenceManifest']['sha256']:
         raise ValueError('Reference manifest changed after the benchmark')
     if (studio or 'manifestSha256' in report) and digest(manifest_path) != report.get('manifestSha256'):
@@ -164,8 +166,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('reports', nargs='+')
     parser.add_argument('--output', required=True)
+    parser.add_argument('--ffmpeg', help='Byte-identical replacement for the studio manifest preparation tool')
+    parser.add_argument('--ffprobe', help='Byte-identical replacement for the studio manifest preparation tool')
     args = parser.parse_args()
-    runs = [summarize(path) for path in args.reports]
+    if bool(args.ffmpeg) != bool(args.ffprobe):
+        parser.error('--ffmpeg and --ffprobe must be supplied together')
+    target = Path(args.output)
+    if target.exists():
+        raise ValueError('Existing reference summary must not be overwritten')
+    tools = {'ffmpeg': args.ffmpeg, 'ffprobe': args.ffprobe} if args.ffmpeg else None
+    runs = [summarize(path, tool_overrides=tools) for path in args.reports]
     kinds = {run['referenceKind'] for run in runs}
     if len(kinds) != 1:
         raise ValueError('Summarize distinct reference cohorts separately')
@@ -173,7 +183,8 @@ def main():
                'scope': ('40 original AISHELL-3 publisher test samples, two speakers; short dry-scripted speech, no audiobook/default-engine/phoneme-time or official corpus quality claim'
                          if kinds == {'human-studio-text'} else '15 isolated turns, 5 speakers, one AISHELL-4 meeting; no audiobook/default-engine or official corpus quality claim'),
                'runs': runs}
-    Path(args.output).write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    with target.open('x', encoding='utf-8') as stream:
+        stream.write(json.dumps(summary, ensure_ascii=False, indent=2) + '\n')
     print(json.dumps({'status': summary['status'], 'runs': len(summary['runs']), 'output': str(Path(args.output).resolve())}), flush=True)
 
 
