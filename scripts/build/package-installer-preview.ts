@@ -85,7 +85,10 @@ export async function inspectInstallerSignature(file: string) {
       env: { ...process.env, PAGEECHO_SIGNATURE_TARGET: resolve(file) },
     },
   )
-  const signature: unknown = JSON.parse(stdout.replace(/^\uFEFF/, ''))
+  return installerSignatureMetadata(JSON.parse(stdout.replace(/^\uFEFF/, '')))
+}
+
+export function installerSignatureMetadata(signature: unknown) {
   assert(
     object(signature) &&
       typeof signature.status === 'string' &&

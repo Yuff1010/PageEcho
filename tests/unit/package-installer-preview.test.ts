@@ -8,33 +8,38 @@ import {
   assertInstallerRunner,
   copyLockedProductionModule,
   installerConfiguration,
-  inspectInstallerSignature,
+  installerSignatureMetadata,
   parseInstallerArguments,
   validateInstallerDependencyLock,
   verifyFrozenInstallerInput,
 } from '../../scripts/build/package-installer-preview'
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
-test(
-  'Authenticode inspection reads real trust metadata and never accepts a missing result',
-  { skip: process.platform !== 'win32' },
-  async (t) => {
-    const root = await mkdtemp(join(tmpdir(), 'pageecho-signature-read-only-'))
-    t.after(() => rm(root, { recursive: true, force: true }))
-    const unsigned = join(root, 'never executed.ps1')
-    await writeFile(unsigned, '# Synthetic signature metadata fixture. Never execute.\n')
-    assert.deepEqual(await inspectInstallerSignature(unsigned), {
-      status: 'NotSigned',
-      subject: null,
-    })
-    const signed = await inspectInstallerSignature(
-      join(process.env.SystemRoot ?? 'C:\\Windows', 'System32/cmd.exe'),
-    )
-    assert.equal(signed.status, 'Valid')
-    assert(signed.subject?.includes('Microsoft'))
-    await assert.rejects(inspectInstallerSignature(join(root, 'missing.exe')))
-  },
-)
+test('Authenticode metadata rejects empty or malformed status without treating unsigned files as trusted', () => {
+  assert.deepEqual(installerSignatureMetadata({ status: 'NotSigned', subject: null }), {
+    status: 'NotSigned',
+    subject: null,
+  })
+  assert.equal(
+    installerSignatureMetadata({ status: 'NotTrusted', subject: 'Synthetic publisher' }).status,
+    'NotTrusted',
+  )
+  assert.equal(
+    installerSignatureMetadata({ status: 'Valid', subject: 'Synthetic publisher' }).status,
+    'Valid',
+  )
+  for (const value of [
+    null,
+    {},
+    { status: '', subject: null },
+    { status: 'Valid', subject: null },
+    { status: 'Valid', subject: '' },
+    { status: true, subject: null },
+    { status: 'unexpected', subject: null },
+  ]) {
+    assert.throws(() => installerSignatureMetadata(value))
+  }
+})
 
 const previewVersion = '0.41.0-dev.1'
 const dependencies = { react: '19.3.1' }

@@ -63,6 +63,8 @@ jobs:
         run: npm.cmd run check
       - name: Check worker protocol and Python logic without ML dependencies
         run: npm.cmd run test:worker
+      - name: Read real Windows signature metadata in isolation
+        run: npm.cmd run test:installer:signature
       - name: Build isolated preview
         run: |
           New-Item -ItemType Directory -Force -Path out | Out-Null
