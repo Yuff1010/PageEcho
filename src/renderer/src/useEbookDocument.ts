@@ -146,7 +146,6 @@ export function useEbookDocument(book: ReadingBook, settings: ReaderSettings) {
         )
         if (!alive.current || serial !== generation.current) return
         pending.current = target
-        documentPages.current = result
         setPages(result)
         record(target)
       } catch (error) {
@@ -235,6 +234,9 @@ export function useEbookDocument(book: ReadingBook, settings: ReaderSettings) {
     viewport,
   ])
   useLayoutEffect(() => {
+    // Navigation must read the window actually committed to the DOM, never a
+    // background extension that React has only scheduled for its next render.
+    documentPages.current = pages
     if (!busy) restore()
   }, [
     pages,
@@ -292,9 +294,9 @@ export function useEbookDocument(book: ReadingBook, settings: ReaderSettings) {
           if (direction > 0 && anchor.current.ordinal >= next[1]!.start) next.shift()
           else if (direction < 0 && anchor.current.ordinal < next.at(-1)!.start) next.pop()
         }
-        pending.current = anchor.current
+        // A user may turn again before this background update commits. Restore
+        // their latest anchor; only an explicit go() owns a fixed pending target.
         restoring.current = true
-        documentPages.current = next
         setPages(next)
       } catch (error) {
         if (alive.current && serial === generation.current)

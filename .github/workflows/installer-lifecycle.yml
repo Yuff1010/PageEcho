@@ -2,12 +2,19 @@ name: Installer lifecycle
 
 on:
   push:
-    branches: [main, codex/installer-lifecycle, codex/library-overview]
+    branches: [main, 'codex/**']
     paths:
       - '.github/workflows/installer-lifecycle.yml'
-      - 'scripts/build/package-installer-preview.ts'
+      - 'scripts/build/**'
       - 'tests/model/installer-lifecycle.ts'
       - 'electron-builder.yml'
+      - 'electron.vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - 'python/asr_*.py'
+      - 'python/asr-model-integrity.json'
+      - 'python/evaluation-models.json'
   workflow_dispatch:
 
 permissions:

@@ -409,3 +409,117 @@ test('horizontal pages remain navigable across fetched windows and support progr
     await closeOwnedElectron(app)
   }
 })
+
+test('a page turn before an extended text window commits cannot skip the unread chunk', async ({}, testInfo) => {
+  const root = mkdtempSync(join(tmpdir(), '听读正文提交前翻页 ')),
+    path = join(root, '提交前翻页.txt')
+  writeFileSync(
+    path,
+    `第1章 山海\n${Array.from({ length: 900 }, (_, i) => `第${i}段记下了路上的风景，山海之间仍有漫长的旅程。`).join('\n')}`,
+  )
+  const app = await electron.launch({
+    args: [resolve(process.env.RALB_APP_ROOT ?? '.')],
+    env: environment(root),
+  })
+  try {
+    const page = await app.firstWindow()
+    // Keep the real worker/IPC result pending while the reader reaches the end
+    // of its currently committed 120 sentences.
+    await app.evaluate(({ dialog, ipcMain }, selected) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selected] })
+      const handlers = Reflect.get(ipcMain, '_invokeHandlers') as Map<
+          string,
+          (...args: unknown[]) => unknown
+        >,
+        original = handlers.get('reading:page')!
+      handlers.set('reading:page', async (...args) => {
+        const result = await original(...args)
+        if ((args[1] as { start: number }).start === 120)
+          await new Promise<void>((done) => Reflect.set(globalThis, 'releaseReaderWindow', done))
+        return result
+      })
+    }, path)
+    await page.getByRole('button', { name: '电子书', exact: true }).click()
+    await page.getByRole('button', { name: '导入电子书', exact: true }).click()
+    await ready(page)
+    const viewport = page.locator('.book-viewport')
+    let previous = 0
+    while (
+      await viewport.evaluate((node) => node.scrollLeft + node.clientWidth < node.scrollWidth - 2)
+    ) {
+      await viewport.press('PageDown')
+      await expect.poll(() => position(page)).toBeGreaterThan(previous)
+      previous = await position(page)
+    }
+    await expect(viewport).toHaveAttribute('data-last', '119')
+    await expect
+      .poll(() => app.evaluate(() => typeof Reflect.get(globalThis, 'releaseReaderWindow')))
+      .toBe('function')
+    // Settle the prior input's paint work. The next scheduler task is caused by
+    // the released text response. Inject exactly one real key event before that
+    // task commits; do not replace the reader hook or its navigation algorithm.
+    await page.evaluate(async () => {
+      await new Promise<void>((done) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => done())),
+      )
+      const nativePost = MessagePort.prototype.postMessage
+      Reflect.set(window, 'restoreReaderWindowScheduler', () => {
+        MessagePort.prototype.postMessage = nativePost
+      })
+      MessagePort.prototype.postMessage = function (
+        message: unknown,
+        transferOrOptions?: Transferable[] | StructuredSerializeOptions,
+      ) {
+        MessagePort.prototype.postMessage = nativePost
+        const viewport = document.querySelector<HTMLDivElement>('.book-viewport')!,
+          label = document.querySelector<HTMLElement>('.reader-progress-label')!
+        Reflect.set(window, 'readerWindowInterleaving', {
+          position: Number(label.dataset.position),
+          offset: Number(label.dataset.offset),
+          first: Number(viewport.dataset.first),
+          last: Number(viewport.dataset.last),
+          busy: viewport.getAttribute('aria-busy'),
+        })
+        viewport.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'PageDown',
+            code: 'PageDown',
+            bubbles: true,
+            cancelable: true,
+          }),
+        )
+        return Reflect.apply(nativePost, this, [message, transferOrOptions])
+      }
+    })
+    await app.evaluate(() => (Reflect.get(globalThis, 'releaseReaderWindow') as () => void)())
+    await expect
+      .poll(() => page.evaluate(() => Reflect.get(window, 'readerWindowInterleaving')))
+      .toMatchObject({ position: previous, first: 0, last: 119, busy: 'false' })
+    const interleaving = await page.evaluate(() => Reflect.get(window, 'readerWindowInterleaving'))
+    writeFileSync(
+      testInfo.outputPath('reader-window-interleaving.json'),
+      JSON.stringify(interleaving),
+    )
+    // The first unread chunk starts at 120. Seeing 180 here means navigation
+    // consulted a future data window while the DOM still ended at 119.
+    await expect.poll(() => position(page)).toBe(120)
+    await ready(page)
+    await expect(viewport.locator('[data-sentence="120"]')).toBeInViewport()
+    await viewport.press('PageDown')
+    await expect.poll(() => position(page)).toBeGreaterThan(120)
+    expect(await viewport.locator('[data-sentence]').count()).toBeLessThanOrEqual(300)
+  } finally {
+    await app
+      .evaluate(() =>
+        (Reflect.get(globalThis, 'releaseReaderWindow') as (() => void) | undefined)?.(),
+      )
+      .catch(() => undefined)
+    const page = await app.firstWindow().catch(() => undefined)
+    await page
+      ?.evaluate(() =>
+        (Reflect.get(window, 'restoreReaderWindowScheduler') as (() => void) | undefined)?.(),
+      )
+      .catch(() => undefined)
+    await closeOwnedElectron(app)
+  }
+})
