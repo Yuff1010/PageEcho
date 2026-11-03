@@ -195,6 +195,71 @@ test('discovery bounds large component directories and exposes malformed candida
   )
 })
 
+test('discovery finds current PageEcho release directories after unrelated entries without running or adopting them', async () => {
+  const fixture = await makeFixture(),
+    root = join(fixture.root, 'near-app'),
+    release = join(root, 'release')
+  await mkdir(release, { recursive: true })
+  await Promise.all(
+    Array.from({ length: 65 }, async (_, index) => {
+      const name = `000-unrelated-${String(index).padStart(3, '0')}`
+      await mkdir(join(release, name))
+      await writeFile(join(release, `${name}.zip`), 'Unrelated fixture; not a component.')
+    }),
+  )
+  const expected = await Promise.all([
+    componentAt(join(release, 'PageEcho-ASR-0.8.0-sec.1-win-x64')),
+    componentAt(join(release, 'pageecho-asr-0.8.0-cpu-sec.2-win-x64')),
+    componentAt(join(release, 'asr-component-legacy')),
+  ])
+  await componentAt(join(release, 'unrelated-component'))
+  await componentAt(join(release, 'PageEcho-App', 'nested', 'asr-component'))
+  let probes = 0
+  const setup = new ComponentSetup(fixture.component, [root], async () => {
+    probes++
+    return healthy()
+  })
+  const detected = await setup.detect()
+  assert.deepEqual(
+    detected.candidates.map((candidate) => candidate.configPath).sort(),
+    expected.sort(),
+  )
+  assert.equal(probes, 0)
+  assert.equal(detected.configured, false)
+  assert.equal(detected.check, null)
+  assert.equal(detected.guidance?.suggestedDevice, null)
+  assert(detected.guidance?.packages.length)
+  await assert.rejects(readFile(fixture.settings, 'utf8'), { code: 'ENOENT' })
+  setup.close()
+})
+
+test('guidance suggests only a fresh check for the current explicitly selected component', async (t) => {
+  const fixture = await makeFixture(),
+    first = await componentAt(join(fixture.root, 'first')),
+    second = await componentAt(join(fixture.root, 'second'))
+  await fixture.component.configure(first)
+  const persisted = await readFile(fixture.settings, 'utf8')
+  const setup = new ComponentSetup(fixture.component, [], async () => healthy())
+  t.after(() => setup.close())
+  const checked = await setup.check()
+  const fresh = await setup.detect()
+  assert.deepEqual(fresh.check, checked)
+  const supported = process.platform === 'win32' && process.arch === 'x64'
+  assert.equal(fresh.guidance?.suggestedDevice, supported ? 'cpu' : null)
+  const completed = Date.now()
+  t.mock.method(Date, 'now', () => completed + 5 * 60_000 + 1)
+  const expired = await setup.detect()
+  // The last diagnostic remains readable; it no longer produces a current suggestion.
+  assert.deepEqual(expired.check, checked)
+  assert.deepEqual(expired.guidance?.checkedDevices, [])
+  assert.equal(expired.guidance?.suggestedDevice, null)
+  assert.equal(await readFile(fixture.settings, 'utf8'), persisted)
+  await fixture.component.configure(second)
+  const replaced = await setup.detect()
+  assert.equal(replaced.check, null)
+  assert.equal(replaced.guidance?.suggestedDevice, null)
+})
+
 test('candidate use rejects unknown identities, revalidates removed files, and persists an explicitly selected component', async () => {
   const fixture = await makeFixture(),
     root = join(fixture.root, 'near-app'),

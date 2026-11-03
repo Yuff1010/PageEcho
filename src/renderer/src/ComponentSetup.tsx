@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ComponentSetupState } from '../../shared/component'
 import type { Result } from '../../shared/contracts'
 import { ComponentInstallationPanel } from './ComponentInstallationPanel'
+import { HelpTip } from './HelpTip'
 import './settings-disclosure.css'
 
 export function useComponentSetup() {
@@ -81,6 +82,9 @@ export function ComponentSetup({
     <section className="component-setup settings-select-scope" aria-label="本地字幕组件">
       <h4>
         本地字幕组件
+        <HelpTip label="本地字幕组件">
+          普通播放、电子书朗读及导入已有字幕无需模型。自动字幕需要可信的本地组件；路径可选不等于文件、依赖和设备检查通过。
+        </HelpTip>
         <span className="settings-section-status">
           {busy
             ? '正在检查'
@@ -94,23 +98,28 @@ export function ComponentSetup({
         </span>
       </h4>
       {!state?.configured && (
-        <p className="tools-hint">
-          首次使用：选择离线组件 ZIP 或已解压文件夹，检查可用性，然后开始生成。已有 SRT / WebVTT
-          字幕可直接导入，无需模型。
-        </p>
+        <p className="tools-hint">安装离线 ZIP，或选择已解压组件。不会自动启用或生成字幕。</p>
       )}
-      <p className="tools-hint">
-        {state?.configured
-          ? `已选择组件：${state.currentDirectory ?? '本地组件目录'}`
-          : '首次生成字幕需要本地组件。可使用检测到的组件，或选择已解压的组件文件夹。'}
-      </p>
+      {state?.configured && (
+        <p className="tools-hint">已选择组件：{state.currentDirectory ?? '本地组件目录'}</p>
+      )}
+      <ComponentInstallationPanel disabled={locked} guidance={state?.guidance} />
       {!!state?.candidates.length && (
         <ul className="component-candidates">
           {state.candidates.map((candidate) => (
             <li key={candidate.id}>
               <div>
                 <strong>{candidate.label}</strong>
-                <p className="tools-hint">{candidate.directory}</p>
+                <HelpTip label={`${candidate.label}位置`}>{candidate.directory}</HelpTip>
+                {candidate.available && (
+                  <span className="settings-section-status">
+                    {candidate.directory === state.currentDirectory && state.check
+                      ? state.check.ready
+                        ? '已检查'
+                        : '需处理'
+                      : '未检查'}
+                  </span>
+                )}
                 {candidate.problem && <p className="tools-hint">{candidate.problem}</p>}
               </div>
               <button
@@ -169,12 +178,16 @@ export function ComponentSetup({
         </button>
       </div>
       <p className="tools-hint">
-        组件文件夹中应有 component.json。已有配置文件也可通过“选择组件配置”导入。
+        文件夹需含 component.json。
+        <HelpTip label="组件文件夹">
+          已有 JSON
+          可用“选择组件配置”导入。重新检测只查看附近组件，不扫描整盘；选择路径后仍需检查，旧目录和人工文稿会保留。
+        </HelpTip>
       </p>
       {state?.check && (
         <div className="component-check" role="status">
           <p>{state.check.ready ? '组件检查通过' : '组件检查发现问题'}</p>
-          <p className="tools-hint">已检查文件、依赖和设备；实际识别会在生成字幕时运行。</p>
+          <p className="tools-hint">文件、依赖与设备检查；不代表识别质量验收。</p>
           <ul>
             {state.check.capabilities.map((item) => (
               <li key={`${item.engine}:${item.device}`}>
@@ -189,7 +202,6 @@ export function ComponentSetup({
           </ul>
         </div>
       )}
-      <ComponentInstallationPanel disabled={busy} />
       {notice && <p role="status">{notice}</p>}
       {error && (
         <p className="error-message" role="alert">

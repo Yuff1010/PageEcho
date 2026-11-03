@@ -406,10 +406,48 @@ test('nearby components are explicit choices; CPU-only checks guide the shared p
     await expect(setup.getByRole('button', { name: '使用 incomplete', exact: true })).toBeDisabled()
     const before = await page.evaluate(() => window.desktop.detectTranscriptionComponents())
     expect(before.ok && before.value.configured).toBe(false)
+    await setup.getByRole('button', { name: 'asr-component位置说明', exact: true }).focus()
+    await expect(setup.getByRole('tooltip').filter({ hasText: componentRoot })).toBeVisible()
+    await setup.getByRole('button', { name: '使用 asr-component', exact: true }).focus()
+    await expect(
+      setup
+        .getByRole('button', { name: '使用 asr-component', exact: true })
+        .locator('..')
+        .getByText('未检查', { exact: true }),
+    ).toBeVisible()
+    await setup.locator('.component-installation > summary').click()
+    const installation = setup.getByRole('region', { name: '离线组件安装', exact: true })
+    await installation.getByLabel('离线安装帮助', { exact: true }).click()
+    if (!before.ok || !before.value.guidance) throw Error('Missing authoritative local guidance')
+    expect(before.value.guidance.checkedDevices).toEqual([])
+    expect(before.value.guidance.suggestedDevice).toBeNull()
+    for (const item of before.value.guidance.packages)
+      await expect(installation.getByText(item.archiveName, { exact: true })).toBeVisible()
+    expect(await installation.locator('.component-package-guide li').count()).toBe(
+      before.value.guidance.packages.length,
+    )
+    await installation
+      .getByRole('combobox', { name: '安装目标引擎', exact: true })
+      .selectOption('paraformer')
+    await installation
+      .getByRole('combobox', { name: '安装目标设备', exact: true })
+      .selectOption('cuda')
+    await expect(
+      installation.getByRole('list', { name: '离线安装步骤', exact: true }),
+    ).toContainText('选包核对安装启用')
     await setup.getByRole('button', { name: '使用 asr-component', exact: true }).click()
     await expect(setup.getByText('已选择组件：', { exact: false })).toContainText(componentRoot)
     await setup.getByRole('button', { name: '检查组件', exact: true }).click()
     await expect(setup.getByText('组件检查通过', { exact: true })).toBeVisible()
+    await expect(
+      installation.getByText('当前组件已检查可用：CPU。安装目标仍由你选择。', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      installation.getByRole('combobox', { name: '安装目标引擎', exact: true }),
+    ).toHaveValue('paraformer')
+    await expect(
+      installation.getByRole('combobox', { name: '安装目标设备', exact: true }),
+    ).toHaveValue('cuda')
     await expect(setup.getByText('WhisperX · CPU：可用', { exact: true })).toBeVisible()
     await expect(
       setup.getByText('Paraformer · NVIDIA GPU：测试 CUDA 不可用。', { exact: true }),

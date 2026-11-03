@@ -119,6 +119,17 @@ test('the production installer rejects unknown ZIPs and invalid IPC while native
     const page = await app.firstWindow()
     await page.getByRole('button', { name: '播放', exact: true }).click()
     const { dialog, panel } = await openPanel(page)
+    const installationSummary = dialog.locator('.component-installation > summary')
+    await expect(installationSummary.locator('.settings-disclosure-expand')).toBeHidden()
+    await expect(installationSummary.locator('.settings-disclosure-collapse')).toBeVisible()
+    expect(
+      await installationSummary.evaluate((element) =>
+        ['::before', '::after'].map((pseudo) => getComputedStyle(element, pseudo).content),
+      ),
+    ).toEqual(['none', 'none'])
+    const helpSummary = panel.getByLabel('离线安装帮助', { exact: true })
+    await expect(helpSummary.locator('.settings-disclosure-expand')).toBeVisible()
+    await expect(helpSummary.locator('.settings-disclosure-collapse')).toBeHidden()
     await select(app, join(data.external, 'component.json'))
     await dialog.getByRole('button', { name: '选择组件配置', exact: true }).click()
     await expect.poll(() => configured(page)).toBe(data.external)
@@ -137,6 +148,8 @@ test('the production installer rejects unknown ZIPs and invalid IPC while native
     await expect(
       panel.getByText('在线组件源尚未配置，可从离线包安装。', { exact: true }),
     ).toBeVisible()
+    await panel.getByRole('button', { name: '安装目标说明', exact: true }).focus()
+    await expect(panel.getByRole('tooltip').filter({ hasText: 'CPU 专用包仅支持' })).toBeVisible()
     await expect(panel.getByText('CPU 专用包仅支持', { exact: false })).toContainText(
       '通用包也可在 CPU 上运行，仍含 CUDA 依赖',
     )
@@ -363,6 +376,12 @@ test('a late native package choice never installs automatically and ready or run
     const opened = await openPanel(page)
     await expect(opened.panel.locator('[data-installation-status="ready"]')).toBeVisible()
     await expect(opened.panel.getByText('组件 0.7.0-fixture', { exact: false })).toBeVisible()
+    await expect(
+      opened.panel.getByRole('combobox', { name: '安装目标引擎', exact: true }),
+    ).toHaveValue('paraformer')
+    await expect(
+      opened.panel.getByRole('combobox', { name: '安装目标设备', exact: true }),
+    ).toHaveValue('cpu')
     await opened.panel.getByRole('button', { name: '取消本次安装', exact: true }).click()
     await expect(opened.panel.locator('[data-installation-status="canceled"]')).toBeVisible()
     await expect(opened.panel.locator('.tools-notice')).toHaveText(

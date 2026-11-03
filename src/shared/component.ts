@@ -22,9 +22,26 @@ export interface ComponentCheck {
   capabilities: ComponentCapability[]
   level: 'imports-and-files'
 }
+export interface ComponentPackageGuidance {
+  id: string
+  version: string
+  archiveName: string
+  archiveBytes: number
+  devices: ('cpu' | 'cuda')[]
+}
+/** Local catalogue/checked capabilities only; no download URL or implicit activation. */
+export interface ComponentGuidance {
+  platform: string
+  arch: string
+  platformSupported: boolean
+  packages: ComponentPackageGuidance[]
+  checkedDevices: ('cpu' | 'cuda')[]
+  suggestedDevice: 'cpu' | 'cuda' | null
+}
 export interface ComponentSetupState {
   configured: boolean
   currentDirectory: string | null
   candidates: ComponentCandidate[]
   check: ComponentCheck | null
+  guidance?: ComponentGuidance
 }

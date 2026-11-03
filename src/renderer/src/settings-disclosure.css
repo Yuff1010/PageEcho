@@ -204,57 +204,6 @@
   font-weight: 400;
   vertical-align: middle;
 }
-.settings-select-scope .component-installation {
-  padding: 0;
-  border: 1px solid var(--ui-control-line);
-  border-radius: 9px;
-  background: var(--ui-panel);
-}
-.settings-select-scope .component-installation > summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 58px;
-  padding: 14px 16px;
-  border-radius: 8px;
-  color: var(--ui-text);
-  background: var(--ui-field);
-  list-style: none;
-}
-.settings-select-scope .component-installation > summary::marker,
-.settings-select-scope .component-installation > summary::-webkit-details-marker {
-  display: none;
-  content: '';
-}
-.settings-select-scope .component-installation > summary::before {
-  content: '';
-  width: 9px;
-  height: 9px;
-  flex: 0 0 9px;
-  margin-inline: 4px 6px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(-45deg);
-}
-.settings-select-scope .component-installation[open] > summary::before {
-  transform: rotate(45deg);
-}
-.settings-select-scope .component-installation > summary::after {
-  content: '展开';
-  margin-inline-start: auto;
-  font-size: 13px;
-}
-.settings-select-scope .component-installation[open] > summary::after {
-  content: '收起';
-}
-.settings-select-scope .component-installation[open] > summary {
-  border-bottom: 1px solid var(--ui-control-line);
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-.settings-select-scope .component-installation > :not(summary) {
-  margin-inline: 16px;
-}
 @media (max-width: 760px) {
   .settings-disclosure > .settings-disclosure-summary,
   .companion-drawer .transcription-controls .settings-disclosure > .settings-disclosure-summary {

@@ -6,6 +6,7 @@ import type { AsrComponent } from './asr-component'
 import type { AsrRuntime } from './asr-process'
 import type { ComponentCandidate, ComponentCheck, ComponentSetupState } from '../shared/component'
 import { AppError } from '../shared/validation'
+import { componentGuidance } from './component-guidance'
 
 export interface ComponentProbeOptions {
   timeoutMs?: number
@@ -325,11 +326,15 @@ export class ComponentSetup {
   }
   private state(): ComponentSetupState {
     const current = this.component.describe()
+    const cached = this.lastCheck
+    const check = cached?.fingerprint === this.fingerprint() ? cached.value : null
+    const elapsed = cached ? Date.now() - cached.completedAt : -1
     return {
       configured: !!current,
       currentDirectory: current ? dirname(current.models) : null,
       candidates: this.candidates.map((candidate) => ({ ...candidate })),
-      check: this.lastCheck?.fingerprint === this.fingerprint() ? this.lastCheck.value : null,
+      check,
+      guidance: componentGuidance(check && elapsed >= 0 && elapsed < CHECK_FRESH_MS ? check : null),
     }
   }
   async detect(): Promise<ComponentSetupState> {
@@ -385,12 +390,15 @@ export class ComponentSetup {
         } catch {
           continue
         }
-        for (const entry of entries.slice(0, 40))
-          if (
-            (entry.isDirectory() || entry.isSymbolicLink()) &&
-            (container === 'components' || /^asr-component-/i.test(entry.name))
+        const candidates = entries
+          .filter(
+            (entry) =>
+              (entry.isDirectory() || entry.isSymbolicLink()) &&
+              (container === 'components' || /^(?:asr-component-|PageEcho-ASR-)/i.test(entry.name)),
           )
-            await inspect(join(root, container, entry.name, 'component.json'))
+          .slice(0, 40)
+        for (const entry of candidates)
+          await inspect(join(root, container, entry.name, 'component.json'))
       }
       if (found.size >= 16) break
     }

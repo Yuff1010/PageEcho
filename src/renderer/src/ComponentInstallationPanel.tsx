@@ -5,6 +5,9 @@ import type {
   ComponentProfile,
 } from '../../shared/component-installation'
 import type { Result } from '../../shared/contracts'
+import type { ComponentSetupState } from '../../shared/component'
+import { HelpTip } from './HelpTip'
+import { SettingsDisclosureSummary } from './SettingsDisclosure'
 import './component-installation.css'
 
 function size(bytes: number | null) {
@@ -87,7 +90,13 @@ function useComponentInstallations() {
   return { state, loadError, refresh }
 }
 
-export function ComponentInstallationPanel({ disabled = false }: { disabled?: boolean }) {
+export function ComponentInstallationPanel({
+  disabled = false,
+  guidance,
+}: {
+  disabled?: boolean
+  guidance?: ComponentSetupState['guidance']
+}) {
   const { state, loadError, refresh } = useComponentInstallations()
   const [engine, setEngine] = useState<ComponentProfile['engine'] | ''>('')
   const [device, setDevice] = useState<ComponentProfile['device']>('cpu')
@@ -161,22 +170,69 @@ export function ComponentInstallationPanel({ disabled = false }: { disabled?: bo
   const activating = !!state?.activating || busy === 'activate'
   const locked = disabled || !!busy || canceling || working || activating
   return (
-    <details className="component-installation">
-      <summary>安装与版本管理</summary>
-      <section aria-label="离线组件安装">
+    <details className="component-installation settings-disclosure">
+      <SettingsDisclosureSummary title="安装与版本管理" description="离线 ZIP · 安装后单独启用" />
+      <section className="settings-disclosure-body" aria-label="离线组件安装">
         <p className="tools-hint">在线组件源尚未配置，可从离线包安装。</p>
-        <p className="tools-hint">
-          安装目标只用于选择资源和检查设备，不更改本书的字幕引擎或设备。CPU 专用包仅支持
-          CPU；通用包也可在 CPU 上运行，仍含 CUDA 依赖。按所选引擎安装必要模型。
-        </p>
+        <ol className="component-installation-steps" aria-label="离线安装步骤">
+          <li>选包</li>
+          <li>核对</li>
+          <li>安装</li>
+          <li>启用</li>
+        </ol>
+        {guidance && !guidance.platformSupported && (
+          <p className="error-message" role="alert">
+            当前组件包仅支持 Windows x64；本机为 {guidance.platform} / {guidance.arch}。
+          </p>
+        )}
+        {guidance && (
+          <details className="component-installation-help settings-disclosure">
+            <SettingsDisclosureSummary title="离线安装帮助" />
+            <div className="settings-disclosure-body">
+              <ul className="component-package-guide">
+                {guidance.packages.map((item) => (
+                  <li key={item.id}>
+                    <strong>
+                      {item.devices.includes('cuda') ? 'CPU / NVIDIA GPU' : 'CPU'} · {item.version}
+                    </strong>
+                    <span>{size(item.archiveBytes)} ZIP</span>
+                    <code>{item.archiveName}</code>
+                  </li>
+                ))}
+              </ul>
+              <p className="tools-hint">
+                从发布方取得完整离线包，再核对、安装并单独启用。当前没有下载地址；旧组件和已有文稿保留。
+              </p>
+              <p className="tools-hint">
+                检查失败时：旧依赖需换新版包；CPU 包不支持
+                CUDA；摘要不符需重新取得完整包。错误与实际空间会在下方显示。
+              </p>
+            </div>
+          </details>
+        )}
+        {!!guidance?.checkedDevices.length && (
+          <p className="tools-hint" role="status">
+            当前组件已检查可用：
+            {guidance.checkedDevices
+              .map((device) => (device === 'cpu' ? 'CPU' : 'NVIDIA GPU'))
+              .join(' / ')}
+            。安装目标仍由你选择。
+          </p>
+        )}
         <fieldset disabled={locked || fixedPackage}>
-          <legend>本次安装目标</legend>
+          <legend>
+            本次安装目标{' '}
+            <HelpTip label="安装目标">
+              只选择必要资源和检查设备，不修改本书字幕方案。CPU 专用包仅支持 CPU；通用包也可在 CPU
+              上运行，仍含 CUDA 依赖。检测到路径或显卡不代表 CUDA 可用，须以组件检查为准。
+            </HelpTip>
+          </legend>
           <div className="tools-form">
             <label>
               安装引擎
               <select
                 aria-label="安装目标引擎"
-                value={engine}
+                value={fixedPackage && activity ? activity.profile.engine : engine}
                 onChange={(event) => setEngine(event.target.value as ComponentProfile['engine'])}
               >
                 <option value="" disabled>
@@ -190,7 +246,7 @@ export function ComponentInstallationPanel({ disabled = false }: { disabled?: bo
               安装设备
               <select
                 aria-label="安装目标设备"
-                value={device}
+                value={fixedPackage && activity ? activity.profile.device : device}
                 onChange={(event) => setDevice(event.target.value as ComponentProfile['device'])}
               >
                 <option value="cpu">CPU</option>

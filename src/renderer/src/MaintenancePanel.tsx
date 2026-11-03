@@ -10,6 +10,7 @@ import type {
 import { ACTIVE_JOB_STATUSES } from '../../shared/transcription'
 import { SourceCachePanel } from './SourceCachePanel'
 import { ProcessingResourcesPanel } from './ProcessingResourcesPanel'
+import { ComponentSetup, useComponentSetup } from './ComponentSetup'
 import { Icon } from './Icons'
 import { settingsTabIndex, useSettingsTabOrientation } from './tab-keyboard'
 import './settings.css'
@@ -42,6 +43,10 @@ export function MaintenancePanel({
   onOpenOffline?: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const component = useComponentSetup()
+  const mounted = useRef(false)
+  const storageWork = useRef<Promise<void> | null>(null)
+  const storageAgain = useRef(false)
   const tabsId = useId()
   const tabButtons = useRef<Partial<Record<'storage' | 'tasks' | 'log', HTMLButtonElement | null>>>(
     {},
@@ -63,42 +68,75 @@ export function MaintenancePanel({
     requestId.current++
   }, [])
   const refreshTasks = useCallback(async () => {
+    if (!mounted.current) return
     const serial = ++requestId.current
     const response = await value(window.desktop.getTranscriptionJobs({ page, activeOnly }))
-    if (serial === requestId.current) {
+    if (mounted.current && serial === requestId.current) {
       setTasks(response)
       if (page > 0 && page * 25 >= response.total)
         setPage(Math.max(0, Math.ceil(response.total / 25) - 1))
     }
   }, [page, activeOnly])
   const refreshStorage = useCallback(async () => {
-    setScanning(true)
-    try {
-      setState(await value(window.desktop.getMaintenanceState()))
-    } finally {
-      setScanning(false)
+    if (!mounted.current) return
+    if (storageWork.current) {
+      storageAgain.current = true
+      return storageWork.current
     }
+    const operation = (async () => {
+      setScanning(true)
+      try {
+        do {
+          storageAgain.current = false
+          const response = await value(window.desktop.getMaintenanceState())
+          if (mounted.current) setState(response)
+        } while (mounted.current && storageAgain.current)
+      } finally {
+        storageWork.current = null
+        if (mounted.current) setScanning(false)
+      }
+    })()
+    storageWork.current = operation
+    return operation
   }, [])
   useEffect(() => {
+    mounted.current = true
     const element = dialog.current!
     element.showModal()
-    const stop = window.desktop.onComponentChanged(() => {
-      setPreview(null)
-      void refreshStorage().catch((error) =>
-        setError(error instanceof Error ? error.message : '组件状态读取失败。'),
-      )
-    })
     void Promise.resolve()
       .then(refreshStorage)
-      .catch((error) => setError(error instanceof Error ? error.message : '无法读取组件状态。'))
+      .catch((error) => {
+        if (mounted.current) setError(error instanceof Error ? error.message : '无法读取组件状态。')
+      })
     return () => {
-      stop()
+      mounted.current = false
       element.close()
     }
   }, [refreshStorage])
   useEffect(() => {
-    const fail = (error: unknown) =>
-      setError(error instanceof Error ? error.message : '无法读取转写任务。')
+    let timer: number | undefined
+    const changed = () => {
+      setPreview(null)
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        void Promise.all([refreshStorage(), refreshTasks()]).catch((error) => {
+          if (mounted.current)
+            setError(error instanceof Error ? error.message : '组件状态读取失败。')
+        })
+      }, 150)
+    }
+    const stopComponent = window.desktop.onComponentChanged(changed)
+    const stopInstallation = window.desktop.onComponentInstallationsChanged(changed)
+    return () => {
+      stopComponent()
+      stopInstallation()
+      window.clearTimeout(timer)
+    }
+  }, [refreshStorage, refreshTasks])
+  useEffect(() => {
+    const fail = (error: unknown) => {
+      if (mounted.current) setError(error instanceof Error ? error.message : '无法读取转写任务。')
+    }
     void Promise.resolve().then(refreshTasks).catch(fail)
     let timer: number | undefined
     const stop = window.desktop.onTranscriptionChanged(() => {
@@ -119,18 +157,22 @@ export function MaintenancePanel({
     try {
       await action()
     } catch (error) {
-      setError(error instanceof Error ? error.message : '操作未完成，请重试。')
+      if (mounted.current) setError(error instanceof Error ? error.message : '操作未完成，请重试。')
     } finally {
-      setBusy(false)
+      if (mounted.current) setBusy(false)
     }
   }
   const show = (target: MaintenanceLocation) =>
     void perform(async () => {
       await value(window.desktop.showMaintenanceLocation({ target }))
     })
+  const refreshLog = async () => {
+    const response = await value(window.desktop.readAppLog())
+    if (mounted.current) setLog(response)
+  }
   function selectTab(target: 'storage' | 'tasks' | 'log') {
     setTab(target)
-    if (target === 'log') void perform(async () => setLog(await value(window.desktop.readAppLog())))
+    if (target === 'log') void perform(refreshLog)
   }
   return (
     <dialog
@@ -205,348 +247,331 @@ export function MaintenancePanel({
               {notice}
             </p>
           )}
-          <section
-            hidden={tab !== 'storage'}
-            role="tabpanel"
-            id={`${tabsId}-storage-panel`}
-            aria-labelledby={`${tabsId}-storage-tab`}
-            tabIndex={0}
-          >
-            <div className="maintenance-page-heading">
-              <h3>存储与组件</h3>
-              <p>先查看占用，再按需清理缓存或调整本地组件。</p>
-            </div>
-            <div className="settings-card">
-              <SourceCachePanel />
-            </div>
-            <div className="settings-card">
-              <div className="section-heading">
-                <h3>转写分块缓存</h3>
-                <button
-                  className="text-button"
-                  disabled={busy || scanning}
-                  onClick={() => void perform(refreshStorage)}
-                >
-                  刷新占用
-                </button>
+          {tab === 'storage' && (
+            <section
+              role="tabpanel"
+              id={`${tabsId}-storage-panel`}
+              aria-labelledby={`${tabsId}-storage-tab`}
+              tabIndex={0}
+            >
+              <div className="maintenance-page-heading">
+                <h3>存储与组件</h3>
+                <p>先查看占用，再按需清理缓存或调整本地组件。</p>
               </div>
-              {scanning && <p role="status">正在统计文件大小…</p>}
-              {state && (
-                <>
-                  <p data-testid="checkpoint-usage">
-                    可清理：{size(state.cache.bytes)} · {state.cache.groups} 组 ·{' '}
-                    {state.cache.files} 个文件
-                  </p>
-                  {state.usage && (
-                    <p className="tools-hint">
-                      缓存目录文件合计{state.usage.complete ? '' : '（未全部统计）'}：
-                      {size(state.usage.bytes)} · {state.usage.files} 个文件
-                      {state.usage.skipped ? ` · ${state.usage.skipped} 项未展开` : ''}
-                    </p>
-                  )}
-                  {!!state.cache.retained && (
-                    <p className="tools-hint">{state.cache.retained} 项无法确认归属，将保留。</p>
-                  )}
-                  <p className="tools-hint">
-                    只清理已识别的转写分块。模型、原音频、文稿、书签和进度保留；再次生成可能需要重新计算。先取消或完成所有转写任务。
-                  </p>
+              <div className="settings-card">
+                <SourceCachePanel />
+              </div>
+              <div className="settings-card">
+                <div className="section-heading">
+                  <h3>转写分块缓存</h3>
                   <button
-                    className="secondary-button"
-                    disabled={
-                      busy ||
-                      scanning ||
-                      !state.configured ||
-                      !state.cache.groups ||
-                      !tasks ||
-                      tasks.active > 0
-                    }
-                    onClick={() =>
-                      void perform(async () =>
-                        setPreview(await value(window.desktop.prepareCacheClear())),
-                      )
-                    }
+                    className="text-button"
+                    disabled={busy || scanning}
+                    onClick={() => void perform(refreshStorage)}
                   >
-                    预览清理分块缓存
+                    刷新占用
                   </button>
-                  {preview && (
-                    <div className="cache-confirm" role="group" aria-label="确认清理预览">
-                      <p>
-                        将清理 {preview.groups} 组、{preview.files} 个分块文件，文件大小合计{' '}
-                        {size(preview.bytes)}。
+                </div>
+                {scanning && <p role="status">正在统计文件大小…</p>}
+                {state && (
+                  <>
+                    <p data-testid="checkpoint-usage">
+                      可清理：{size(state.cache.bytes)} · {state.cache.groups} 组 ·{' '}
+                      {state.cache.files} 个文件
+                    </p>
+                    {state.usage && (
+                      <p className="tools-hint">
+                        缓存目录文件合计{state.usage.complete ? '' : '（未全部统计）'}：
+                        {size(state.usage.bytes)} · {state.usage.files} 个文件
+                        {state.usage.skipped ? ` · ${state.usage.skipped} 项未展开` : ''}
                       </p>
+                    )}
+                    {!!state.cache.retained && (
+                      <p className="tools-hint">{state.cache.retained} 项无法确认归属，将保留。</p>
+                    )}
+                    <p className="tools-hint">
+                      只清理已识别的转写分块。模型、原音频、文稿、书签和进度保留；再次生成可能需要重新计算。先取消或完成所有转写任务。
+                    </p>
+                    <button
+                      className="secondary-button"
+                      disabled={
+                        busy ||
+                        scanning ||
+                        !state.configured ||
+                        !state.cache.groups ||
+                        !tasks ||
+                        tasks.active > 0
+                      }
+                      onClick={() =>
+                        void perform(async () => {
+                          const response = await value(window.desktop.prepareCacheClear())
+                          if (mounted.current) setPreview(response)
+                        })
+                      }
+                    >
+                      预览清理分块缓存
+                    </button>
+                    {preview && (
+                      <div className="cache-confirm" role="group" aria-label="确认清理预览">
+                        <p>
+                          将清理 {preview.groups} 组、{preview.files} 个分块文件，文件大小合计{' '}
+                          {size(preview.bytes)}。
+                        </p>
+                        <button
+                          className="secondary-button"
+                          disabled={busy || !!tasks?.active}
+                          onClick={() =>
+                            void perform(async () => {
+                              try {
+                                const result = await value(
+                                  window.desktop.clearTranscriptionCache({ token: preview.token }),
+                                )
+                                if (mounted.current)
+                                  setNotice(
+                                    `已清理 ${result.groups} 组缓存，${size(result.bytes)}。`,
+                                  )
+                              } finally {
+                                if (mounted.current) setPreview(null)
+                                await refreshStorage()
+                              }
+                            })
+                          }
+                        >
+                          确认清理分块缓存
+                        </button>
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() => setPreview(null)}
+                        >
+                          保留缓存
+                        </button>
+                      </div>
+                    )}
+                    {state.warnings.map((warning, index) => (
+                      <p className="tools-hint" key={index}>
+                        {warning}
+                      </p>
+                    ))}
+                  </>
+                )}
+              </div>
+              <div className="settings-card">
+                <ComponentSetup control={component} disabled={busy || !!tasks?.running} />
+                {state && (
+                  <>
+                    {state.component && (
+                      <details className="settings-advanced">
+                        <summary>组件路径与诊断</summary>
+                        <dl className="maintenance-paths">
+                          <dt>Python</dt>
+                          <dd>{state.component.python}</dd>
+                          <dt>模型清单</dt>
+                          <dd>{state.component.models}</dd>
+                          <dt>缓存目录</dt>
+                          <dd>{state.component.cache}</dd>
+                          {state.component.resources && (
+                            <>
+                              <dt>只读资源</dt>
+                              <dd>{state.component.resources}</dd>
+                            </>
+                          )}
+                          <dt>FFmpeg</dt>
+                          <dd>{state.component.ffmpeg}</dd>
+                          <dt>ffprobe</dt>
+                          <dd>{state.component.ffprobe}</dd>
+                        </dl>
+                      </details>
+                    )}
+                    {!!state.models.length && (
+                      <ul className="model-locations">
+                        {state.models.map((model) => (
+                          <li key={model.name}>
+                            <strong>{model.name}</strong> ·{' '}
+                            {model.available ? '路径存在' : '路径缺失'}
+                            <p>
+                              {model.repository} · {model.revision}
+                            </p>
+                            <details className="settings-advanced">
+                              <summary>查看模型位置</summary>
+                              <p>{model.path}</p>
+                            </details>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="tools-form">
                       <button
-                        className="secondary-button"
-                        disabled={busy || !!tasks?.active}
-                        onClick={() =>
-                          void perform(async () => {
-                            try {
-                              const result = await value(
-                                window.desktop.clearTranscriptionCache({ token: preview.token }),
-                              )
-                              setNotice(`已清理 ${result.groups} 组缓存，${size(result.bytes)}。`)
-                            } finally {
-                              setPreview(null)
-                              await refreshStorage()
-                            }
-                          })
-                        }
+                        className="text-button"
+                        disabled={busy || !state.component}
+                        onClick={() => show('cache')}
                       >
-                        确认清理分块缓存
+                        打开资源目录
                       </button>
                       <button
                         className="text-button"
-                        disabled={busy}
-                        onClick={() => setPreview(null)}
+                        disabled={busy || !state.component}
+                        onClick={() => show('models')}
                       >
-                        保留缓存
+                        定位模型清单
+                      </button>
+                      <button className="text-button" disabled={busy} onClick={() => show('data')}>
+                        打开数据目录
                       </button>
                     </div>
-                  )}
-                  {state.warnings.map((warning, index) => (
-                    <p className="tools-hint" key={index}>
-                      {warning}
-                    </p>
-                  ))}
-                </>
-              )}
-            </div>
-            <div className="settings-card">
-              {state && (
-                <>
-                  <h3 className="maintenance-subheading">本地转写组件</h3>
-                  <p>
-                    {state.configured
-                      ? '已选择组件路径，模型和设备在任务启动时检查。'
-                      : '尚未配置转写组件，普通播放可以继续使用。'}
-                  </p>
-                  <button
-                    className="secondary-button"
-                    disabled={busy || !!tasks?.running}
-                    onClick={() =>
-                      void perform(async () => {
-                        const result = await value(window.desktop.configureTranscription())
-                        if (!result.canceled) {
-                          setPreview(null)
-                          await refreshStorage()
-                          await refreshTasks()
-                          setNotice('本地组件配置已更新。')
-                        }
-                      })
-                    }
-                  >
-                    选择组件配置
+                    <p className="tools-hint maintenance-path">数据目录：{state.dataPath}</p>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+          {tab === 'tasks' && (
+            <section
+              role="tabpanel"
+              id={`${tabsId}-tasks-panel`}
+              aria-labelledby={`${tabsId}-tasks-tab`}
+              tabIndex={0}
+            >
+              <div className="maintenance-page-heading">
+                <h3>转写任务</h3>
+                <p>查看生成进度、暂停后台处理，或重试未完成的任务。</p>
+              </div>
+              {onOpenOffline && (
+                <div className="tools-form">
+                  <button className="secondary-button" onClick={onOpenOffline}>
+                    管理离线计划
                   </button>
-                  {state.component && (
-                    <details className="settings-advanced">
-                      <summary>组件路径与诊断</summary>
-                      <dl className="maintenance-paths">
-                        <dt>Python</dt>
-                        <dd>{state.component.python}</dd>
-                        <dt>模型清单</dt>
-                        <dd>{state.component.models}</dd>
-                        <dt>缓存目录</dt>
-                        <dd>{state.component.cache}</dd>
-                        {state.component.resources && (
-                          <>
-                            <dt>只读资源</dt>
-                            <dd>{state.component.resources}</dd>
-                          </>
-                        )}
-                        <dt>FFmpeg</dt>
-                        <dd>{state.component.ffmpeg}</dd>
-                        <dt>ffprobe</dt>
-                        <dd>{state.component.ffprobe}</dd>
-                      </dl>
-                    </details>
-                  )}
-                  {!!state.models.length && (
-                    <ul className="model-locations">
-                      {state.models.map((model) => (
-                        <li key={model.name}>
-                          <strong>{model.name}</strong> ·{' '}
-                          {model.available ? '路径存在' : '路径缺失'}
-                          <p>
-                            {model.repository} · {model.revision}
-                          </p>
-                          <details className="settings-advanced">
-                            <summary>查看模型位置</summary>
-                            <p>{model.path}</p>
-                          </details>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="tools-form">
-                    <button
-                      className="text-button"
-                      disabled={busy || !state.component}
-                      onClick={() => show('cache')}
-                    >
-                      打开资源目录
-                    </button>
-                    <button
-                      className="text-button"
-                      disabled={busy || !state.component}
-                      onClick={() => show('models')}
-                    >
-                      定位模型清单
-                    </button>
-                    <button className="text-button" disabled={busy} onClick={() => show('data')}>
-                      打开数据目录
-                    </button>
-                  </div>
-                  <p className="tools-hint maintenance-path">数据目录：{state.dataPath}</p>
-                </>
+                  <span className="tools-hint">多集准备的进度、暂停与恢复</span>
+                </div>
               )}
-            </div>
-          </section>
-          <section
-            hidden={tab !== 'tasks'}
-            role="tabpanel"
-            id={`${tabsId}-tasks-panel`}
-            aria-labelledby={`${tabsId}-tasks-tab`}
-            tabIndex={0}
-          >
-            <div className="maintenance-page-heading">
-              <h3>转写任务</h3>
-              <p>查看生成进度、暂停后台处理，或重试未完成的任务。</p>
-            </div>
-            {onOpenOffline && (
+              <ProcessingResourcesPanel />
               <div className="tools-form">
-                <button className="secondary-button" onClick={onOpenOffline}>
-                  管理离线计划
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={activeOnly}
+                    onChange={(event) => {
+                      setPage(0)
+                      setActiveOnly(event.target.checked)
+                    }}
+                  />
+                  只看活动任务
+                </label>
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => void perform(refreshTasks)}
+                >
+                  刷新任务
                 </button>
-                <span className="tools-hint">多集准备的进度、暂停与恢复</span>
               </div>
-            )}
-            <ProcessingResourcesPanel />
-            <div className="tools-form">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={activeOnly}
-                  onChange={(event) => {
-                    setPage(0)
-                    setActiveOnly(event.target.checked)
-                  }}
-                />
-                只看活动任务
-              </label>
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => void perform(refreshTasks)}
-              >
-                刷新任务
-              </button>
-            </div>
-            {!tasks?.jobs.length && <p className="tools-hint">暂无符合条件的任务。</p>}
-            <ol className="maintenance-tasks">
-              {tasks?.jobs.map((job) => (
-                <li key={job.id} data-job-status={job.status}>
-                  <div className="section-heading">
-                    <strong>{job.episodeTitle}</strong>
-                    <span>{labels[job.status]}</span>
-                  </div>
-                  <p className="tools-hint">
-                    {job.bookTitle} · {job.engine === 'whisperx' ? 'WhisperX' : 'Paraformer'} ·{' '}
-                    {job.device === 'cuda' ? 'GPU' : 'CPU'} · 第 {job.attempt} 次处理
-                  </p>
-                  <p>
-                    {job.completedChunks}/{job.totalChunks || '…'} 块 · 复用 {job.cacheHits} 块
-                    {job.issueCount ? ` · ${job.issueCount} 项需检查` : ''}
-                    {job.stale ? ' · 音频版本已变化' : ''}
-                  </p>
-                  {job.error && <p className="task-error">{job.error}</p>}
-                  <div className="tools-form">
-                    {ACTIVE_JOB_STATUSES.includes(job.status) && (
-                      <button
-                        className="text-button"
-                        disabled={busy || job.status === 'canceling'}
-                        onClick={() =>
-                          void perform(async () => {
-                            await value(window.desktop.cancelTranscription({ id: job.id }))
-                            await refreshTasks()
-                          })
-                        }
-                      >
-                        取消任务
-                      </button>
-                    )}
-                    {['failed', 'canceled'].includes(job.status) && (
-                      <button
-                        className="text-button"
-                        disabled={busy || job.stale || !state?.configured}
-                        onClick={() =>
-                          void perform(async () => {
-                            await value(window.desktop.retryTranscription({ id: job.id }))
-                            await refreshTasks()
-                          })
-                        }
-                      >
-                        重试任务
-                      </button>
-                    )}
-                    <time>{new Date(job.updatedAt).toLocaleString()}</time>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            {!!tasks?.total && (
+              {!tasks?.jobs.length && <p className="tools-hint">暂无符合条件的任务。</p>}
+              <ol className="maintenance-tasks">
+                {tasks?.jobs.map((job) => (
+                  <li key={job.id} data-job-status={job.status}>
+                    <div className="section-heading">
+                      <strong>{job.episodeTitle}</strong>
+                      <span>{labels[job.status]}</span>
+                    </div>
+                    <p className="tools-hint">
+                      {job.bookTitle} · {job.engine === 'whisperx' ? 'WhisperX' : 'Paraformer'} ·{' '}
+                      {job.device === 'cuda' ? 'GPU' : 'CPU'} · 第 {job.attempt} 次处理
+                    </p>
+                    <p>
+                      {job.completedChunks}/{job.totalChunks || '…'} 块 · 复用 {job.cacheHits} 块
+                      {job.issueCount ? ` · ${job.issueCount} 项需检查` : ''}
+                      {job.stale ? ' · 音频版本已变化' : ''}
+                    </p>
+                    {job.error && <p className="task-error">{job.error}</p>}
+                    <div className="tools-form">
+                      {ACTIVE_JOB_STATUSES.includes(job.status) && (
+                        <button
+                          className="text-button"
+                          disabled={busy || job.status === 'canceling'}
+                          onClick={() =>
+                            void perform(async () => {
+                              await value(window.desktop.cancelTranscription({ id: job.id }))
+                              await refreshTasks()
+                            })
+                          }
+                        >
+                          取消任务
+                        </button>
+                      )}
+                      {['failed', 'canceled'].includes(job.status) && (
+                        <button
+                          className="text-button"
+                          disabled={busy || job.stale || !state?.configured}
+                          onClick={() =>
+                            void perform(async () => {
+                              await value(window.desktop.retryTranscription({ id: job.id }))
+                              await refreshTasks()
+                            })
+                          }
+                        >
+                          重试任务
+                        </button>
+                      )}
+                      <time>{new Date(job.updatedAt).toLocaleString()}</time>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              {!!tasks?.total && (
+                <div className="tools-form">
+                  <button
+                    className="text-button"
+                    disabled={busy || page === 0}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    上一页任务
+                  </button>
+                  <span>
+                    {page + 1}/{Math.ceil(tasks.total / 25)} 页 · {tasks.total} 项
+                  </span>
+                  <button
+                    className="text-button"
+                    disabled={busy || (page + 1) * 25 >= tasks.total}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    下一页任务
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+          {tab === 'log' && (
+            <section
+              role="tabpanel"
+              id={`${tabsId}-log-panel`}
+              aria-labelledby={`${tabsId}-log-tab`}
+              tabIndex={0}
+            >
+              <div className="maintenance-page-heading">
+                <h3>应用日志</h3>
+                <p>遇到问题时，在这里查看最近的运行记录。</p>
+              </div>
               <div className="tools-form">
                 <button
                   className="text-button"
-                  disabled={busy || page === 0}
-                  onClick={() => setPage(page - 1)}
+                  disabled={busy}
+                  onClick={() => void perform(refreshLog)}
                 >
-                  上一页任务
+                  刷新日志
                 </button>
-                <span>
-                  {page + 1}/{Math.ceil(tasks.total / 25)} 页 · {tasks.total} 项
-                </span>
-                <button
-                  className="text-button"
-                  disabled={busy || (page + 1) * 25 >= tasks.total}
-                  onClick={() => setPage(page + 1)}
-                >
-                  下一页任务
+                <button className="text-button" disabled={busy} onClick={() => show('logs')}>
+                  打开日志目录
                 </button>
               </div>
-            )}
-          </section>
-          <section
-            hidden={tab !== 'log'}
-            role="tabpanel"
-            id={`${tabsId}-log-panel`}
-            aria-labelledby={`${tabsId}-log-tab`}
-            tabIndex={0}
-          >
-            <div className="maintenance-page-heading">
-              <h3>应用日志</h3>
-              <p>遇到问题时，在这里查看最近的运行记录。</p>
-            </div>
-            <div className="tools-form">
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() =>
-                  void perform(async () => setLog(await value(window.desktop.readAppLog())))
-                }
-              >
-                刷新日志
-              </button>
-              <button className="text-button" disabled={busy} onClick={() => show('logs')}>
-                打开日志目录
-              </button>
-            </div>
-            <p className="tools-hint">
-              仅在本机显示最新日志，可能含音频路径和模型诊断。
-              {log?.truncated ? '已截取最后 64 KiB。' : ''}
-            </p>
-            <pre className="app-log" tabIndex={0}>
-              {log?.text || '暂无日志。'}
-            </pre>
-          </section>
+              <p className="tools-hint">
+                仅在本机显示最新日志，可能含音频路径和模型诊断。
+                {log?.truncated ? '已截取最后 64 KiB。' : ''}
+              </p>
+              <pre className="app-log" tabIndex={0}>
+                {log?.text || '暂无日志。'}
+              </pre>
+            </section>
+          )}
         </div>
       </div>
     </dialog>

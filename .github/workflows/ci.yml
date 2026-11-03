@@ -92,4 +92,4 @@ jobs:
       - name: Build isolated preview
         run: |
           New-Item -ItemType Directory -Force -Path out | Out-Null
-          npm.cmd run build:preview -- --version 0.38.0-dev.1
+          npm.cmd run build:preview -- --version 0.39.0-dev.1

@@ -1,13 +1,32 @@
 .component-installation {
   margin: 14px 0;
-  padding: 12px;
-  border: 1px solid var(--ui-line);
-  border-radius: 7px;
   min-width: 0;
 }
-.component-installation > summary {
-  cursor: pointer;
-  font-weight: 600;
+.component-installation-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  padding-inline-start: 18px;
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.component-installation-help {
+  margin: 8px 0;
+}
+.component-package-guide {
+  list-style: none;
+  padding: 0;
+}
+.component-package-guide li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-block: 8px;
+  font-size: 13px;
+}
+.component-package-guide code {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
 }
 .component-installation section,
 .component-installation fieldset {
