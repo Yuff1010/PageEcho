@@ -8,6 +8,7 @@ import {
   type ListeningReviewState,
 } from '../../shared/listening-review'
 import { player } from './player'
+import { ReaderAction } from './ReaderToolbar'
 import './listening-review.css'
 
 function time(ms: number) {
@@ -17,22 +18,35 @@ function time(ms: number) {
 export function ListeningReview({
   episode,
   transcript,
+  iconOnly = false,
 }: {
   episode: Episode
   transcript: StoredTranscript
+  iconOnly?: boolean
 }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button
-        className="secondary-button"
-        onClick={() => {
-          player.pause()
-          setOpen(true)
-        }}
-      >
-        试听校对
-      </button>
+      {iconOnly ? (
+        <ReaderAction
+          label="试听校对"
+          icon="headphones"
+          onClick={() => {
+            player.pause()
+            setOpen(true)
+          }}
+        />
+      ) : (
+        <button
+          className="secondary-button"
+          onClick={() => {
+            player.pause()
+            setOpen(true)
+          }}
+        >
+          试听校对
+        </button>
+      )}
       {open && (
         <ReviewDialog episode={episode} transcript={transcript} close={() => setOpen(false)} />
       )}

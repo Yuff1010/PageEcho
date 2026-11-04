@@ -21,8 +21,7 @@
   --settings-muted: var(--reader-muted);
   --settings-line: var(--reader-border);
 }
-.settings-disclosure > .settings-disclosure-summary,
-.companion-drawer .transcription-controls .settings-disclosure > .settings-disclosure-summary {
+.settings-disclosure > .settings-disclosure-summary {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -205,8 +204,7 @@
   vertical-align: middle;
 }
 @media (max-width: 760px) {
-  .settings-disclosure > .settings-disclosure-summary,
-  .companion-drawer .transcription-controls .settings-disclosure > .settings-disclosure-summary {
+  .settings-disclosure > .settings-disclosure-summary {
     gap: 8px;
     padding: 12px;
   }

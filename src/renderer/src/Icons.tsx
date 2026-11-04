@@ -42,8 +42,12 @@ export type IconName =
   | 'refresh'
   | 'undo'
   | 'trash'
+  | 'edit'
+  | 'download'
 
 const paths: Record<IconName, ReactNode> = {
+  edit: <path d="m14 5 5 5M4 20l5-1L21 7a2.1 2.1 0 0 0-5-5L4 14l-1 7Z" />,
+  download: <path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4" />,
   trash: <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />,
   refresh: (
     <path d="M20 7v5h-5M4 17v-5h5M5.6 7a7 7 0 0 1 11.7-2L20 8M4 16l2.7 3a7 7 0 0 0 11.7-2" />

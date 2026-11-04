@@ -1,19 +1,24 @@
 import { useState } from 'react'
 import type { SubtitleFormat, SubtitleSource } from '../../shared/subtitles'
+import { Tooltip } from './Tooltip'
+import { Icon } from './Icons'
 
 export function SubtitleExport({
   source,
   disabled = false,
   compact = false,
+  iconOnly = false,
 }: {
   source: SubtitleSource
   disabled?: boolean
   compact?: boolean
+  iconOnly?: boolean
 }) {
   const [format, setFormat] = useState<SubtitleFormat>('srt')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
   const label = source.source === 'original' ? '原文' : '文稿'
   async function save() {
     setBusy(true)
@@ -69,11 +74,25 @@ export function SubtitleExport({
   return compact ? (
     <details
       className="subtitle-export subtitle-export-menu"
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') event.currentTarget.removeAttribute('open')
+        if (event.key === 'Escape' && event.currentTarget.open) {
+          event.preventDefault()
+          event.stopPropagation()
+          event.currentTarget.open = false
+          event.currentTarget.querySelector('summary')?.focus()
+        }
       }}
     >
-      <summary className="secondary-button">字幕导出</summary>
+      {iconOnly ? (
+        <Tooltip content="字幕导出" disabled={expanded}>
+          <summary className="reader-icon-button" aria-label="字幕导出" aria-expanded={expanded}>
+            <Icon name="download" />
+          </summary>
+        </Tooltip>
+      ) : (
+        <summary className="secondary-button">字幕导出</summary>
+      )}
       <div className="subtitle-export-options">{content}</div>
     </details>
   ) : (

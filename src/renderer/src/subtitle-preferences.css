@@ -1,0 +1,62 @@
+.subtitle-preferences {
+  min-width: 0;
+}
+.subtitle-preferences > h3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.subtitle-preferences .subtitle-preference-form {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+}
+.subtitle-preferences .subtitle-preference-row {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.65fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.subtitle-preferences .subtitle-preference-caption {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.subtitle-preferences .subtitle-preference-row select {
+  width: 100%;
+  min-width: 0;
+  min-height: calc(var(--reader-control-size) - 4px);
+  padding: 6px 8px;
+  font: inherit;
+}
+.subtitle-preferences .subtitle-preference-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  line-height: 1.6;
+}
+.subtitle-preferences .subtitle-preference-check input {
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--ui-accent);
+}
+.subtitle-preferences .subtitle-preference-check:has(input:disabled) {
+  color: var(--ui-muted);
+}
+.subtitle-preferences .subtitle-preference-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.subtitle-preferences .subtitle-preference-actions button {
+  margin: 0;
+}
+.subtitle-preferences[data-compact='true'] > .component-setup {
+  margin-top: 0;
+}

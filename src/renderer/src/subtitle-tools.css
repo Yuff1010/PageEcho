@@ -1,0 +1,148 @@
+/* Subtitle tools share reading-settings geometry. Only this body scrolls. */
+.companion-page .companion-drawer.companion-drawer--tools {
+  bottom: auto;
+  width: min(var(--reader-settings-width), calc(100% - 32px));
+  max-height: min(var(--reader-panel-max-height), calc(100% - 88px));
+  padding: var(--reader-panel-padding);
+  overflow: hidden;
+  background: color-mix(
+    in srgb,
+    var(--reader-panel-surface) var(--reader-panel-opacity, 100%),
+    transparent
+  );
+}
+.companion-drawer--tools > .companion-drawer-heading {
+  margin-bottom: var(--reader-panel-gap);
+}
+.companion-page .companion-drawer--tools .companion-drawer-heading h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.subtitle-tools-content {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.subtitle-tools-content > * {
+  min-width: 0;
+}
+.companion-drawer--tools .companion-tool-section {
+  gap: 6px;
+}
+.companion-drawer--tools .companion-tool-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.companion-drawer--tools .reader-primary-actions {
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+}
+.companion-drawer--tools .subtitle-generate-action {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+}
+.companion-page .companion-drawer--tools .transcription-controls {
+  margin-top: var(--reader-panel-gap);
+  padding: 0;
+  border: 0;
+}
+.companion-drawer--tools .transcription-controls > .settings-disclosure {
+  margin: 0;
+}
+.companion-page .companion-drawer--tools .transcription-controls > details,
+.companion-page .companion-drawer--tools .settings-disclosure-body {
+  max-height: none;
+  overflow: visible;
+}
+.companion-page .companion-drawer--tools .transcription-controls > details > summary {
+  min-height: var(--reader-control-size);
+  padding: 8px 10px;
+  gap: 8px;
+}
+.companion-drawer--tools .settings-disclosure-summary .settings-disclosure-meta {
+  display: none;
+}
+.companion-drawer--tools .settings-disclosure-summary .settings-disclosure-title {
+  font-size: 13px;
+}
+.companion-drawer--tools .settings-disclosure-summary .settings-disclosure-chevron {
+  flex-basis: var(--reader-icon-size);
+  width: var(--reader-icon-size);
+}
+.subtitle-generation-body {
+  padding: var(--reader-panel-gap);
+}
+.companion-page .companion-drawer--tools .transcription-options {
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+}
+.companion-drawer--tools .transcription-options > p {
+  flex: 1 1 140px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--reader-muted);
+}
+.companion-drawer--tools .subtitle-quick-start h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.companion-drawer--tools .subtitle-quick-start p {
+  margin: 6px 0;
+}
+.companion-drawer--tools .subtitle-quick-start > button {
+  margin: 4px 6px 4px 0;
+}
+.companion-page .companion-drawer--tools .transcription-status {
+  padding: 0;
+  margin: var(--reader-panel-gap) 0;
+  border: 0;
+  background: transparent;
+}
+.companion-drawer--tools .transcription-activity {
+  margin-block: var(--reader-panel-gap);
+  max-height: none;
+  overflow: visible;
+}
+.companion-page .companion-drawer--tools .companion-tool-section.reader-document-actions {
+  margin-top: var(--reader-panel-gap);
+  padding-top: var(--reader-panel-gap);
+  gap: 6px;
+}
+.subtitle-document-action-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+.companion-drawer--tools .subtitle-document-action-row .subtitle-export-menu {
+  width: auto;
+}
+.companion-drawer--tools .subtitle-document-action-row .subtitle-export-menu[open] {
+  flex-basis: 100%;
+}
+.subtitle-document-action-row .subtitle-export-menu > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--reader-control-size);
+  height: var(--reader-control-size);
+  padding: 7px;
+  list-style: none;
+}
+.subtitle-export-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.companion-drawer--tools .transcript-import {
+  margin-top: var(--reader-panel-gap);
+  padding-top: var(--reader-panel-gap);
+  font-size: 12px;
+}
+.subtitle-tools-content .error-message {
+  overflow-wrap: anywhere;
+}

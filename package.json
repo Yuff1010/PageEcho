@@ -34,7 +34,7 @@
     "test": "tsx --test tests/unit/*.test.ts",
     "test:worker": "tsx --test tests/worker/*.test.ts && python -X utf8 -m unittest discover -s python -p test_*.py",
     "test:desktop": "playwright test",
-    "test:desktop:critical": "playwright test tests/desktop/player.spec.ts tests/desktop/normal-reading.spec.ts tests/desktop/progressive-playback.spec.ts tests/desktop/transcription-progress-ui.spec.ts tests/desktop/library-overview.spec.ts tests/desktop/library-overview-consumers.spec.ts --forbid-only --workers=1 --retries=0",
+    "test:desktop:critical": "playwright test tests/desktop/player.spec.ts tests/desktop/normal-reading.spec.ts tests/desktop/progressive-playback.spec.ts tests/desktop/transcription-progress-ui.spec.ts tests/desktop/library-overview.spec.ts tests/desktop/library-overview-consumers.spec.ts tests/desktop/subtitle-tools-compact.spec.ts --forbid-only --workers=1 --retries=0",
     "test:installer:signature": "tsx --test tests/build/installer-signature.test.ts",
     "test:dev": "tsx tests/dev/smoke.ts",
     "check": "npm run typecheck && npm run lint && npm run test && npm run format:check",

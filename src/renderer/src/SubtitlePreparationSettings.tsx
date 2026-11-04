@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { Book } from '../../shared/contracts'
 import type { LibraryMutation } from '../../shared/library'
 import { DEFAULT_SUBTITLE_PREPARATION, type SubtitlePreparation } from '../../shared/transcription'
@@ -6,6 +6,8 @@ import { ComponentSetup, componentCapability, useComponentSetup } from './Compon
 import { effectiveSubtitleProfile, subtitleProfileLabel } from './subtitle-profile'
 import { EngineReference } from './EngineReference'
 import { SettingsDisclosureSummary } from './SettingsDisclosure'
+import { HelpTip } from './HelpTip'
+import './subtitle-preferences.css'
 
 export function SubtitlePreparationSettings({
   book,
@@ -39,6 +41,7 @@ export function SubtitlePreparationForm({
   pendingLabel = '正在保存…',
   requireComponent = false,
   onCancel,
+  compact = false,
 }: {
   book: Omit<Book, 'episodes'>
   component: ReturnType<typeof useComponentSetup>
@@ -49,7 +52,9 @@ export function SubtitlePreparationForm({
   pendingLabel?: string
   requireComponent?: boolean
   onCancel?: () => void
+  compact?: boolean
 }) {
+  const prefix = useId()
   const profile = effectiveSubtitleProfile(book)
   const [settings, setSettings] = useState<SubtitlePreparation>(
     profile ?? DEFAULT_SUBTITLE_PREPARATION,
@@ -72,181 +77,201 @@ export function SubtitlePreparationForm({
   const capability = engineChoice
     ? componentCapability(component.state, engineChoice, settings.device)
     : null
-  return (
-    <section className="settings-select-scope" aria-label="字幕准备">
-      <h3>字幕与伴读</h3>
-      <p className="tools-hint" aria-label="当前字幕配置">
-        {profile
-          ? `${book.subtitlePreparation ? '当前生效' : '当前沿用在线设置'}：${subtitleProfileLabel(profile)}`
-          : '首次播放会自动检查本机组件，在后台准备字幕。下面可以调整本书的高级选项。'}
-      </p>
-      {requireComponent && (
-        <ComponentSetup control={component} disabled={componentDisabled || busy} />
-      )}
-      <details className="subtitle-advanced-settings settings-disclosure" open={requireComponent}>
-        <SettingsDisclosureSummary
-          title="高级字幕设置"
-          description="调整生成时机、字幕引擎和处理设备"
-          status={profile ? '已设本书方案' : '使用默认方案'}
-        />
-        <div className="settings-disclosure-body">
-          <EngineReference device={settings.device} />
-          <form
-            className="source-preparation-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              setBusy(true)
-              setError('')
-              setNotice('')
-              void onSubmit(settings)
-                .then((message) => {
-                  if (mounted.current && message) setNotice(message)
-                })
-                .catch((error) => {
-                  if (mounted.current)
-                    setError(
-                      error instanceof Error ? error.message : '字幕准备设置未保存，请重试。',
-                    )
-                })
-                .finally(() => {
-                  if (mounted.current) setBusy(false)
-                })
-            }}
-          >
-            <label>
-              准备方案{' '}
-              <select
-                aria-label="字幕准备方案"
-                value={settings.mode}
-                disabled={locked}
-                onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    mode: event.target.value as SubtitlePreparation['mode'],
-                  })
-                }
-              >
-                <option value="auto">边播放边生成（推荐）</option>
-                <option value="ahead">先准备字幕再播放</option>
-                <option value="manual">仅手动生成</option>
-              </select>
-            </label>
-            <label>
-              字幕引擎{' '}
-              <select
-                aria-label="字幕引擎"
-                value={engineChoice}
-                disabled={locked}
-                required
-                onChange={(event) => {
-                  const engine = event.target.value as SubtitlePreparation['engine']
-                  setEngineChoice(engine)
-                  setSettings({ ...settings, engine })
-                }}
-              >
-                <option value="" disabled>
-                  请选择引擎
-                </option>
-                {(['whisperx', 'paraformer'] as const).map((engine) => {
-                  const checks = component.state?.check?.capabilities.filter(
-                    (item) => item.engine === engine,
-                  )
-                  return (
-                    <option
-                      key={engine}
-                      value={engine}
-                      disabled={!!checks?.length && checks.every((item) => !item.available)}
-                    >
-                      {engine === 'whisperx' ? 'WhisperX' : 'Paraformer'}
-                    </option>
-                  )
-                })}
-              </select>
-            </label>
-            <label>
-              处理设备{' '}
-              <select
-                aria-label="字幕设备"
-                value={settings.device}
-                disabled={locked}
-                onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    device: event.target.value as SubtitlePreparation['device'],
-                  })
-                }
-              >
-                <option
-                  value="cpu"
-                  disabled={
-                    !!engineChoice &&
-                    componentCapability(component.state, engineChoice, 'cpu')?.available === false
-                  }
-                >
-                  CPU
-                </option>
-                <option
-                  value="cuda"
-                  disabled={
-                    !!engineChoice &&
-                    componentCapability(component.state, engineChoice, 'cuda')?.available === false
-                  }
-                >
-                  NVIDIA GPU（CUDA）
-                </option>
-              </select>
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.prepareNext}
-                disabled={locked || !automatic}
-                onChange={(event) =>
-                  setSettings({ ...settings, prepareNext: event.target.checked })
-                }
-              />
-              本集完成后准备下一集字幕
-            </label>
-            <button
-              className={requireComponent ? 'primary-button' : 'secondary-button'}
-              disabled={
-                locked ||
-                !engineChoice ||
-                capability?.available === false ||
-                (requireComponent && !component.state?.configured)
-              }
-              type="submit"
-            >
-              {busy ? pendingLabel : submitLabel}
-            </button>
-            {onCancel && (
-              <button type="button" className="text-button" onClick={onCancel}>
-                取消本次生成
-              </button>
-            )}
-          </form>
+  const form = (
+    <form
+      className="subtitle-preference-form"
+      onSubmit={(event) => {
+        event.preventDefault()
+        setBusy(true)
+        setError('')
+        setNotice('')
+        void onSubmit(settings)
+          .then((message) => {
+            if (mounted.current && message) setNotice(message)
+          })
+          .catch((error) => {
+            if (mounted.current)
+              setError(error instanceof Error ? error.message : '字幕准备设置未保存，请重试。')
+          })
+          .finally(() => {
+            if (mounted.current) setBusy(false)
+          })
+      }}
+    >
+      <div className="subtitle-preference-row">
+        <div className="subtitle-preference-caption">
+          <label htmlFor={`${prefix}-mode`}>生成方式</label>
+          <HelpTip label="字幕生成方式">
+            边听边生成会先播放音频，再在后台准备缺少的字幕；先准备再播放会等待首段；手动生成不随播放启动任务。
+          </HelpTip>
         </div>
-      </details>
+        <select
+          id={`${prefix}-mode`}
+          aria-label="字幕准备方案"
+          value={settings.mode}
+          disabled={locked}
+          onChange={(event) =>
+            setSettings({
+              ...settings,
+              mode: event.target.value as SubtitlePreparation['mode'],
+            })
+          }
+        >
+          <option value="auto">边听边生成</option>
+          <option value="ahead">先准备再播放</option>
+          <option value="manual">手动生成</option>
+        </select>
+      </div>
+      <div className="subtitle-preference-row">
+        <div className="subtitle-preference-caption">
+          <label htmlFor={`${prefix}-engine`}>引擎</label>
+          <HelpTip label="字幕引擎">
+            手动生成和自动准备共用此引擎。请按当前组件的可用检查选择，实际文字仍需回听校对。
+          </HelpTip>
+        </div>
+        <select
+          id={`${prefix}-engine`}
+          aria-label="字幕引擎"
+          value={engineChoice}
+          disabled={locked}
+          required
+          onChange={(event) => {
+            const engine = event.target.value as SubtitlePreparation['engine']
+            setEngineChoice(engine)
+            setSettings({ ...settings, engine })
+          }}
+        >
+          <option value="" disabled>
+            请选择引擎
+          </option>
+          {(['whisperx', 'paraformer'] as const).map((engine) => {
+            const checks = component.state?.check?.capabilities.filter(
+              (item) => item.engine === engine,
+            )
+            return (
+              <option
+                key={engine}
+                value={engine}
+                disabled={!!checks?.length && checks.every((item) => !item.available)}
+              >
+                {engine === 'whisperx' ? 'WhisperX' : 'Paraformer'}
+              </option>
+            )
+          })}
+        </select>
+      </div>
+      <div className="subtitle-preference-row">
+        <div className="subtitle-preference-caption">
+          <label htmlFor={`${prefix}-device`}>设备</label>
+          <HelpTip label="字幕处理设备">
+            CPU 和 NVIDIA GPU 使用相同字幕方案。GPU 需要兼容组件和设备；不可用的选项会禁用。
+          </HelpTip>
+        </div>
+        <select
+          id={`${prefix}-device`}
+          aria-label="字幕设备"
+          value={settings.device}
+          disabled={locked}
+          onChange={(event) =>
+            setSettings({
+              ...settings,
+              device: event.target.value as SubtitlePreparation['device'],
+            })
+          }
+        >
+          <option
+            value="cpu"
+            disabled={
+              !!engineChoice &&
+              componentCapability(component.state, engineChoice, 'cpu')?.available === false
+            }
+          >
+            CPU
+          </option>
+          <option
+            value="cuda"
+            disabled={
+              !!engineChoice &&
+              componentCapability(component.state, engineChoice, 'cuda')?.available === false
+            }
+          >
+            NVIDIA GPU
+          </option>
+        </select>
+      </div>
+      <label className="subtitle-preference-check">
+        <input
+          type="checkbox"
+          aria-label="本集完成后准备下一集字幕"
+          checked={settings.prepareNext}
+          disabled={locked || !automatic}
+          onChange={(event) => setSettings({ ...settings, prepareNext: event.target.checked })}
+        />
+        自动准备下一集
+      </label>
+      <div className="subtitle-preference-actions">
+        <button
+          className={requireComponent ? 'primary-button' : 'secondary-button'}
+          disabled={
+            locked ||
+            !engineChoice ||
+            capability?.available === false ||
+            (requireComponent && !component.state?.configured)
+          }
+          type="submit"
+          aria-label={busy ? pendingLabel : submitLabel}
+        >
+          {busy ? pendingLabel : submitLabel === '保存字幕准备设置' ? '保存' : submitLabel}
+        </button>
+        {onCancel && (
+          <button type="button" className="text-button" onClick={onCancel}>
+            取消本次生成
+          </button>
+        )}
+      </div>
+    </form>
+  )
+  return (
+    <section
+      className="subtitle-preferences settings-select-scope"
+      aria-label="字幕准备"
+      data-compact={compact}
+    >
+      {!compact && (
+        <>
+          <h3>
+            字幕与伴读
+            <HelpTip label="字幕设置">
+              本书方案用于当前集和后续集。手动生成与自动准备共用引擎和设备，已有文稿会保留。音频缓存独立设置。
+            </HelpTip>
+          </h3>
+          <p className="tools-hint" aria-label="当前字幕配置">
+            {profile
+              ? `${book.subtitlePreparation ? '当前生效' : '当前沿用在线设置'}：${subtitleProfileLabel(profile)}`
+              : '播放时自动检查并准备字幕。'}
+          </p>
+        </>
+      )}
+      {requireComponent && (
+        <ComponentSetup compact control={component} disabled={componentDisabled || busy} />
+      )}
+      {compact ? (
+        form
+      ) : (
+        <details className="subtitle-advanced-settings settings-disclosure" open={requireComponent}>
+          <SettingsDisclosureSummary
+            title="高级字幕设置"
+            status={profile ? '本书方案' : '默认方案'}
+          />
+          <div className="settings-disclosure-body">
+            {form}
+            <EngineReference device={settings.device} />
+          </div>
+        </details>
+      )}
       {capability?.available === false && (
         <p className="tools-hint" role="status">
           {capability.message} 请选择可用的引擎或设备，或重新配置组件。
-        </p>
-      )}
-      <p className="tools-hint">
-        {settings.mode === 'auto'
-          ? '点击播放立即开始收听，缺少的字幕在后台生成；已有字幕直接使用，有关联原文时会自动匹配。'
-          : settings.mode === 'ahead'
-            ? '点击播放后先准备一段字幕，也可选择立即播放；其余字幕在后台继续生成。'
-            : '播放时不会自动启动字幕生成。可在听书页手动生成或导入字幕。'}
-      </p>
-      <p className="tools-hint">
-        手动生成与自动准备共用以上引擎和设备。已有文稿会保留；识别结果可用于匹配已导入的小说原文。
-      </p>
-      {book.online && (
-        <p className="tools-hint">
-          {book.subtitlePreparation
-            ? '本集及下一集的自动字幕由这里控制；下方的音频缓存设置独立生效。可在上方进度卡或听书字幕页取消任务。'
-            : '本书尚未保存新方案，当前仍沿用已保存的在线字幕设置。选择并保存后将统一使用这里的方案；音频缓存设置独立生效。'}
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
@@ -256,7 +281,7 @@ export function SubtitlePreparationForm({
         </p>
       )}
       {!requireComponent && (
-        <ComponentSetup control={component} disabled={componentDisabled || busy} />
+        <ComponentSetup compact control={component} disabled={componentDisabled || busy} />
       )}
     </section>
   )

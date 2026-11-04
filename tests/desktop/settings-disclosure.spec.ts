@@ -1,4 +1,4 @@
-import { test, expect, _electron as electron, type Page } from '@playwright/test'
+import { test, expect, _electron as electron, type Locator } from '@playwright/test'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -38,7 +38,7 @@ async function fixture(theme: 'light' | 'dark') {
   return { app, page, dialog }
 }
 
-test('subtitle generation settings keep the disclosure hierarchy inside a paper reading drawer with a dark app theme', async ({}, info) => {
+test('subtitle generation settings use one native disclosure inside a paper reading drawer with a dark app theme', async ({}, info) => {
   const { app, page, dialog } = await fixture('dark')
   try {
     await dialog.getByRole('button', { name: '关闭收听工具', exact: true }).click()
@@ -54,10 +54,13 @@ test('subtitle generation settings keep the disclosure hierarchy inside a paper 
     if ((await controls.getAttribute('open')) === null)
       await controls.locator(':scope > summary').click()
     await controls.getByRole('button', { name: '调整字幕方案', exact: true }).click()
-    const advanced = page.locator('.subtitle-advanced-settings')
-    await expect(advanced).toHaveAttribute('open', '')
-    await assertReadableSettings(page)
-    const summary = advanced.locator(':scope > summary')
+    await expect(controls.locator('.subtitle-advanced-settings')).toHaveCount(0)
+    const mode = controls.getByRole('combobox', { name: '字幕准备方案', exact: true })
+    await expect(mode).toBeVisible()
+    await expect(controls.getByRole('combobox', { name: '字幕引擎', exact: true })).toBeVisible()
+    await expect(controls.getByRole('combobox', { name: '字幕设备', exact: true })).toBeVisible()
+    await assertReadableSettings(controls)
+    const summary = controls.locator(':scope > summary')
     expect(
       await summary
         .locator('.settings-disclosure-heading')
@@ -75,16 +78,18 @@ test('subtitle generation settings keep the disclosure hierarchy inside a paper 
     ).toBe(true)
     await summary.focus()
     await summary.press('Enter')
-    await expect(advanced).not.toHaveAttribute('open', '')
+    await expect(controls).not.toHaveAttribute('open', '')
+    await expect(mode).toBeHidden()
     await summary.press('Space')
-    await expect(advanced).toHaveAttribute('open', '')
+    await expect(controls).toHaveAttribute('open', '')
+    await expect(mode).toBeVisible()
   } finally {
     await closeOwnedElectron(app)
   }
 })
 
-async function assertReadableSettings(page: Page) {
-  const surfaces = await page.locator('.subtitle-advanced-settings').evaluate((panel) => {
+async function assertReadableSettings(panel: Locator) {
+  const surfaces = await panel.evaluate((panel) => {
     const canvas = document.createElement('canvas')
     canvas.width = canvas.height = 1
     const context = canvas.getContext('2d')!
@@ -108,7 +113,10 @@ async function assertReadableSettings(page: Page) {
       '.settings-disclosure-title',
       '.settings-disclosure-description',
       '.settings-disclosure-action',
-    ].map((selector) => hex(getComputedStyle(summary.querySelector(selector)!).color))
+    ]
+      .map((selector) => summary.querySelector<HTMLElement>(selector))
+      .filter((element): element is HTMLElement => !!element?.getClientRects().length)
+      .map((element) => hex(getComputedStyle(element).color))
     return {
       summaryBackground: hex(summaryStyle.backgroundColor),
       panelBackground: hex(getComputedStyle(panel).backgroundColor),
@@ -121,6 +129,7 @@ async function assertReadableSettings(page: Page) {
   })
   expect(surfaces.summaryBackground).not.toBe(surfaces.panelBackground)
   expect(surfaces.fieldBackground).not.toBe(surfaces.summaryBackground)
+  expect(surfaces.text.length).toBeGreaterThan(0)
   for (const text of surfaces.text)
     expect(colorContrast(surfaces.summaryBackground, text)).toBeGreaterThanOrEqual(4.5)
   expect(colorContrast(surfaces.fieldBackground, surfaces.fieldText)).toBeGreaterThanOrEqual(4.5)
@@ -156,7 +165,7 @@ for (const theme of ['light', 'dark'] as const) {
           Number.parseFloat(getComputedStyle(element).borderLeftWidth),
         ),
       ).toBeGreaterThanOrEqual(2)
-      await assertReadableSettings(page)
+      await assertReadableSettings(advanced)
       const reference = advanced.locator('.engine-reference')
       const referenceSummary = reference.locator(':scope > summary')
       await referenceSummary.focus()
@@ -188,6 +197,7 @@ for (const theme of ['light', 'dark'] as const) {
       await summary.press('Space')
       await expect(advanced).not.toHaveAttribute('open', '')
       await expect(mode).toBeHidden()
+      await dialog.getByRole('button', { name: '管理字幕组件', exact: true }).click()
       const installation = dialog.locator('.component-installation')
       const installSummary = installation.locator(':scope > summary')
       await installSummary.focus()

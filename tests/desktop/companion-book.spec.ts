@@ -229,7 +229,7 @@ test('small dark book page exposes proofreading only when requested and keeps pl
       animations: 'disabled',
     })
     await page.getByRole('button', { name: '伴读工具', exact: true }).click()
-    await page.getByRole('checkbox', { name: '校对与标注模式', exact: true }).check()
+    await page.getByRole('button', { name: '校对与标注模式', exact: true }).click()
     await expect(page.locator('.companion-page')).toHaveAttribute('data-proofreading', 'true')
     await expect(page.getByRole('button', { name: '编辑第 1 句', exact: true })).toBeVisible()
     await expect(page.locator('.sentence-number').first()).toBeVisible()

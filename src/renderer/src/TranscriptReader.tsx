@@ -36,8 +36,10 @@ import { useAppAppearance } from './app-appearance'
 import { readerPanelAppearance } from './reader-panel'
 import { ReaderDockMount, ReaderDockSlot } from './ReaderDock'
 import { SubtitleStatus } from './UISubtitleStatus'
+import { HelpTip } from './HelpTip'
 import './companion-reader.css'
 import './reader-consistency.css'
+import './subtitle-tools.css'
 
 const SETTINGS_KEY = 'ralb:reader-preferences:v1'
 function readOriginalSource(bookId: string) {
@@ -277,6 +279,11 @@ function ReaderForEpisode({
     setFocused(false)
     setSearchOpen(false)
     setPanel((current) => (current === value ? null : value))
+    if (value === 'tools' && panel !== 'tools')
+      requestAnimationFrame(() => {
+        const body = root.current?.querySelector('.subtitle-tools-content')
+        if (body) body.scrollTop = 0
+      })
   }
   function openGenerationSettings() {
     setFocused(false)
@@ -764,113 +771,121 @@ function ReaderForEpisode({
             icon="close"
           />
         </div>
-        {error && panel === 'tools' && (
-          <div className="error-message" role="alert">
-            {error}
-          </div>
-        )}
-        <section className="companion-tool-section">
-          <h3>文稿</h3>
-          <p className="tools-hint">
-            {stored
-              ? `${control.preview ? '生成稿预览 · ' : ''}${stored.document.segments.length.toLocaleString()} 句 · 版本 ${stored.revision}`
-              : '生成或导入与本集音频同步的文稿。'}
-          </p>
-          <div className="reader-primary-actions">
-            {!activity?.active && (
-              <button
-                className="primary-button"
-                disabled={busy || startingSubtitles}
-                onClick={() => void openGeneration()}
-              >
-                {startingSubtitles
-                  ? '正在准备字幕…'
-                  : generating
-                    ? '查看字幕生成'
-                    : stored
-                      ? '字幕生成设置'
-                      : '生成本集字幕'}
-              </button>
-            )}
+        <div className="subtitle-tools-content">
+          {error && panel === 'tools' && (
+            <div className="error-message" role="alert">
+              {error}
+            </div>
+          )}
+          <section className="companion-tool-section">
+            <h3>当前文稿</h3>
+            <p className="tools-hint">
+              {stored
+                ? `${control.preview ? '生成稿预览 · ' : ''}${stored.document.segments.length.toLocaleString()} 句 · 版本 ${stored.revision}`
+                : '暂无文稿'}
+            </p>
+            <div className="reader-primary-actions">
+              {!activity?.active && !stored && (
+                <ReaderAction
+                  className="subtitle-generate-action"
+                  icon="transcript"
+                  label={startingSubtitles ? '正在准备字幕…' : '生成本集字幕'}
+                  disabled={busy || startingSubtitles}
+                  onClick={() => void openGeneration()}
+                />
+              )}
+              <ReaderAction
+                icon="upload"
+                label="导入 SRT/WebVTT"
+                disabled={busy}
+                onClick={() => setSubtitleImport(true)}
+              />
+              <HelpTip label="当前文稿">
+                生成或导入与本集音频同步的文稿。播放时自动准备字幕；进度和取消操作位于底部控制栏。
+              </HelpTip>
+            </div>
+          </section>
+          <TranscriptionControls
+            target={target}
+            control={control}
+            book={book}
+            openRequest={generationRequest}
+            onOpenSettings={onOpenSubtitleSettings}
+            onUpdated={onUpdated}
+            showPauseNotice={false}
+          />
+          {stored && !originalMode && (
+            <section
+              className="companion-tool-section reader-document-actions"
+              aria-label="文稿工具"
+            >
+              <h3>文稿工具</h3>
+              <div className="subtitle-document-action-row">
+                <ReaderAction
+                  icon="edit"
+                  label="校对与标注模式"
+                  aria-pressed={proofreading}
+                  onClick={() => {
+                    setProofreading(!proofreading)
+                    setPanel(null)
+                    focusText()
+                  }}
+                />
+                <SubtitleExport
+                  key={`export:${stored.id}`}
+                  compact
+                  iconOnly
+                  source={{
+                    ...target,
+                    source: 'transcript',
+                    transcriptId: stored.id,
+                    transcriptRevision: stored.revision,
+                  }}
+                  disabled={busy || !!control.preview || !stored.document.segments.length}
+                />
+                {!control.preview && (
+                  <ListeningReview
+                    key={`review:${stored.id}`}
+                    episode={episode}
+                    transcript={stored}
+                    iconOnly
+                  />
+                )}
+                {!control.preview && (
+                  <ReaderAction
+                    icon="undo"
+                    label="字幕编辑与撤销"
+                    onClick={() => setEditorSegmentId(null)}
+                  />
+                )}
+              </div>
+            </section>
+          )}
+          <details className="transcript-import" ref={importOptions}>
+            <summary>高级：导入时间戳文稿</summary>
+            <p className="tools-hint">
+              适用于已准备好的句级 JSON 文稿。重新导入会替换当前显示的文稿。
+            </p>
             <button
               className="secondary-button"
               disabled={busy}
-              onClick={() => setSubtitleImport(true)}
+              onClick={() => void importDocument()}
             >
-              导入 SRT/WebVTT
+              {busy ? '正在导入文稿…' : stored ? '重新导入文稿' : '导入 JSON 文稿'}
             </button>
-          </div>
-        </section>
-        <TranscriptionControls
-          target={target}
-          control={control}
-          book={book}
-          openRequest={generationRequest}
-          onOpenSettings={onOpenSubtitleSettings}
-          onUpdated={onUpdated}
-          showPauseNotice={false}
-        />
-        {stored && !originalMode && (
-          <section className="companion-tool-section reader-document-actions" aria-label="文稿工具">
-            <h3>校对与导出</h3>
-            <label className="companion-proofreading-toggle">
-              <input
-                type="checkbox"
-                aria-label="校对与标注模式"
-                checked={proofreading}
-                onChange={(event) => {
-                  setProofreading(event.target.checked)
-                  setPanel(null)
-                  focusText()
-                }}
-              />
-              校对与标注模式
-            </label>
-            <p className="tools-hint">按需显示句子编号、标注和纠错工具，关闭后恢复正常阅读。</p>
-            <SubtitleExport
-              key={`export:${stored.id}`}
-              compact
-              source={{
-                ...target,
-                source: 'transcript',
-                transcriptId: stored.id,
-                transcriptRevision: stored.revision,
-              }}
-              disabled={busy || !!control.preview || !stored.document.segments.length}
-            />
-            {!control.preview && (
-              <ListeningReview key={`review:${stored.id}`} episode={episode} transcript={stored} />
+            {!stored && (
+              <details className="transcript-format">
+                <summary>如何准备时间戳文稿</summary>
+                <p>
+                  保存为 UTF-8 JSON。audioHash
+                  必须对应当前音频；时间使用原始音频的整数毫秒。coverage
+                  表示已标注的区间。请按实际音频修改示例中的文字和时间。
+                </p>
+                <pre>{sample}</pre>
+              </details>
             )}
-            {!control.preview && (
-              <button className="secondary-button" onClick={() => setEditorSegmentId(null)}>
-                字幕编辑与撤销
-              </button>
-            )}
-          </section>
-        )}
-        <details className="transcript-import" ref={importOptions}>
-          <summary>高级：导入时间戳文稿</summary>
-          <p className="tools-hint">
-            适用于已准备好的句级 JSON 文稿。重新导入会替换当前显示的文稿。
-          </p>
-          <button
-            className="secondary-button"
-            disabled={busy}
-            onClick={() => void importDocument()}
-          >
-            {busy ? '正在导入文稿…' : stored ? '重新导入文稿' : '导入 JSON 文稿'}
-          </button>
-          {!stored && (
-            <details className="transcript-format">
-              <summary>如何准备时间戳文稿</summary>
-              <p>
-                保存为 UTF-8 JSON。audioHash 必须对应当前音频；时间使用原始音频的整数毫秒。coverage
-                表示已标注的区间。请按实际音频修改示例中的文字和时间。
-              </p>
-              <pre>{sample}</pre>
-            </details>
-          )}
-        </details>
+          </details>
+        </div>
       </aside>
       {editorSegmentId !== undefined && formal && (
         <TranscriptEditingPanel

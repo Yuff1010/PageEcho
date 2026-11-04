@@ -21,12 +21,12 @@
 .companion-page .companion-drawer--settings {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  width: min(390px, calc(100vw - 28px));
-  padding: 20px;
+  gap: var(--reader-panel-gap);
+  width: min(var(--reader-settings-width), calc(100% - 32px));
+  padding: var(--reader-panel-padding);
   background: color-mix(
     in srgb,
-    var(--reader-panel-solid) var(--reader-panel-opacity, 100%),
+    var(--reader-panel-surface) var(--reader-panel-opacity, 100%),
     transparent
   );
 }

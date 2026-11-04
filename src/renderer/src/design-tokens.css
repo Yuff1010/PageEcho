@@ -17,6 +17,9 @@
   --reader-dock-text-size: 12px;
   --reader-progress-height: 5px;
   --reader-settings-width: 340px;
+  --reader-panel-padding: 14px;
+  --reader-panel-gap: 12px;
+  --reader-panel-max-height: 600px;
   --reader-speech-dock-height: 112px;
   /* Shell/shelf owner: ShelfHeader + LibraryShelf. Reader adds --reader-* separately. */
   --shell-control-size: 40px;

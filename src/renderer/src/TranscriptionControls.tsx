@@ -19,6 +19,8 @@ import { transcriptionStateClient } from './transcription-state-client'
 import { availableSubtitleProfile } from './subtitle-onboarding'
 import { TranscriptionActivity } from './TranscriptionActivity'
 import { SettingsDisclosureSummary } from './SettingsDisclosure'
+import { ReaderAction } from './ReaderToolbar'
+import { HelpTip } from './HelpTip'
 
 export function useTranscription(target: TranscriptRequest) {
   const [state, setState] = useState<TranscriptionState | null>(null)
@@ -254,168 +256,159 @@ export function TranscriptionControls({
           if (!details.current?.open) submission.current = null
         }}
       >
-        <SettingsDisclosureSummary
-          title={hasDocument ? '字幕状态与生成设置' : '字幕生成设置'}
-          description="组件和字幕方案，任务进度与取消操作在下方显示"
-          status={state?.configured ? '组件已配置' : '需配置组件'}
-        />
-        {hasDocument && (
-          <SubtitleStatus snapshot={subtitleStatus} rate={current ? playback.rate : 1} />
-        )}
-        <div className="transcription-options">
+        <SettingsDisclosureSummary title="字幕设置" />
+        <div className="subtitle-generation-body">
           {hasDocument && (
-            <span className="transcription-component-state">
-              {state?.configured ? '本地组件已配置' : '首次使用需配置本地组件'}
-            </span>
+            <SubtitleStatus snapshot={subtitleStatus} rate={current ? playback.rate : 1} />
           )}
-          <p aria-label="本集字幕配置">
-            {profile
-              ? `使用本书方案：${subtitleProfileLabel(profile)}`
-              : quickSetup
-                ? '先检查本机已有组件，再使用可用配置准备字幕。'
-                : '在这里选择本地组件、字幕引擎和设备，即可保存并生成本集。'}
-          </p>
-          {!setupVisible && (
-            <button
-              className="secondary-button"
-              disabled={busy || active}
-              onClick={() => setEditing(true)}
-            >
-              调整字幕方案
-            </button>
-          )}
-          {!setupVisible && (
-            <>
-              <button
-                className="primary-button"
-                disabled={
-                  busy ||
-                  component.busy ||
-                  active ||
-                  !profile ||
-                  !state?.configured ||
-                  capability?.available === false
-                }
-                onClick={() => {
-                  if (!profile) return
-                  void run(() =>
-                    window.desktop.startTranscription({
-                      ...target,
-                      engine: profile.engine,
-                      device: profile.device,
-                    }),
-                  ).then((value) => {
-                    if (value && details.current) details.current.open = false
-                  })
-                }}
-              >
-                生成转写稿
-              </button>
-            </>
-          )}
-        </div>
-        {quickSetup && (
-          <section className="subtitle-quick-start" aria-label="快速准备字幕">
-            <h3>本机已具备字幕组件</h3>
-            {quickProfile ? (
+          <div className="transcription-options">
+            <p aria-label="本集字幕配置">
+              {profile
+                ? subtitleProfileLabel(profile)
+                : quickSetup
+                  ? '检查本机组件后即可生成。'
+                  : '选择组件与生成方案。'}
+            </p>
+            {!setupVisible && (
+              <ReaderAction
+                className="reader-icon-button"
+                icon="settings"
+                label="调整字幕方案"
+                disabled={busy || active}
+                onClick={() => setEditing(true)}
+              />
+            )}
+            {!setupVisible && (
               <>
-                <p>
-                  可用配置：{subtitleProfileLabel(quickProfile)}
-                  。先准备当前位置的字幕，其余内容在后台继续生成。
-                </p>
-                <button
-                  className="primary-button"
-                  disabled={busy || component.busy || active || quickStarting}
-                  onClick={() => {
-                    setQuickStarting(true)
-                    setQuickError('')
-                    void saveAndGenerate(quickProfile)
-                      .catch((reason: unknown) => {
-                        if (mounted.current)
-                          setQuickError(
-                            reason instanceof Error ? reason.message : '字幕准备未开始，请重试。',
-                          )
-                      })
-                      .finally(() => {
-                        if (mounted.current) setQuickStarting(false)
-                      })
-                  }}
-                >
-                  {quickStarting ? '正在准备字幕…' : '使用可用配置开始生成'}
-                </button>
-              </>
-            ) : (
-              <>
-                <p role="status">
-                  {component.state?.check
-                    ? '本次检查尚未找到可用的字幕配置。可以重新检查，或手动选择组件、引擎和设备。'
-                    : '检查已安装的组件和处理设备后，即可直接开始准备字幕。不会下载模型或改变本书设置。'}
-                </p>
-                {!!component.state?.check?.issues.length && (
-                  <ul>
-                    {component.state.check.issues.map((issue, index) => (
-                      <li key={index}>{issue}</li>
-                    ))}
-                  </ul>
-                )}
-                <button
-                  className="primary-button"
-                  disabled={busy || component.busy || active || quickStarting}
-                  onClick={() =>
-                    void component.run(() => window.desktop.checkTranscriptionComponent())
+                <ReaderAction
+                  className="reader-icon-button subtitle-generate-action"
+                  icon="transcript"
+                  label="生成转写稿"
+                  disabled={
+                    busy ||
+                    component.busy ||
+                    active ||
+                    !profile ||
+                    !state?.configured ||
+                    capability?.available === false
                   }
-                >
-                  {component.busy
-                    ? '正在检查可用配置…'
-                    : component.state?.check
-                      ? '重新检查可用配置'
-                      : '检查可用配置'}
-                </button>
+                  onClick={() => {
+                    if (!profile) return
+                    void run(() =>
+                      window.desktop.startTranscription({
+                        ...target,
+                        engine: profile.engine,
+                        device: profile.device,
+                      }),
+                    ).then((value) => {
+                      if (value && details.current) details.current.open = false
+                    })
+                  }}
+                />
               </>
             )}
-            <button
-              className="text-button"
-              disabled={quickStarting}
-              onClick={() => setEditing(true)}
-            >
-              手动选择引擎和设备
-            </button>
-            <p className="tools-hint">
-              配置根据设备可用性提供。普通播放可继续；首次加载模型需要等待。
-            </p>
-            {component.error && <p role="alert">{component.error}</p>}
-            {quickError && <p role="alert">{quickError}</p>}
-          </section>
-        )}
-        {setupVisible && book && !quickSetup && (
-          <SubtitlePreparationForm
-            key={`generation-settings:${book.id}`}
-            book={book}
-            component={component}
-            disabled={busy || active}
-            componentDisabled={busy || (active && job?.status !== 'queued')}
-            requireComponent
-            submitLabel="保存并生成本集"
-            pendingLabel="正在保存并生成…"
-            onSubmit={saveAndGenerate}
-            onCancel={cancelSetup}
-          />
-        )}
-        {capability?.available === false && (
-          <p role="status">{capability.message} 请调整方案或重新配置组件。</p>
-        )}
-        {!setupVisible && (
-          <ComponentSetup
-            control={component}
-            disabled={busy || (active && job?.status !== 'queued')}
-          />
-        )}
-        <p>已有文稿会保留，新稿可先预览再选择使用。模型首次加载可能较慢。</p>
+          </div>
+          {quickSetup && (
+            <section className="subtitle-quick-start" aria-label="快速准备字幕">
+              <h3>准备字幕</h3>
+              {quickProfile ? (
+                <>
+                  <p>{subtitleProfileLabel(quickProfile)}</p>
+                  <button
+                    className="primary-button"
+                    disabled={busy || component.busy || active || quickStarting}
+                    onClick={() => {
+                      setQuickStarting(true)
+                      setQuickError('')
+                      void saveAndGenerate(quickProfile)
+                        .catch((reason: unknown) => {
+                          if (mounted.current)
+                            setQuickError(
+                              reason instanceof Error ? reason.message : '字幕准备未开始，请重试。',
+                            )
+                        })
+                        .finally(() => {
+                          if (mounted.current) setQuickStarting(false)
+                        })
+                    }}
+                  >
+                    {quickStarting ? '正在准备字幕…' : '使用可用配置开始生成'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p role="status">
+                    {component.state?.check
+                      ? '未找到可用方案，请检查组件或手动设置。'
+                      : '检查本机组件，选择可用方案。'}
+                  </p>
+                  {!!component.state?.check?.issues.length && (
+                    <ul>
+                      {component.state.check.issues.map((issue, index) => (
+                        <li key={index}>{issue}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <button
+                    className="primary-button"
+                    disabled={busy || component.busy || active || quickStarting}
+                    onClick={() =>
+                      void component.run(() => window.desktop.checkTranscriptionComponent())
+                    }
+                  >
+                    {component.busy
+                      ? '正在检查可用配置…'
+                      : component.state?.check
+                        ? '重新检查可用配置'
+                        : '检查可用配置'}
+                  </button>
+                </>
+              )}
+              <button
+                className="text-button"
+                disabled={quickStarting}
+                onClick={() => setEditing(true)}
+              >
+                手动选择引擎和设备
+              </button>
+              {component.error && <p role="alert">{component.error}</p>}
+              {quickError && <p role="alert">{quickError}</p>}
+            </section>
+          )}
+          {setupVisible && book && !quickSetup && (
+            <SubtitlePreparationForm
+              key={`generation-settings:${book.id}`}
+              book={book}
+              component={component}
+              disabled={busy || active}
+              componentDisabled={busy || (active && job?.status !== 'queued')}
+              requireComponent
+              compact
+              submitLabel="保存并生成本集"
+              pendingLabel="正在保存并生成…"
+              onSubmit={saveAndGenerate}
+              onCancel={cancelSetup}
+            />
+          )}
+          {capability?.available === false && (
+            <p role="status">{capability.message} 请调整方案或重新配置组件。</p>
+          )}
+          {!setupVisible && (
+            <ComponentSetup
+              compact
+              control={component}
+              disabled={busy || (active && job?.status !== 'queued')}
+            />
+          )}
+          <HelpTip label="字幕生成说明">
+            已有文稿会保留，新稿可先预览再选择使用。优先准备当前位置，其余内容在后台生成；首次加载模型可能较慢。
+          </HelpTip>
+        </div>
       </details>
       {!hasDocument && (job || state?.transcript.status === 'ready') && (
         <SubtitleStatus snapshot={subtitleStatus} rate={current ? playback.rate : 1} />
       )}
-      <TranscriptionActivity target={target} control={control} showCompleted />
+      <TranscriptionActivity target={target} control={control} compact />
       {job && (
         <div className="transcription-status">
           {job.hasPreview && !job.autoApply && (

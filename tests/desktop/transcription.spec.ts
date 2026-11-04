@@ -87,6 +87,7 @@ test('missing or invalid model components preserve playback; small corrections k
     await toggleCompanionGeneration(reader)
     await setSubtitleProfile(page, { engine: 'whisperx' })
     await expect(tools.getByRole('button', { name: '生成转写稿', exact: true })).toBeDisabled()
+    await tools.getByRole('button', { name: '管理字幕组件', exact: true }).click()
     await choose(app, null)
     await tools.getByRole('button', { name: '选择组件配置', exact: true }).click()
     const invalid = join(root, 'invalid-component.json')
@@ -199,8 +200,9 @@ test('unwritable cache and terminal-status storage failures preserve reading and
     const activity = tools.getByRole('region', { name: '字幕生成进度', exact: true })
     await toggleCompanionGeneration(reader)
     await choose(app, component)
+    await tools.getByRole('button', { name: '管理字幕组件', exact: true }).click()
     await tools.getByRole('button', { name: '选择组件配置', exact: true }).click()
-    await expect(tools.getByText('本地组件已配置', { exact: true })).toBeVisible()
+    await expect(tools.locator('.component-setup-summary')).toContainText('已选择')
     await setSubtitleProfile(page, { engine: 'whisperx', device: 'cpu' })
     // Replace only this empty fixture directory after configuration. The real
     // production preflight must report a cache failure before importing ML libraries.
@@ -351,6 +353,7 @@ test('an interrupted job without configured components keeps its partial and can
     await expect(activity).toHaveAttribute('data-job-status', 'queued')
     await expect(reader.locator('.transcript-sentence')).toHaveCount(1)
     await toggleCompanionGeneration(reader)
+    await tools.getByRole('button', { name: '管理字幕组件', exact: true }).click()
     await expect(tools.getByRole('button', { name: '选择组件配置', exact: true })).toBeEnabled()
     await expect(tools.getByRole('combobox', { name: '字幕引擎', exact: true })).toBeDisabled()
     await expect(tools.getByRole('combobox', { name: '字幕设备', exact: true })).toBeDisabled()

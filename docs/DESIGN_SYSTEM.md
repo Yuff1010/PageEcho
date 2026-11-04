@@ -130,6 +130,8 @@
 | `--reader-dock-control-size` / `--reader-dock-text-size` | 26px / 12px                          | 内联来源、进度和翻页操作 |
 | `--reader-progress-height`                               | 5px                                  | 小型真实生成进度条       |
 | `--reader-settings-width`                                | 340px                                | 紧凑设置面板             |
+| `--reader-panel-padding` / `--reader-panel-gap`          | 14px / 12px                          | 阅读设置与字幕工具侧栏   |
+| `--reader-panel-max-height`                              | 600px                                | 两类设置侧栏的最大高度   |
 | `--reader-speech-dock-height`                            | 112px                                | 电子书朗读中的单一底栏   |
 
 有声书正文上下不再添加独立的来源栏、进度卡和翻页状态栏。唯一底部 `PlayerBar` 同时承载播放、来源、字幕生成、跟随和分页：来源使用 `source` 插槽，实时生成使用 `activity` 插槽，当前正文分页／跟随使用 `navigation` 插槽。`ReaderDockProvider` 与 `ReaderDockSlot` 只负责 React 控件的布局；持久音频元素继续由 `player.ts` 唯一持有，切换文字来源、打开面板或移动控件都不能重新创建音频、重置进度或自行恢复播放。
@@ -151,6 +153,12 @@
 常驻动作的短名称由 `Tooltip.tsx`／`tooltip.css` 统一提供：悬浮约 360ms 或键盘聚焦显示，点击仍直接执行原动作；提示不添加包装 DOM，不覆盖 ref、可访问名称或原生控件事件。气泡观察自身及触发器尺寸、保持窗口边界，菜单和原生下拉展开时不抢占 Escape。不要同时保留原生 `title` 气泡造成双重说明。设置主动帮助继续使用 `HelpTip`；菜单文字、正文信息和实际错误不能统一藏进提示。
 
 `ReaderAction` 在 `ReaderToolbar.tsx` 中组合准确图标、原生按钮和共用提示，`reader-icon-actions.css` 分别使用工具栏与底栏已有尺寸参数。播放器的 `player-chrome.css` 只调整播放器本身的控件对齐；字幕摘要的详细语义继续属于 `UISubtitleStatus`，真实数值来源不变，长说明按需查看。视觉诊断及取舍见 [图标与视觉层级优化](UI_REFINEMENT.md)。
+
+`0.44` 的“字幕与文稿”复用阅读设置的宽度、标题字号、内边距与高度参数；`subtitle-tools.css` 只负责该工具侧栏。标题和关闭按钮固定，唯一纵向滚动区为 `.subtitle-tools-content`，不能再用广域 `.reading .transcription-controls > details[open]` 或窄窗任务卡的固定高度制造第二个滚动区。重新打开常用工具时从顶部显示，排版滚动及音频会话不变。
+
+常用层仅显示文稿数量／版本、导入及校对／导出图标。`TranscriptionControls` 的“字幕设置”是单个原生折叠；`SubtitlePreparationForm` 的 `compact` 模式直接显示短行表单，不再嵌套高级折叠与参考表。`ComponentSetup` 的 `compact` 模式先显示真实状态行，用户明确管理后才加载候选与安装／版本管理，收起时保留安装表单状态；应用维护页仍保留完整流程。成功长路径和可选说明使用 `HelpTip`，失败、能力问题、真实进度、取消及重试直接可见。
+
+面板透明度只应用一次：`readerPanelAppearance` 提供实际应用表面 `--reader-panel-surface`，不借用可能被阅读纸色覆盖的 `--ui-panel`；背景以该表面混入阅读纸色。`--reader-panel-solid` 表示混合后的对比度参考，不再给该参考色重复透明。导出图标保留原生 `summary` 语义，展开时停用名称气泡；Escape 优先收起导出菜单并恢复触发器焦点。
 
 `tests/desktop/reader-settings-compact.spec.ts` 覆盖 1200px／720px 宽度、浅色／深色、面板高度与滚动、三个设置分类、键盘／悬停／触屏帮助提示、Escape 焦点、范围短选项、配色草稿及常显错误。既有 `reader-preferences.spec.ts` 和 `reader-blending.spec.ts` 仍验证配色持久化、透明度和真实绘制对比度；高级控件改为先展开后操作。此处列出验收范围，最终桌面结果由主任务统一运行记录。
 

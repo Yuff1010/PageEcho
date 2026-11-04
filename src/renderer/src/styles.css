@@ -584,19 +584,12 @@ select:focus-visible {
   max-width: none;
   text-align: left;
 }
-.transcription-controls summary span {
-  margin-left: 12px;
-  font-size: 14px;
-}
 @media (max-width: 800px) {
   .reading .reader-heading > div {
     flex-basis: 120px;
   }
   .transcription-controls summary {
     white-space: nowrap;
-  }
-  .transcription-controls summary span {
-    display: none;
   }
 }
 .transcription-options {
@@ -1134,11 +1127,6 @@ select:focus-visible {
 .reading .transcription-controls,
 .reading .transcript-import {
   flex-shrink: 0;
-}
-.reading .transcription-controls > details[open] {
-  max-height: min(360px, 45vh);
-  overflow: auto;
-  overscroll-behavior: contain;
 }
 .reading .reader-follow {
   flex-shrink: 0;

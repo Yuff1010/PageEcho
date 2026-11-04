@@ -1,4 +1,4 @@
-import { test, expect, _electron as electron, type Page } from '@playwright/test'
+import { test, expect, _electron as electron, type Locator, type Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import {
   copyFileSync,
@@ -162,7 +162,26 @@ async function openSetup(page: Page) {
   await page.getByRole('button', { name: '字幕与伴读', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '收听工具', exact: true })
   await openSubtitleAdvanced(dialog)
+  await openComponentManagement(dialog.getByRole('region', { name: '本地字幕组件', exact: true }))
   return dialog
+}
+async function openComponentManagement(setup: Locator) {
+  const manage = setup.getByRole('button', { name: /^(管理字幕组件|收起组件管理)$/ })
+  if ((await manage.getAttribute('aria-expanded')) !== 'true') await manage.click()
+  await expect(manage).toHaveAttribute('aria-expanded', 'true')
+}
+async function expectComponentDirectory(page: Page, setup: Locator, directory: string) {
+  await expect
+    .poll(async () => {
+      const state = await page.evaluate(() => window.desktop.detectTranscriptionComponents())
+      if (!state.ok) throw new Error(state.error.message)
+      return state.value.currentDirectory
+    })
+    .toBe(directory)
+  const help = setup.getByRole('button', { name: '字幕组件详情说明', exact: true })
+  await help.focus()
+  await expect(setup.getByRole('tooltip').filter({ hasText: directory })).toBeVisible()
+  await help.press('Escape')
 }
 const paused = (page: Page) =>
   page.locator('audio').evaluate((audio: HTMLAudioElement) => audio.paused)
@@ -179,6 +198,7 @@ async function firstGeneration(page: Page, mode: 'manual' | 'ahead' = 'manual') 
   // intentionally exercise the manual save transaction before any profile exists.
   await openCompanionTools(reader)
   await reader.locator('.transcription-controls > details > summary').click()
+  await openComponentManagement(reader.getByRole('region', { name: '本地字幕组件', exact: true }))
   await reader.getByRole('button', { name: '使用 asr-component', exact: true }).click()
   await reader.getByRole('button', { name: '手动选择引擎和设备', exact: true }).click()
   await reader.getByRole('combobox', { name: '字幕准备方案', exact: true }).selectOption(mode)
@@ -436,7 +456,7 @@ test('nearby components are explicit choices; CPU-only checks guide the shared p
       installation.getByRole('list', { name: '离线安装步骤', exact: true }),
     ).toContainText('选包核对安装启用')
     await setup.getByRole('button', { name: '使用 asr-component', exact: true }).click()
-    await expect(setup.getByText('已选择组件：', { exact: false })).toContainText(componentRoot)
+    await expectComponentDirectory(page, setup, componentRoot)
     await setup.getByRole('button', { name: '检查组件', exact: true }).click()
     await expect(setup.getByText('组件检查通过', { exact: true })).toBeVisible()
     await expect(
@@ -472,7 +492,7 @@ test('nearby components are explicit choices; CPU-only checks guide the shared p
     await expect(page.getByRole('button', { name: '字幕与伴读', exact: true })).toBeEnabled()
     dialog = await openSetup(page)
     setup = dialog.getByRole('region', { name: '本地字幕组件', exact: true })
-    await expect(setup.getByText('已选择组件：', { exact: false })).toContainText(componentRoot)
+    await expectComponentDirectory(page, setup, componentRoot)
     await expect(dialog.getByRole('combobox', { name: '字幕引擎', exact: true })).toHaveValue(
       'whisperx',
     )
@@ -491,7 +511,7 @@ test('invalid or canceled folder choices preserve the component; failed checks d
     const dialog = await openSetup(page),
       setup = dialog.getByRole('region', { name: '本地字幕组件', exact: true })
     await setup.getByRole('button', { name: '使用 asr-component', exact: true }).click()
-    await expect(setup.getByText('已选择组件：', { exact: false })).toContainText(componentRoot)
+    await expectComponentDirectory(page, setup, componentRoot)
     await app.evaluate(({ dialog }) => {
       dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] })
     })
@@ -513,7 +533,7 @@ test('invalid or canceled folder choices preserve the component; failed checks d
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] })
     }, broken)
     await setup.getByRole('button', { name: '选择组件文件夹', exact: true }).click()
-    await expect(setup.getByText('已选择组件：', { exact: false })).toContainText(broken)
+    await expectComponentDirectory(page, setup, broken)
     await dialog.getByRole('combobox', { name: '字幕引擎', exact: true }).selectOption('whisperx')
     await setup.getByRole('button', { name: '检查组件', exact: true }).click()
     await expect(setup.getByText('组件检查发现问题', { exact: true })).toBeVisible()
@@ -547,6 +567,7 @@ test('selecting the missing component resumes requested subtitle preparation wit
     await reader.getByRole('button', { name: '配置字幕组件', exact: true }).click()
     const setup = reader.getByRole('region', { name: '本地字幕组件', exact: true })
     await expect(setup).toBeVisible()
+    await openComponentManagement(setup)
     expect(existsSync(join(appRoot, 'python', 'worker-started'))).toBe(false)
     const idle = await page.evaluate(
       (episode) =>
@@ -613,9 +634,10 @@ test('automatic prerequisite checking keeps playback and IPC responsive and canc
     await openCompanionTools(reader)
     await reader.locator('.transcription-controls > details > summary').click()
     const setup = reader.getByRole('region', { name: '本地字幕组件', exact: true })
+    await openComponentManagement(setup)
     await setup.getByRole('button', { name: '使用 asr-component', exact: true }).click()
     await reader.getByRole('button', { name: '调整字幕方案', exact: true }).click()
-    await expect(setup.getByText('已选择组件：', { exact: false })).toContainText(componentRoot)
+    await expectComponentDirectory(page, setup, componentRoot)
     await reader.getByRole('combobox', { name: '字幕引擎', exact: true }).selectOption('whisperx')
     await reader.getByRole('combobox', { name: '字幕设备', exact: true }).selectOption('cpu')
     await reader.getByRole('button', { name: '保存并生成本集', exact: true }).click()
@@ -644,6 +666,7 @@ test('automatic prerequisite checking keeps playback and IPC responsive and canc
     if (!(await controls.evaluate((element: HTMLDetailsElement) => element.open)))
       await controls.locator(':scope > summary').click()
     const component = reader.getByRole('region', { name: '本地字幕组件', exact: true })
+    await openComponentManagement(component)
     await expect(component.getByText('组件检查发现问题', { exact: true })).toBeVisible()
     await expect(reader.getByRole('button', { name: '生成转写稿', exact: true })).toBeDisabled()
     expect(existsSync(join(appRoot, 'python', 'worker-started'))).toBe(false)

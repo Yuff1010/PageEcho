@@ -36,6 +36,7 @@ export function readerPanelAppearance(
   return {
     tone,
     variables: {
+      '--reader-panel-surface': surface,
       '--reader-panel-solid': painted,
       '--ui-text': ink,
       '--ui-muted': readable(darkInk ? '#56624F' : '#BCC6B5'),

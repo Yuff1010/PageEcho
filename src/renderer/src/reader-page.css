@@ -413,7 +413,11 @@
   padding: 16px;
   border: 1px solid var(--ui-line);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--ui-panel) var(--reader-panel-opacity, 100%), transparent);
+  background: color-mix(
+    in srgb,
+    var(--reader-panel-surface) var(--reader-panel-opacity, 100%),
+    transparent
+  );
   backdrop-filter: blur(12px);
   color: var(--ui-text);
   box-shadow: 0 8px 30px #0002;
@@ -473,13 +477,13 @@
 }
 .reader-panel-drawer.reader-settings-panel {
   bottom: auto;
-  max-height: min(600px, calc(100dvh - 150px));
-  padding: 12px;
+  max-height: min(var(--reader-panel-max-height), calc(100dvh - 150px));
+  padding: var(--reader-panel-padding);
 }
 .companion-page .companion-drawer.companion-drawer--settings {
   bottom: auto;
-  max-height: min(620px, calc(100% - 88px));
-  padding: 14px;
+  max-height: min(var(--reader-panel-max-height), calc(100% - 88px));
+  padding: var(--reader-panel-padding);
 }
 .reader-preferences-shell {
   display: flex;

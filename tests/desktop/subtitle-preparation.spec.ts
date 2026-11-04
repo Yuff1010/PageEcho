@@ -81,11 +81,7 @@ test('subtitle strategy is explicit, per book and persistent for local and onlin
     const section = dialog.getByRole('region', { name: '字幕准备', exact: true })
     const mode = section.getByRole('combobox', { name: '字幕准备方案', exact: true })
     await expect(mode).toHaveValue('auto')
-    await expect(mode.locator('option')).toHaveText([
-      '边播放边生成（推荐）',
-      '先准备字幕再播放',
-      '仅手动生成',
-    ])
+    await expect(mode.locator('option')).toHaveText(['边听边生成', '先准备再播放', '手动生成'])
     await mode.selectOption('ahead')
     await expect(section.getByRole('button', { name: '保存字幕准备设置' })).toBeDisabled()
     await section.getByRole('combobox', { name: '字幕引擎' }).selectOption('paraformer')
