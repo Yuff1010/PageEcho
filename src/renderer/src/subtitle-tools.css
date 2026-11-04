@@ -15,7 +15,7 @@
   margin-bottom: var(--reader-panel-gap);
 }
 .companion-page .companion-drawer--tools .companion-drawer-heading h2 {
-  font-size: 15px;
+  font-size: var(--reader-panel-title-size);
   font-weight: 600;
 }
 .subtitle-tools-content {

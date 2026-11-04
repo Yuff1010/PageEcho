@@ -92,7 +92,11 @@ async function select(app: ElectronApplication, path: string | null) {
 async function openPanel(page: Page) {
   await page.getByRole('button', { name: '字幕与伴读', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '收听工具', exact: true })
-  await dialog.locator('.component-installation > summary').click()
+  const setup = dialog.getByRole('region', { name: '本地字幕组件', exact: true }),
+    manage = setup.getByRole('button', { name: /^(管理字幕组件|收起组件管理)$/ })
+  if ((await manage.getAttribute('aria-expanded')) !== 'true') await manage.click()
+  await expect(manage).toHaveAttribute('aria-expanded', 'true')
+  await setup.locator('.component-installation > summary').click()
   const panel = dialog.getByRole('region', { name: '离线组件安装', exact: true })
   await expect(panel.getByRole('combobox', { name: '安装目标引擎', exact: true })).toBeVisible()
   return { dialog, panel }

@@ -40,7 +40,7 @@
   color: var(--ui-text);
 }
 .companion-page .companion-drawer--settings .companion-drawer-heading h2 {
-  font-size: 15px;
+  font-size: var(--reader-panel-title-size);
 }
 .companion-page .companion-drawer--settings .tools-hint {
   flex-shrink: 0;

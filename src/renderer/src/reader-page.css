@@ -449,7 +449,7 @@
 }
 .reader-panel-heading h2 {
   color: inherit;
-  font-size: 15px;
+  font-size: var(--reader-panel-title-size);
   font-weight: 600;
   margin: 0;
 }

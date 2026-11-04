@@ -132,6 +132,7 @@
 | `--reader-settings-width`                                | 340px                                | 紧凑设置面板             |
 | `--reader-panel-padding` / `--reader-panel-gap`          | 14px / 12px                          | 阅读设置与字幕工具侧栏   |
 | `--reader-panel-max-height`                              | 600px                                | 两类设置侧栏的最大高度   |
+| `--reader-panel-title-size`                              | 15px                                 | 阅读设置与字幕工具标题   |
 | `--reader-speech-dock-height`                            | 112px                                | 电子书朗读中的单一底栏   |
 
 有声书正文上下不再添加独立的来源栏、进度卡和翻页状态栏。唯一底部 `PlayerBar` 同时承载播放、来源、字幕生成、跟随和分页：来源使用 `source` 插槽，实时生成使用 `activity` 插槽，当前正文分页／跟随使用 `navigation` 插槽。`ReaderDockProvider` 与 `ReaderDockSlot` 只负责 React 控件的布局；持久音频元素继续由 `player.ts` 唯一持有，切换文字来源、打开面板或移动控件都不能重新创建音频、重置进度或自行恢复播放。
