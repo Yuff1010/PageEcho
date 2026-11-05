@@ -6,7 +6,7 @@
 
 [功能](#功能) · [开始使用](#开始使用) · [来源与插件](#来源与插件) · [本地开发](#本地开发) · [开发记录](#开发记录)
 
-当前目录程序为 **Windows x64 开发预览 `0.43.0-dev.1`**，完成[书架摘要、目录分页与独立播放](docs/LIBRARY_PERFORMANCE.md)。[安装升级验证](docs/INSTALLER_VALIDATION.md)、[字幕质量回归](docs/QUALITY_REGRESSION.md)及当前限制记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
+当前目录程序为 **Windows x64 开发预览 `0.44.0-dev.1`**，简化[字幕与文稿工具](docs/releases/0.44.0-dev.1.md)，统一阅读设置尺寸和按需组件管理。[书架性能](docs/LIBRARY_PERFORMANCE.md)、[安装升级验证](docs/INSTALLER_VALIDATION.md)、[字幕质量回归](docs/QUALITY_REGRESSION.md)及当前限制记录在 [CHANGELOG](CHANGELOG.md) 与 [逐版说明](docs/releases/)。
 
 ![统一电子书书架](docs/images/bookshelf.png)
 
@@ -105,7 +105,7 @@ npm.cmd run dev
 ```powershell
 npm.cmd run check
 New-Item -ItemType Directory -Force out | Out-Null
-npm.cmd run build:preview -- --version 0.43.0-dev.1
+npm.cmd run build:preview -- --version 0.44.0-dev.1
 ```
 
 全新 checkout 不包含 `out/`，上面的命令会在缺失时创建空目录，已有内容继续保留。构建会返回 `appRoot`，写入新的 `cache/managed-generated/` 目录，保留根 `out/`。把返回的实际路径用于桌面回归或自包含打包：

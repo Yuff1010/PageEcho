@@ -157,7 +157,7 @@
 
 `0.44` 的“字幕与文稿”复用阅读设置的宽度、标题字号、内边距与高度参数；`subtitle-tools.css` 只负责该工具侧栏。标题和关闭按钮固定，唯一纵向滚动区为 `.subtitle-tools-content`，不能再用广域 `.reading .transcription-controls > details[open]` 或窄窗任务卡的固定高度制造第二个滚动区。重新打开常用工具时从顶部显示，排版滚动及音频会话不变。
 
-常用层仅显示文稿数量／版本、导入及校对／导出图标。`TranscriptionControls` 的“字幕设置”是单个原生折叠；`SubtitlePreparationForm` 的 `compact` 模式直接显示短行表单，不再嵌套高级折叠与参考表。`ComponentSetup` 的 `compact` 模式先显示真实状态行，用户明确管理后才加载候选与安装／版本管理，收起时保留安装表单状态；应用维护页仍保留完整流程。成功长路径和可选说明使用 `HelpTip`，失败、能力问题、真实进度、取消及重试直接可见。
+常用层仅显示文稿数量／版本、导入及校对／导出图标。`TranscriptionControls` 的“字幕设置”是单个原生折叠；`SubtitlePreparationForm` 的 `compact` 模式直接显示短行表单，不再嵌套高级折叠与参考表。`ComponentSetup` 的 `compact` 模式先显示真实状态行，用户明确管理后才显示候选并加载安装／版本管理，收起时保留安装表单状态；应用维护页仍保留完整流程。成功长路径和可选说明使用 `HelpTip`，失败、能力问题、真实进度、取消及重试直接可见。
 
 面板透明度只应用一次：`readerPanelAppearance` 提供实际应用表面 `--reader-panel-surface`，不借用可能被阅读纸色覆盖的 `--ui-panel`；背景以该表面混入阅读纸色。`--reader-panel-solid` 表示混合后的对比度参考，不再给该参考色重复透明。导出图标保留原生 `summary` 语义，展开时停用名称气泡；Escape 优先收起导出菜单并恢复触发器焦点。
 

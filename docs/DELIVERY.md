@@ -1,6 +1,8 @@
 # 自包含 Windows 目录版
 
-当前目录版为 **听见书页 · PageEcho 0.43.0-dev.1**，使用轻摘要、按需章节和独立播放上下文，两种书架每页最多 100 张卡，并修复后台续页与快速翻页交错时跳段，保持 schema 18。目录及同名 ZIP：`release/PageEcho-0.43.0-dev.1-2026-11-03T14-04-05.537Z-win-x64`，ZIP SHA-256 `d9ca150ab1531768cd47f13e6c2cb6942ac4d683fc81ac294d4920e60f15548e`。最终桌面、本机独立运行、远程安装验收和测量边界见 [版本记录](releases/0.43.0-dev.1.md) 与 [性能说明](LIBRARY_PERFORMANCE.md)。程序和 ZIP 保留本机。
+当前目录版为 **听见书页 · PageEcho 0.44.0-dev.1**，简化字幕／文稿操作、按需展开组件管理，统一阅读设置参数、单滚动区与透明面板绘制。目录及同名 ZIP：`release/PageEcho-0.44.0-dev.1-2026-11-04T05-21-41.638Z-win-x64`，ZIP SHA-256 `caef14dec76025b7238209858a3398dda25f862a44eedd5f90a09767f9e0879d`。本机复验、独立目录运行、云端 28 项关键流程和真实安装升级／卸载重装通过，完整边界见 [版本记录](releases/0.44.0-dev.1.md)。程序和 ZIP 保留本机。
+
+历史目录版 **0.43.0-dev.1** 使用轻摘要、按需章节和独立播放上下文，两种书架每页最多 100 张卡，并修复后台续页与快速翻页交错时跳段，保持 schema 18。目录及同名 ZIP：`release/PageEcho-0.43.0-dev.1-2026-11-03T14-04-05.537Z-win-x64`，ZIP SHA-256 `d9ca150ab1531768cd47f13e6c2cb6942ac4d683fc81ac294d4920e60f15548e`。当版验证和测量见 [版本记录](releases/0.43.0-dev.1.md) 与 [性能说明](LIBRARY_PERFORMANCE.md)。
 
 历史目录版 **0.42.0-dev.1** 优化后台批量和定向读取，仍返回完整书架。目录及同名 ZIP：`release/PageEcho-0.42.0-dev.1-2026-11-03T04-56-08.080Z-win-x64`，ZIP SHA-256 `d5779d61b9caace9b32f69752d83ec40903a7a8699d04f566fb7b5cd971dab76`。当版测量和验收见 [版本记录](releases/0.42.0-dev.1.md)。
 
